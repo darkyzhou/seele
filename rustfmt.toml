@@ -1,0 +1,4 @@
+imports_granularity = "Crate"
+group_imports = "One"
+use_small_heuristics = "Max"
+unstable_features = true
