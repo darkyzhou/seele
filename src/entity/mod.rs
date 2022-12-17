@@ -1,19 +1,33 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
 
-type SequenceTasks = Vec<(String, Arc<TaskConfig>)>;
+pub type SequenceTasks = Vec<(String, Arc<TaskConfig>)>;
+pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubmissionConfig {
+    pub id: String,
     #[serde(rename = "steps")]
-    tasks: SequenceTasks,
+    pub tasks: SequenceTasks,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
+pub struct Submission {
+    pub id: String,
+    pub config: SubmissionConfig,
+    pub root: Arc<TaskNode>,
+    pub id_to_node_map: HashMap<String, Arc<TaskNode>>,
+    pub id_to_config_map: HashMap<String, Arc<TaskConfig>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TaskConfig {
-    #[serde(skip_serializing, default = "default_when")]
-    pub when: String,
+    #[serde(skip_serializing, default)]
+    pub when: Option<String>,
     #[serde(skip_serializing, default)]
     pub needs: Option<String>,
     #[serde(skip_serializing_if = "TaskExtraConfig::is_execution_task", flatten)]
@@ -22,12 +36,7 @@ pub struct TaskConfig {
     #[serde(skip_deserializing, default = "random_id")]
     pub id: String,
     #[serde(skip_deserializing, default)]
-    pub status: TaskStatus,
-}
-
-#[inline]
-fn default_when() -> String {
-    "previous.ok".to_string()
+    pub status: Mutex<TaskStatus>,
 }
 
 #[inline]
@@ -58,7 +67,7 @@ pub struct SequenceTaskConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ParallelTaskConfig {
     #[serde(rename = "parallel")]
-    pub tasks: Vec<Arc<TaskConfig>>,
+    pub tasks: ParallelTasks,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -71,17 +80,71 @@ pub enum ActionTaskConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ActionAddFileConfig {}
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type")]
 pub enum TaskStatus {
+    #[serde(rename = "pending")]
     Pending,
-    // define how to serialize it
+    #[serde(rename = "skipped")]
     Skipped,
-    // define how to serialize it
-    Failed,
+    #[serde(rename = "failed")]
+    Failed(TaskReport<TaskExecutionFailedReport>),
+    #[serde(rename = "success")]
+    Success(TaskReport<TaskExecutionSuccessReport>),
 }
 
 impl Default for TaskStatus {
     fn default() -> Self {
         Self::Pending
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskReport<T> {
+    pub enqueued_at: SystemTime,
+    #[serde(flatten)]
+    pub execution: T,
+}
+
+pub enum TaskExecutionReport {
+    Success(TaskExecutionSuccessReport),
+    Failed(TaskExecutionFailedReport),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskExecutionSuccessReport {
+    pub run_at: SystemTime,
+    pub time_elapsed_ms: u64,
+    #[serde(flatten)]
+    pub extra: TaskExecutionSuccessReportExtra,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind")]
+pub enum TaskExecutionSuccessReportExtra {
+    #[serde(rename = "add-file")]
+    AddFile,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskExecutionFailedReport {
+    pub run_at: Option<SystemTime>,
+    pub time_elapsed_ms: Option<u64>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaskNode {
+    pub parent_id: Option<String>,
+    pub id: String,
+    pub when: Option<String>,
+    pub needs: Option<String>,
+    pub children: Vec<Arc<TaskNode>>,
+    pub extra: TaskNodeExtra,
+}
+
+#[derive(Debug, Clone)]
+pub enum TaskNodeExtra {
+    Schedule(Vec<Arc<TaskNode>>),
+    Action(Arc<ActionTaskConfig>),
 }

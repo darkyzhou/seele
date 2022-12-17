@@ -1,11 +1,14 @@
 use crate::{
-    entity::{SubmissionConfig, TaskConfig},
+    entity::{Submission, SubmissionConfig},
     worker::WorkerQueueItem,
 };
-use std::sync::Arc;
+use anyhow::Context;
 use tokio::sync::{mpsc, oneshot};
-use tokio_graceful_shutdown::SubsystemHandle;
+use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::error;
+
+mod execute;
+mod resolve;
 
 pub type ComposerQueueItem = (SubmissionConfig, oneshot::Sender<SubmissionConfig>);
 
@@ -15,28 +18,37 @@ pub async fn composer_main(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
 ) -> anyhow::Result<()> {
     loop {
-        while let Some((submission, tx)) = composer_queue_rx.recv().await {
-            tokio::spawn(async move {
-                let result = handle_submission(submission).await;
-                if let Err(err) = tx.send(result) {
-                    error!("Error sending result to tx: {:#?}", err);
+        while let Ok(Some((submission, tx))) =
+            composer_queue_rx.recv().cancel_on_shutdown(&handle).await
+        {
+            tokio::spawn({
+                let worker_queue_tx = worker_queue_tx.clone();
+                async move {
+                    // TODO: pass the `handle`
+                    match handle_submission(worker_queue_tx, submission).await {
+                        Err(err) => {
+                            error!("Error handling the submission: {:#?}", err);
+                        }
+                        Ok(submission) => {
+                            if let Err(err) = tx.send(submission.config) {
+                                error!("Error sending the result to tx: {:#?}", err);
+                            }
+                        }
+                    }
                 }
             });
         }
     }
 }
 
-async fn handle_submission(submission: SubmissionConfig) -> SubmissionConfig {
-    todo!()
-}
-
-async fn submit_task(
+async fn handle_submission(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
-    task: Arc<TaskConfig>,
-) -> anyhow::Result<()> {
-    let (tx, rx) = oneshot::channel();
-    worker_queue_tx.send((task, tx)).await?;
-
-    // TODO: timeout
-    Ok(rx.await?)
+    submission: SubmissionConfig,
+) -> anyhow::Result<Submission> {
+    let submission =
+        resolve::resolve_submission(submission).context("Failed to resolve the submission")?;
+    let submission = execute::execute_submission(worker_queue_tx, submission)
+        .await
+        .context("Error executing the submission")?;
+    Ok(submission)
 }

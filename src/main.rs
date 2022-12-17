@@ -11,6 +11,7 @@ mod conf;
 mod entity;
 mod exchange;
 mod queues;
+mod shared;
 mod worker;
 
 fn main() {
