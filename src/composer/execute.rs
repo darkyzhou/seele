@@ -50,7 +50,7 @@ pub async fn execute_submission(
 
             let should_continue = false;
             if !should_continue {
-                mark_children_as_skipped(&submission, node);
+                mark_children_as_skipped(node);
                 continue;
             }
 
@@ -78,10 +78,10 @@ fn flatten_tasks(
     })
 }
 
-fn mark_children_as_skipped(submission: &Submission, task: &TaskNode) {
+fn mark_children_as_skipped(task: &TaskNode) {
     for node in &task.children {
         *node.config.status.lock().unwrap() = TaskStatus::Skipped;
-        mark_children_as_skipped(submission, node);
+        mark_children_as_skipped(node);
     }
 }
 
