@@ -8,6 +8,7 @@ use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::error;
 
 mod execute;
+mod predicate;
 mod resolve;
 
 pub type ComposerQueueItem = (SubmissionConfig, oneshot::Sender<SubmissionConfig>);

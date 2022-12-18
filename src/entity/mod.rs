@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::SystemTime,
 };
 
@@ -34,7 +34,7 @@ pub struct TaskConfig {
     pub extra: TaskExtraConfig,
 
     #[serde(skip_deserializing, default)]
-    pub status: Mutex<TaskStatus>,
+    pub status: RwLock<TaskStatus>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -103,6 +103,7 @@ pub struct TaskReport<T> {
     pub execution: T,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub enum TaskExecutionReport {
     Success(TaskExecutionSuccessReport),
     Failed(TaskExecutionFailedReport),
@@ -119,6 +120,8 @@ pub struct TaskExecutionSuccessReport {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind")]
 pub enum TaskExecutionSuccessReportExtra {
+    #[serde(rename = "noop")]
+    Noop,
     #[serde(rename = "add-file")]
     AddFile,
 }
@@ -139,7 +142,6 @@ pub struct RootTaskNode {
 #[derive(Debug, Clone)]
 pub struct TaskNode {
     pub config: Arc<TaskConfig>,
-    pub parent_id: Option<String>,
     pub id: String,
     pub children: Vec<Arc<TaskNode>>,
     pub extra: TaskNodeExtra,

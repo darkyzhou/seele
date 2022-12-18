@@ -1,3 +1,4 @@
+use super::predicate;
 use crate::{
     entity::{
         ActionTaskConfig, Submission, TaskExecutionFailedReport, TaskExecutionReport, TaskNode,
@@ -29,7 +30,7 @@ pub async fn execute_submission(
 
             // TODO: parent
 
-            *node.config.status.lock().unwrap() = match report {
+            *node.config.status.write().unwrap() = match report {
                 Err(err) => TaskStatus::Failed(TaskReport {
                     enqueued_at,
                     execution: TaskExecutionFailedReport {
@@ -48,13 +49,16 @@ pub async fn execute_submission(
                 },
             };
 
-            let should_continue = false;
-            if !should_continue {
+            let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
+                .children
+                .iter()
+                .partition(|child_node| predicate::check_node_predicate(node, child_node));
+
+            for node in skipped_nodes {
                 mark_children_as_skipped(node);
-                continue;
             }
 
-            next_queue.extend(flatten_tasks(node.children.iter().cloned()));
+            next_queue.extend(flatten_tasks(continue_nodes.into_iter().cloned()));
         }
 
         queue = next_queue;
@@ -80,7 +84,7 @@ fn flatten_tasks(
 
 fn mark_children_as_skipped(task: &TaskNode) {
     for node in &task.children {
-        *node.config.status.lock().unwrap() = TaskStatus::Skipped;
+        *node.config.status.write().unwrap() = TaskStatus::Skipped;
         mark_children_as_skipped(node);
     }
 }
@@ -94,4 +98,48 @@ async fn submit_task(
 
     // TODO: timeout
     Ok(rx.await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        composer::resolve::resolve_submission,
+        entity::{
+            ActionTaskConfig, TaskExecutionReport, TaskExecutionSuccessReport,
+            TaskExecutionSuccessReportExtra,
+        },
+    };
+    use std::time::SystemTime;
+
+    #[tokio::test]
+    async fn test_execute_submission() {
+        let submission = resolve_submission(
+            serde_yaml::from_str(include_str!("./test/resolve_submission_1.yaml"))
+                .expect("Failed to parse the input"),
+        )
+        .expect("Failed to resolve the submission");
+
+        let (tx, rx) = async_channel::unbounded();
+        let handle = tokio::spawn(async move {
+            super::execute_submission(tx, submission).await.unwrap();
+        });
+
+        let mut results = vec![];
+        while let Ok((config, tx)) = rx.recv().await {
+            results.push(config);
+
+            tx.send(TaskExecutionReport::Success(TaskExecutionSuccessReport {
+                run_at: SystemTime::now(),
+                time_elapsed_ms: 0,
+                extra: TaskExecutionSuccessReportExtra::Noop,
+            }))
+            .unwrap();
+        }
+
+        handle.await.unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert!(matches!(results[0].as_ref(), ActionTaskConfig::Noop));
+        assert!(matches!(results[1].as_ref(), ActionTaskConfig::Noop));
+    }
 }
