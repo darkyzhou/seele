@@ -16,10 +16,10 @@ pub fn resolve_submission(config: SubmissionConfig) -> anyhow::Result<Submission
         when: None,
         needs: None,
         children: vec![],
-        extra: TaskNodeExtra::Schedule(
-            resolve_sequence(Some(root_id.clone()), &config.tasks)
-                .context("Error resolving root sequence tasks")?,
-        ),
+        extra: TaskNodeExtra::Schedule({
+            vec![resolve_sequence(Some(root_id.clone()), &config.tasks)
+                .context("Error resolving root sequence tasks")?]
+        }),
     });
 
     Ok(Submission {
@@ -34,7 +34,7 @@ pub fn resolve_submission(config: SubmissionConfig) -> anyhow::Result<Submission
 fn resolve_sequence(
     parent_id: Option<String>,
     tasks: &SequenceTasks,
-) -> anyhow::Result<Vec<Arc<TaskNode>>> {
+) -> anyhow::Result<Arc<TaskNode>> {
     if tasks.is_empty() {
         bail!("Empty steps provided");
     }
@@ -43,41 +43,41 @@ fn resolve_sequence(
 
     let mut id_to_node_map: HashMap<String, TaskNode> = HashMap::default();
     let mut id_to_children_map: HashMap<String, Vec<String>> = HashMap::default();
-    let mut root_ids: Vec<String> = vec![];
-    for (i, (id, task)) in tasks.iter().enumerate() {
+
+    let root_node = {
+        let (_, root_task) = &tasks[0];
+        resolve_task(parent_id.clone(), root_task)?
+    };
+    let mut prev_seq_node_id = root_node.id.clone();
+    id_to_node_map.insert(root_node.id.clone(), root_node.clone());
+
+    for (i, (name, task)) in tasks[1..].iter().enumerate() {
         let node = resolve_task(parent_id.clone(), task)?;
 
-        match (&task.needs, root_ids.last()) {
-            (None, Some(prev_id)) => {
-                id_to_children_map.entry(prev_id.clone()).or_default().push(node.id.clone())
+        match &task.needs {
+            None => {
+                id_to_children_map
+                    .entry(prev_seq_node_id.clone())
+                    .or_default()
+                    .push(node.id.clone());
+
+                prev_seq_node_id = node.id.clone();
             }
-            (Some(needs), _) => match tasks[0..i].iter().find(|(name, _)| name == needs) {
+            Some(needs) => match tasks[0..(i + 1)]
+                .iter()
+                .find(|(task_name, _)| task_name == needs && task_name != name)
+            {
                 None => bail!("Unknown task specified by the `needs` field: {}", needs),
                 Some(_) => {
-                    id_to_children_map.entry(needs.clone()).or_default().push(node.id.clone())
+                    id_to_children_map.entry(needs.clone()).or_default().push(node.id.clone());
                 }
             },
-            _ => {}
         };
 
-        if task.needs.is_none() {
-            root_ids.push(node.id.clone());
-        }
-
-        id_to_node_map.insert(id.clone(), node);
+        id_to_node_map.insert(node.id.clone(), node);
     }
 
-    Ok(root_ids
-        .into_iter()
-        .map(|id| {
-            append_children(
-                &id_to_node_map,
-                &id_to_children_map,
-                id_to_node_map.get(&id).unwrap().clone(),
-            )
-        })
-        .map(Arc::new)
-        .collect())
+    Ok(Arc::new(append_children(&id_to_node_map, &id_to_children_map, root_node)))
 }
 
 fn resolve_task(parent_id: Option<String>, task: &TaskConfig) -> anyhow::Result<TaskNode> {
@@ -92,10 +92,10 @@ fn resolve_task(parent_id: Option<String>, task: &TaskConfig) -> anyhow::Result<
             when: task.when.clone(),
             needs: task.needs.clone(),
             children: vec![],
-            extra: TaskNodeExtra::Schedule(
-                resolve_sequence(Some(task.id.clone()), &config.tasks)
-                    .context("Error resolving sequence tasks")?,
-            ),
+            extra: TaskNodeExtra::Schedule({
+                vec![resolve_sequence(Some(task.id.clone()), &config.tasks)
+                    .context("Error resolving sequence tasks")?]
+            }),
         },
         TaskExtraConfig::Parallel(config) => TaskNode {
             parent_id,
