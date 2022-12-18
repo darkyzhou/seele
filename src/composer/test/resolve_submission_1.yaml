@@ -1,0 +1,6 @@
+id: test-submission
+steps:
+  one:
+    action: seele/noop@1
+  two:
+    action: seele/noop@1

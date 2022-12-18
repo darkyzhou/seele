@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -5,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-pub type SequenceTasks = Vec<(String, Arc<TaskConfig>)>;
+pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -19,9 +20,8 @@ pub struct SubmissionConfig {
 pub struct Submission {
     pub id: String,
     pub config: SubmissionConfig,
-    pub root: Arc<TaskNode>,
+    pub root: Arc<RootTaskNode>,
     pub id_to_node_map: HashMap<String, Arc<TaskNode>>,
-    pub id_to_config_map: HashMap<String, Arc<TaskConfig>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -33,15 +33,8 @@ pub struct TaskConfig {
     #[serde(skip_serializing_if = "TaskExtraConfig::is_execution_task", flatten)]
     pub extra: TaskExtraConfig,
 
-    #[serde(skip_deserializing, default = "random_id")]
-    pub id: String,
     #[serde(skip_deserializing, default)]
     pub status: Mutex<TaskStatus>,
-}
-
-#[inline]
-fn random_id() -> String {
-    "TODO".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -73,12 +66,16 @@ pub struct ParallelTaskConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action")]
 pub enum ActionTaskConfig {
+    #[serde(rename = "seele/noop@1")]
+    Noop,
     #[serde(rename = "seele/add-file@1")]
     AddFile(ActionAddFileConfig),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionAddFileConfig {}
+pub struct ActionAddFileConfig {
+    pub files: String,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
@@ -134,11 +131,16 @@ pub struct TaskExecutionFailedReport {
 }
 
 #[derive(Debug, Clone)]
+pub struct RootTaskNode {
+    pub id: String,
+    pub tasks: Vec<Arc<TaskNode>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct TaskNode {
+    pub config: Arc<TaskConfig>,
     pub parent_id: Option<String>,
     pub id: String,
-    pub when: Option<String>,
-    pub needs: Option<String>,
     pub children: Vec<Arc<TaskNode>>,
     pub extra: TaskNodeExtra,
 }

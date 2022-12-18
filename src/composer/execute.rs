@@ -5,14 +5,14 @@ use crate::{
     },
     worker::WorkerQueueItem,
 };
-use std::{iter, sync::Arc, time::SystemTime};
+use std::{sync::Arc, time::SystemTime};
 use tokio::sync::oneshot;
 
 pub async fn execute_submission(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission: Submission,
 ) -> anyhow::Result<Submission> {
-    let mut queue = flatten_tasks(iter::once(submission.root.clone()));
+    let mut queue = flatten_tasks(submission.root.tasks.iter().cloned());
     // TODO: queue is initially empty?
     while !queue.is_empty() {
         let mut next_queue = vec![];
@@ -25,12 +25,11 @@ pub async fn execute_submission(
 
         for (i, report) in reports.into_iter().enumerate() {
             let id = &queue[i].0.id;
-            let config = submission.id_to_config_map.get(id).unwrap();
             let node = submission.id_to_node_map.get(id).unwrap();
 
             // TODO: parent
 
-            *config.status.lock().unwrap() = match report {
+            *node.config.status.lock().unwrap() = match report {
                 Err(err) => TaskStatus::Failed(TaskReport {
                     enqueued_at,
                     execution: TaskExecutionFailedReport {
@@ -81,9 +80,7 @@ fn flatten_tasks(
 
 fn mark_children_as_skipped(submission: &Submission, task: &TaskNode) {
     for node in &task.children {
-        if let Some(node) = submission.id_to_config_map.get(&node.id) {
-            *node.status.lock().unwrap() = TaskStatus::Skipped;
-        }
+        *node.config.status.lock().unwrap() = TaskStatus::Skipped;
         mark_children_as_skipped(submission, node);
     }
 }
