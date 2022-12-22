@@ -23,3 +23,6 @@ tokio = { version = "1", features = ["full"] }
 tokio-graceful-shutdown = "0.11.1"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
+
+[dev-dependencies]
+insta = { version = "1.23.0", features = ["glob", "redactions"] }

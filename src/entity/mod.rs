@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
     time::SystemTime,
 };
 
@@ -30,7 +30,7 @@ pub struct TaskConfig {
     pub when: Option<String>,
     #[serde(skip_serializing, default)]
     pub needs: Option<String>,
-    #[serde(skip_serializing_if = "TaskExtraConfig::is_execution_task", flatten)]
+    #[serde(skip_serializing_if = "TaskExtraConfig::is_action_task", flatten)]
     pub extra: TaskExtraConfig,
 
     #[serde(skip_deserializing, default)]
@@ -46,7 +46,7 @@ pub enum TaskExtraConfig {
 }
 
 impl TaskExtraConfig {
-    fn is_execution_task(config: &TaskExtraConfig) -> bool {
+    fn is_action_task(config: &TaskExtraConfig) -> bool {
         matches!(config, Self::Action(_))
     }
 }
@@ -66,10 +66,19 @@ pub struct ParallelTaskConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action")]
 pub enum ActionTaskConfig {
+    #[cfg(test)]
+    #[serde(rename = "seele/test")]
+    Test(ActionTestConfig),
     #[serde(rename = "seele/noop@1")]
     Noop,
     #[serde(rename = "seele/add-file@1")]
     AddFile(ActionAddFileConfig),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg(test)]
+pub struct ActionTestConfig {
+    pub test: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -85,9 +94,9 @@ pub enum TaskStatus {
     #[serde(rename = "skipped")]
     Skipped,
     #[serde(rename = "failed")]
-    Failed(TaskReport<TaskExecutionFailedReport>),
+    Failed(TaskFailedReport),
     #[serde(rename = "success")]
-    Success(TaskReport<TaskExecutionSuccessReport>),
+    Success(TaskSuccessReport),
 }
 
 impl Default for TaskStatus {
@@ -96,30 +105,27 @@ impl Default for TaskStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct TaskReport<T> {
-    pub enqueued_at: SystemTime,
-    #[serde(flatten)]
-    pub execution: T,
+#[derive(Debug)]
+pub enum TaskReport {
+    Success(TaskSuccessReport),
+    Failed(TaskFailedReport),
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub enum TaskExecutionReport {
-    Success(TaskExecutionSuccessReport),
-    Failed(TaskExecutionFailedReport),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct TaskExecutionSuccessReport {
-    pub run_at: SystemTime,
-    pub time_elapsed_ms: u64,
-    #[serde(flatten)]
-    pub extra: TaskExecutionSuccessReportExtra,
+pub enum TaskSuccessReport {
+    Schedule,
+    Action {
+        enqueued_at: SystemTime,
+        run_at: SystemTime,
+        time_elapsed_ms: u64,
+        #[serde(flatten)]
+        extra: TaskSuccessReportExtra,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind")]
-pub enum TaskExecutionSuccessReportExtra {
+pub enum TaskSuccessReportExtra {
     #[serde(rename = "noop")]
     Noop,
     #[serde(rename = "add-file")]
@@ -127,10 +133,14 @@ pub enum TaskExecutionSuccessReportExtra {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TaskExecutionFailedReport {
-    pub run_at: Option<SystemTime>,
-    pub time_elapsed_ms: Option<u64>,
-    pub message: String,
+pub enum TaskFailedReport {
+    Schedule,
+    Action {
+        enqueued_at: SystemTime,
+        run_at: Option<SystemTime>,
+        time_elapsed_ms: Option<u64>,
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -141,6 +151,7 @@ pub struct RootTaskNode {
 
 #[derive(Debug, Clone)]
 pub struct TaskNode {
+    pub schedule_parent_id: Option<String>,
     pub config: Arc<TaskConfig>,
     pub id: String,
     pub children: Vec<Arc<TaskNode>>,

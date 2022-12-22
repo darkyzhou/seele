@@ -12,13 +12,18 @@ pub fn resolve_submission(config: SubmissionConfig) -> anyhow::Result<Submission
     let root_id = config.id.clone();
     let root = Arc::new(RootTaskNode {
         id: root_id.clone(),
-        tasks: vec![resolve_sequence(&config.tasks).context("Error resolving root sequence tasks")?],
+        tasks: vec![
+            resolve_sequence(None, &config.tasks).context("Error resolving root sequence tasks")?
+        ],
     });
     let id_to_node_map = get_id_to_node_map(root.clone());
     Ok(Submission { id: root_id, config, id_to_node_map, root })
 }
 
-fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
+fn resolve_sequence(
+    schedule_parent_id: Option<String>,
+    tasks: &SequenceTasks,
+) -> anyhow::Result<Arc<TaskNode>> {
     if tasks.is_empty() {
         bail!("Empty steps provided");
     }
@@ -30,13 +35,13 @@ fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
 
     let root_node = {
         let (_, root_task) = tasks.first().unwrap();
-        resolve_task(root_task.clone())?
+        resolve_task(schedule_parent_id.clone(), root_task.clone())?
     };
     id_to_node_map.insert(root_node.id.clone(), root_node.clone());
 
     let mut prev_seq_node_id = root_node.id.clone();
     for (i, (name, task)) in tasks.iter().enumerate().skip(1) {
-        let node = resolve_task(task.clone())?;
+        let node = resolve_task(schedule_parent_id.clone(), task.clone())?;
 
         match &task.needs {
             None => {
@@ -65,29 +70,33 @@ fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
     Ok(Arc::new(append_children(&id_to_node_map, &id_to_children_map, root_node)))
 }
 
-fn resolve_task(task_config: Arc<TaskConfig>) -> anyhow::Result<TaskNode> {
+fn resolve_task(
+    schedule_parent_id: Option<String>,
+    config: Arc<TaskConfig>,
+) -> anyhow::Result<TaskNode> {
     let id = shared::random_task_id();
-    Ok(match &task_config.extra {
-        TaskExtraConfig::Sequence(config) => {
+    Ok(match &config.extra {
+        TaskExtraConfig::Sequence(extra) => {
             let extra = TaskNodeExtra::Schedule({
-                vec![resolve_sequence(&config.tasks).context("Error resolving sequence tasks")?]
+                vec![resolve_sequence(Some(id.clone()), &extra.tasks)
+                    .context("Error resolving sequence tasks")?]
             });
-            TaskNode { config: task_config, id, children: vec![], extra }
+            TaskNode { schedule_parent_id, config, id, children: vec![], extra }
         }
-        TaskExtraConfig::Parallel(config) => {
+        TaskExtraConfig::Parallel(extra) => {
             let extra = TaskNodeExtra::Schedule(
-                config
+                extra
                     .tasks
                     .iter()
-                    .map(|task| resolve_task(task.clone()).map(Arc::new))
+                    .map(|task| resolve_task(Some(id.clone()), task.clone()).map(Arc::new))
                     .collect::<anyhow::Result<_>>()
                     .context("Error resolving parallel tasks")?,
             );
-            TaskNode { config: task_config, id, children: vec![], extra }
+            TaskNode { schedule_parent_id, config, id, children: vec![], extra }
         }
-        TaskExtraConfig::Action(config) => {
-            let extra = TaskNodeExtra::Action(Arc::new(config.clone()));
-            TaskNode { config: task_config, id, children: vec![], extra }
+        TaskExtraConfig::Action(extra) => {
+            let extra = TaskNodeExtra::Action(Arc::new(extra.clone()));
+            TaskNode { schedule_parent_id, config, id, children: vec![], extra }
         }
     })
 }
@@ -135,16 +144,17 @@ fn get_id_to_node_map(root: Arc<RootTaskNode>) -> HashMap<String, Arc<TaskNode>>
 
 #[cfg(test)]
 mod tests {
+    use insta::glob;
+    use std::fs;
+
     #[test]
     fn test_resolve_submission() {
-        let submission = super::resolve_submission(
-            serde_yaml::from_str(include_str!("./test/resolve_submission_1.yaml"))
-                .expect("Failed to parse the input"),
-        )
-        .expect("Failed to resolve the submission");
-
-        assert_eq!(submission.id, "test-submission".to_string());
-        assert_eq!(submission.root.tasks.len(), 1);
-        assert_eq!(submission.root.tasks[0].children.len(), 1);
+        glob!("stubs/*.yaml", |path| {
+            let submission = super::resolve_submission(
+                serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+            )
+            .expect("Error resolving the submission");
+            insta::assert_debug_snapshot!(submission);
+        });
     }
 }

@@ -1,8 +1,8 @@
 use super::predicate;
 use crate::{
     entity::{
-        ActionTaskConfig, Submission, TaskExecutionFailedReport, TaskExecutionReport, TaskNode,
-        TaskNodeExtra, TaskReport, TaskStatus,
+        ActionTaskConfig, Submission, TaskFailedReport, TaskNode, TaskNodeExtra, TaskReport,
+        TaskStatus, TaskSuccessReport,
     },
     worker::WorkerQueueItem,
 };
@@ -25,29 +25,50 @@ pub async fn execute_submission(
         .await;
 
         for (i, report) in reports.into_iter().enumerate() {
-            let id = &queue[i].0.id;
-            let node = submission.id_to_node_map.get(id).unwrap();
-
-            // TODO: parent
+            let node = submission.id_to_node_map.get(&queue[i].0.id).unwrap();
 
             *node.config.status.write().unwrap() = match report {
-                Err(err) => TaskStatus::Failed(TaskReport {
+                Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
                     enqueued_at,
-                    execution: TaskExecutionFailedReport {
-                        run_at: None,
-                        time_elapsed_ms: None,
-                        message: format!("Error submitting the task: {:#?}", err),
-                    },
+                    run_at: None,
+                    time_elapsed_ms: None,
+                    message: format!("Error submitting the task: {:#?}", err),
                 }),
                 Ok(report) => match report {
-                    TaskExecutionReport::Success(report) => {
-                        TaskStatus::Success(TaskReport { enqueued_at, execution: report })
-                    }
-                    TaskExecutionReport::Failed(report) => {
-                        TaskStatus::Failed(TaskReport { enqueued_at, execution: report })
-                    }
+                    TaskReport::Success(report) => TaskStatus::Success(report),
+                    TaskReport::Failed(report) => TaskStatus::Failed(report),
                 },
             };
+
+            if let Some(parent) = node
+                .schedule_parent_id
+                .as_ref()
+                .and_then(|parent| submission.id_to_node_map.get(parent))
+            {
+                if let TaskNodeExtra::Schedule(nodes) = &parent.extra {
+                    *parent.config.status.write().unwrap() = {
+                        let mut status = TaskStatus::Success(TaskSuccessReport::Schedule);
+                        for child_status in
+                            nodes.iter().map(|node| node.config.status.read().unwrap())
+                        {
+                            match *child_status {
+                                TaskStatus::Pending => {
+                                    status = TaskStatus::Pending;
+                                }
+                                TaskStatus::Failed(_) => {
+                                    status = TaskStatus::Failed(TaskFailedReport::Schedule);
+                                    break;
+                                }
+                                TaskStatus::Skipped => {
+                                    panic!("Unexpected child status: Skipped")
+                                }
+                                _ => {}
+                            }
+                        }
+                        status
+                    };
+                }
+            }
 
             let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
                 .children
@@ -92,7 +113,7 @@ fn mark_children_as_skipped(task: &TaskNode) {
 async fn submit_task(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     task: Arc<ActionTaskConfig>,
-) -> anyhow::Result<TaskExecutionReport> {
+) -> anyhow::Result<TaskReport> {
     let (tx, rx) = oneshot::channel();
     worker_queue_tx.send((task, tx)).await?;
 
@@ -104,42 +125,44 @@ async fn submit_task(
 mod tests {
     use crate::{
         composer::resolve::resolve_submission,
-        entity::{
-            ActionTaskConfig, TaskExecutionReport, TaskExecutionSuccessReport,
-            TaskExecutionSuccessReportExtra,
-        },
+        entity::{TaskReport, TaskSuccessReport, TaskSuccessReportExtra},
     };
-    use std::time::SystemTime;
+    use insta::glob;
+    use std::{fs, time::SystemTime};
 
-    #[tokio::test]
-    async fn test_execute_submission() {
-        let submission = resolve_submission(
-            serde_yaml::from_str(include_str!("./test/resolve_submission_1.yaml"))
-                .expect("Failed to parse the input"),
-        )
-        .expect("Failed to resolve the submission");
+    #[test]
+    fn test_execute_submission() {
+        glob!("stubs/*.yaml", |path| {
+            tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap().block_on(
+                async {
+                    let submission = resolve_submission(
+                        serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+                    )
+                    .expect("Error resolving the submission");
 
-        let (tx, rx) = async_channel::unbounded();
-        let handle = tokio::spawn(async move {
-            super::execute_submission(tx, submission).await.unwrap();
-        });
+                    let (tx, rx) = async_channel::unbounded();
+                    let handle = tokio::spawn(async move {
+                        super::execute_submission(tx, submission).await.unwrap();
+                    });
 
-        let mut results = vec![];
-        while let Ok((config, tx)) = rx.recv().await {
-            results.push(config);
+                    let mut results = vec![];
+                    while let Ok((config, tx)) = rx.recv().await {
+                        results.push((config,));
 
-            tx.send(TaskExecutionReport::Success(TaskExecutionSuccessReport {
-                run_at: SystemTime::now(),
-                time_elapsed_ms: 0,
-                extra: TaskExecutionSuccessReportExtra::Noop,
-            }))
-            .unwrap();
-        }
+                        tx.send(TaskReport::Success(TaskSuccessReport::Action {
+                            enqueued_at: SystemTime::now(),
+                            run_at: SystemTime::now(),
+                            time_elapsed_ms: 0,
+                            extra: TaskSuccessReportExtra::Noop,
+                        }))
+                        .unwrap();
+                    }
 
-        handle.await.unwrap();
+                    handle.await.unwrap();
 
-        assert_eq!(results.len(), 2);
-        assert!(matches!(results[0].as_ref(), ActionTaskConfig::Noop));
-        assert!(matches!(results[1].as_ref(), ActionTaskConfig::Noop));
+                    insta::assert_debug_snapshot!(results);
+                },
+            );
+        })
     }
 }

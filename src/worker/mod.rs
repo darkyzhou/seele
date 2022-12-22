@@ -1,12 +1,12 @@
 use crate::{
     conf,
-    entity::{ActionTaskConfig, TaskConfig, TaskExecutionReport},
+    entity::{ActionTaskConfig, TaskConfig, TaskReport},
 };
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio_graceful_shutdown::SubsystemHandle;
 
-pub type WorkerQueueItem = (Arc<ActionTaskConfig>, oneshot::Sender<TaskExecutionReport>);
+pub type WorkerQueueItem = (Arc<ActionTaskConfig>, oneshot::Sender<TaskReport>);
 
 pub async fn worker_main(
     handle: SubsystemHandle,

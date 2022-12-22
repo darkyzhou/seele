@@ -1,0 +1,16 @@
+id: nested_sequence_1
+steps:
+  one:
+    action: seele/test
+    test: 1
+  two:
+    steps:
+      two-one:
+        action: seele/test
+        test: 21
+      two-two:
+        action: seele/test
+        test: 22
+  three:
+    action: seele/test
+    test: 3

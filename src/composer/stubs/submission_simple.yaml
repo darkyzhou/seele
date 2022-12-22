@@ -1,0 +1,11 @@
+id: simple
+steps:
+  one:
+    action: seele/test
+    test: 1
+  two:
+    action: seele/test
+    test: 2
+  three:
+    action: seele/test
+    test: 3
