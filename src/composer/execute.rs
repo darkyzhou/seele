@@ -7,7 +7,7 @@ use crate::{
     worker::WorkerQueueItem,
 };
 use async_recursion::async_recursion;
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 use tokio::sync::oneshot;
 
 pub async fn execute_submission(
@@ -64,12 +64,10 @@ async fn track_action_execution(
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) {
-    let enqueued_at = SystemTime::now();
     let result = submit_task(worker_queue_tx.clone(), config.clone()).await;
 
     *node.config.status.write().unwrap() = match result {
         Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
-            enqueued_at,
             run_at: None,
             time_elapsed_ms: None,
             message: format!("Error submitting the task: {:#?}", err),
@@ -165,10 +163,9 @@ mod tests {
                         results.push((config,));
 
                         tx.send(TaskReport::Success(TaskSuccessReport::Action {
-                            enqueued_at: SystemTime::now(),
                             run_at: SystemTime::now(),
                             time_elapsed_ms: 0,
-                            extra: TaskSuccessReportExtra::Noop,
+                            extra: TaskSuccessReportExtra::Noop(0),
                         }))
                         .unwrap();
                     }

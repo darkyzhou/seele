@@ -37,7 +37,7 @@ fn main() {
             .handle_shutdown_requests(Duration::from_secs(10))
             .await;
         if let Err(err) = result {
-            error!("Crush encountered fatal issue(s):");
+            error!("Seele encountered fatal issue(s):");
             for error in err.get_subsystem_errors() {
                 match error {
                     SubsystemError::Failed(name, err) => {

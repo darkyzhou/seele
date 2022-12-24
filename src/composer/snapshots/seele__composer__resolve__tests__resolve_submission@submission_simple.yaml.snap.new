@@ -38,20 +38,20 @@ Submission(
               TaskNode(
                 id: "[id]",
                 children: [],
-                extra: ActionTestConfig(
-                  action: "seele/test",
+                extra: ActionNoopConfig(
+                  action: "seele/noop@1",
                   test: 3,
                 ),
               ),
             ],
-            extra: ActionTestConfig(
-              action: "seele/test",
+            extra: ActionNoopConfig(
+              action: "seele/noop@1",
               test: 2,
             ),
           ),
         ],
-        extra: ActionTestConfig(
-          action: "seele/test",
+        extra: ActionNoopConfig(
+          action: "seele/noop@1",
           test: 1,
         ),
       ),

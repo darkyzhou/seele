@@ -113,8 +113,8 @@ Submission(
                                   TaskNode(
                                     id: "[id]",
                                     children: [],
-                                    extra: ActionTestConfig(
-                                      action: "seele/test",
+                                    extra: ActionNoopConfig(
+                                      action: "seele/noop@1",
                                       test: 431,
                                     ),
                                   ),
@@ -125,40 +125,40 @@ Submission(
                               TaskNode(
                                 id: "[id]",
                                 children: [],
-                                extra: ActionTestConfig(
-                                  action: "seele/test",
+                                extra: ActionNoopConfig(
+                                  action: "seele/noop@1",
                                   test: 421,
                                 ),
                               ),
                               TaskNode(
                                 id: "[id]",
                                 children: [],
-                                extra: ActionTestConfig(
-                                  action: "seele/test",
+                                extra: ActionNoopConfig(
+                                  action: "seele/noop@1",
                                   test: 422,
                                 ),
                               ),
                               TaskNode(
                                 id: "[id]",
                                 children: [],
-                                extra: ActionTestConfig(
-                                  action: "seele/test",
+                                extra: ActionNoopConfig(
+                                  action: "seele/noop@1",
                                   test: 423,
                                 ),
                               ),
                             ],
                           ),
                         ],
-                        extra: ActionTestConfig(
-                          action: "seele/test",
+                        extra: ActionNoopConfig(
+                          action: "seele/noop@1",
                           test: 41,
                         ),
                       ),
                     ],
                   ),
                 ],
-                extra: ActionTestConfig(
-                  action: "seele/test",
+                extra: ActionNoopConfig(
+                  action: "seele/noop@1",
                   test: 3,
                 ),
               ),
@@ -170,22 +170,22 @@ Submission(
                   TaskNode(
                     id: "[id]",
                     children: [],
-                    extra: ActionTestConfig(
-                      action: "seele/test",
+                    extra: ActionNoopConfig(
+                      action: "seele/noop@1",
                       test: 22,
                     ),
                   ),
                 ],
-                extra: ActionTestConfig(
-                  action: "seele/test",
+                extra: ActionNoopConfig(
+                  action: "seele/noop@1",
                   test: 21,
                 ),
               ),
             ],
           ),
         ],
-        extra: ActionTestConfig(
-          action: "seele/test",
+        extra: ActionNoopConfig(
+          action: "seele/noop@1",
           test: 1,
         ),
       ),

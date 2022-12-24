@@ -11,9 +11,16 @@ pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubmissionConfig {
+    #[cfg_attr(test, serde(skip_serializing))]
+    #[serde(skip_deserializing, default = "make_submitted_at")]
+    pub submitted_at: SystemTime,
     pub id: String,
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
+}
+
+fn make_submitted_at() -> SystemTime {
+    SystemTime::now()
 }
 
 #[derive(Debug, Clone)]
@@ -68,19 +75,16 @@ pub struct ParallelTaskConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action")]
 pub enum ActionTaskConfig {
-    #[cfg(test)]
-    #[serde(rename = "seele/test")]
-    Test(ActionTestConfig),
     #[serde(rename = "seele/noop@1")]
-    Noop,
+    Noop(ActionNoopConfig),
     #[serde(rename = "seele/add-file@1")]
     AddFile(ActionAddFileConfig),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[cfg(test)]
-pub struct ActionTestConfig {
-    pub test: usize,
+pub struct ActionNoopConfig {
+    #[serde(default)]
+    pub test: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -117,7 +121,6 @@ pub enum TaskReport {
 pub enum TaskSuccessReport {
     Schedule,
     Action {
-        enqueued_at: SystemTime,
         run_at: SystemTime,
         time_elapsed_ms: u64,
         #[serde(flatten)]
@@ -129,7 +132,7 @@ pub enum TaskSuccessReport {
 #[serde(tag = "kind")]
 pub enum TaskSuccessReportExtra {
     #[serde(rename = "noop")]
-    Noop,
+    Noop(u64),
     #[serde(rename = "add-file")]
     AddFile,
 }
@@ -137,12 +140,7 @@ pub enum TaskSuccessReportExtra {
 #[derive(Debug, Clone, Serialize)]
 pub enum TaskFailedReport {
     Schedule,
-    Action {
-        enqueued_at: SystemTime,
-        run_at: Option<SystemTime>,
-        time_elapsed_ms: Option<u64>,
-        message: String,
-    },
+    Action { run_at: Option<SystemTime>, time_elapsed_ms: Option<u64>, message: String },
 }
 
 #[derive(Debug, Clone)]
