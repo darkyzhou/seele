@@ -17,10 +17,12 @@ pub struct SubmissionConfig {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Submission {
     pub id: String,
     pub config: SubmissionConfig,
     pub root: Arc<RootTaskNode>,
+    #[cfg_attr(test, serde(skip_serializing))]
     pub id_to_node_map: HashMap<String, Arc<TaskNode>>,
 }
 
@@ -144,14 +146,16 @@ pub enum TaskFailedReport {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct RootTaskNode {
     pub id: String,
     pub tasks: Vec<Arc<TaskNode>>,
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct TaskNode {
-    pub schedule_parent_id: Option<String>,
+    #[cfg_attr(test, serde(skip_serializing))]
     pub config: Arc<TaskConfig>,
     pub id: String,
     pub children: Vec<Arc<TaskNode>>,
@@ -159,6 +163,8 @@ pub struct TaskNode {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
+#[cfg_attr(test, serde(untagged))]
 pub enum TaskNodeExtra {
     Schedule(Vec<Arc<TaskNode>>),
     Action(Arc<ActionTaskConfig>),

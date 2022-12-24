@@ -175,7 +175,7 @@ mod tests {
 
                     handle.await.unwrap();
 
-                    insta::assert_debug_snapshot!(results);
+                    insta::assert_ron_snapshot!(results);
                 },
             );
         })

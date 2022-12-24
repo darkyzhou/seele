@@ -1,0 +1,34 @@
+id: nested_sequence_2
+steps:
+  one:
+    action: seele/test
+    test: 1
+  two:
+    steps:
+      two-one:
+        action: seele/test
+        test: 21
+      two-two:
+        action: seele/test
+        test: 22
+  three:
+    action: seele/test
+    test: 3
+  four:
+    steps:
+      four-one:
+        action: seele/test
+        test: 41
+      four-two:
+        parallel:
+          - action: seele/test
+            test: 421
+          - action: seele/test
+            test: 422
+          - action: seele/test
+            test: 423
+      four-three:
+        steps:
+          four-three-one:
+            action: seele/test
+            test: 431

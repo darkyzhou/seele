@@ -5,32 +5,20 @@ expression: results
 input_file: src/composer/stubs/submission_nested_sequence_1.yaml
 ---
 [
-    (
-        Test(
-            ActionTestConfig {
-                test: 1,
-            },
-        ),
-    ),
-    (
-        Test(
-            ActionTestConfig {
-                test: 21,
-            },
-        ),
-    ),
-    (
-        Test(
-            ActionTestConfig {
-                test: 22,
-            },
-        ),
-    ),
-    (
-        Test(
-            ActionTestConfig {
-                test: 3,
-            },
-        ),
-    ),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 1,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 21,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 22,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 3,
+  )),
 ]

@@ -5,25 +5,16 @@ expression: results
 input_file: src/composer/stubs/submission_simple.yaml
 ---
 [
-    (
-        Test(
-            ActionTestConfig {
-                test: 1,
-            },
-        ),
-    ),
-    (
-        Test(
-            ActionTestConfig {
-                test: 2,
-            },
-        ),
-    ),
-    (
-        Test(
-            ActionTestConfig {
-                test: 3,
-            },
-        ),
-    ),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 1,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 2,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 3,
+  )),
 ]

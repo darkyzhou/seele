@@ -1,0 +1,44 @@
+---
+source: src/composer/execute.rs
+assertion_line: 178
+expression: results
+input_file: src/composer/stubs/submission_nested_sequence_2.yaml
+---
+[
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 1,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 21,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 22,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 3,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 41,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 421,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 422,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 423,
+  )),
+  (ActionTestConfig(
+    action: "seele/test",
+    test: 431,
+  )),
+]

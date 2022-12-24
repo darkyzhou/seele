@@ -1,326 +1,60 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 157
+assertion_line: 148
 expression: submission
 input_file: src/composer/stubs/submission_simple.yaml
 ---
-Submission {
-    id: "simple",
-    config: SubmissionConfig {
-        id: "simple",
-        tasks: {
-            "one": TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 1,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            "two": TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 2,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            "three": TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 3,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-        },
+Submission(
+  id: "[id]",
+  config: SubmissionConfig(
+    id: "[id]",
+    steps: {
+      "one": {
+        "status": TaskStatus(
+          type: "pending",
+        ),
+      },
+      "two": {
+        "status": TaskStatus(
+          type: "pending",
+        ),
+      },
+      "three": {
+        "status": TaskStatus(
+          type: "pending",
+        ),
+      },
     },
-    root: RootTaskNode {
-        id: "simple",
-        tasks: [
-            TaskNode {
-                schedule_parent_id: None,
-                config: TaskConfig {
-                    when: None,
-                    needs: None,
-                    extra: Action(
-                        Test(
-                            ActionTestConfig {
-                                test: 1,
-                            },
-                        ),
-                    ),
-                    status: RwLock {
-                        data: Pending,
-                        poisoned: false,
-                        ..
-                    },
-                },
-                id: "Mq7QUq6M",
-                children: [
-                    TaskNode {
-                        schedule_parent_id: None,
-                        config: TaskConfig {
-                            when: None,
-                            needs: None,
-                            extra: Action(
-                                Test(
-                                    ActionTestConfig {
-                                        test: 2,
-                                    },
-                                ),
-                            ),
-                            status: RwLock {
-                                data: Pending,
-                                poisoned: false,
-                                ..
-                            },
-                        },
-                        id: "UZBYc6eF",
-                        children: [
-                            TaskNode {
-                                schedule_parent_id: None,
-                                config: TaskConfig {
-                                    when: None,
-                                    needs: None,
-                                    extra: Action(
-                                        Test(
-                                            ActionTestConfig {
-                                                test: 3,
-                                            },
-                                        ),
-                                    ),
-                                    status: RwLock {
-                                        data: Pending,
-                                        poisoned: false,
-                                        ..
-                                    },
-                                },
-                                id: "EMOgg7cc",
-                                children: [],
-                                extra: Action(
-                                    Test(
-                                        ActionTestConfig {
-                                            test: 3,
-                                        },
-                                    ),
-                                ),
-                            },
-                        ],
-                        extra: Action(
-                            Test(
-                                ActionTestConfig {
-                                    test: 2,
-                                },
-                            ),
-                        ),
-                    },
-                ],
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 1,
-                        },
-                    ),
+  ),
+  root: RootTaskNode(
+    id: "[id]",
+    tasks: [
+      TaskNode(
+        id: "[id]",
+        children: [
+          TaskNode(
+            id: "[id]",
+            children: [
+              TaskNode(
+                id: "[id]",
+                children: [],
+                extra: ActionTestConfig(
+                  action: "seele/test",
+                  test: 3,
                 ),
-            },
+              ),
+            ],
+            extra: ActionTestConfig(
+              action: "seele/test",
+              test: 2,
+            ),
+          ),
         ],
-    },
-    id_to_node_map: {
-        "UZBYc6eF": TaskNode {
-            schedule_parent_id: None,
-            config: TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 2,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            id: "UZBYc6eF",
-            children: [
-                TaskNode {
-                    schedule_parent_id: None,
-                    config: TaskConfig {
-                        when: None,
-                        needs: None,
-                        extra: Action(
-                            Test(
-                                ActionTestConfig {
-                                    test: 3,
-                                },
-                            ),
-                        ),
-                        status: RwLock {
-                            data: Pending,
-                            poisoned: false,
-                            ..
-                        },
-                    },
-                    id: "EMOgg7cc",
-                    children: [],
-                    extra: Action(
-                        Test(
-                            ActionTestConfig {
-                                test: 3,
-                            },
-                        ),
-                    ),
-                },
-            ],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 2,
-                    },
-                ),
-            ),
-        },
-        "EMOgg7cc": TaskNode {
-            schedule_parent_id: None,
-            config: TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 3,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            id: "EMOgg7cc",
-            children: [],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 3,
-                    },
-                ),
-            ),
-        },
-        "Mq7QUq6M": TaskNode {
-            schedule_parent_id: None,
-            config: TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 1,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            id: "Mq7QUq6M",
-            children: [
-                TaskNode {
-                    schedule_parent_id: None,
-                    config: TaskConfig {
-                        when: None,
-                        needs: None,
-                        extra: Action(
-                            Test(
-                                ActionTestConfig {
-                                    test: 2,
-                                },
-                            ),
-                        ),
-                        status: RwLock {
-                            data: Pending,
-                            poisoned: false,
-                            ..
-                        },
-                    },
-                    id: "UZBYc6eF",
-                    children: [
-                        TaskNode {
-                            schedule_parent_id: None,
-                            config: TaskConfig {
-                                when: None,
-                                needs: None,
-                                extra: Action(
-                                    Test(
-                                        ActionTestConfig {
-                                            test: 3,
-                                        },
-                                    ),
-                                ),
-                                status: RwLock {
-                                    data: Pending,
-                                    poisoned: false,
-                                    ..
-                                },
-                            },
-                            id: "EMOgg7cc",
-                            children: [],
-                            extra: Action(
-                                Test(
-                                    ActionTestConfig {
-                                        test: 3,
-                                    },
-                                ),
-                            ),
-                        },
-                    ],
-                    extra: Action(
-                        Test(
-                            ActionTestConfig {
-                                test: 2,
-                            },
-                        ),
-                    ),
-                },
-            ],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 1,
-                    },
-                ),
-            ),
-        },
-    },
-}
+        extra: ActionTestConfig(
+          action: "seele/test",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)
