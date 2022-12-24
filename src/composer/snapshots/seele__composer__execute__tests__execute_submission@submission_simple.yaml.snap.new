@@ -1,6 +1,6 @@
 ---
 source: src/composer/execute.rs
-assertion_line: 163
+assertion_line: 178
 expression: results
 input_file: src/composer/stubs/submission_simple.yaml
 ---

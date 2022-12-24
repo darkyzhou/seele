@@ -1,11 +1,12 @@
 use super::predicate;
 use crate::{
     entity::{
-        ActionTaskConfig, Submission, TaskFailedReport, TaskNode, TaskNodeExtra, TaskReport,
-        TaskStatus, TaskSuccessReport,
+        ActionTaskConfig, Submission, TaskConfig, TaskExtraConfig, TaskFailedReport, TaskNode,
+        TaskNodeExtra, TaskReport, TaskStatus, TaskSuccessReport,
     },
     worker::WorkerQueueItem,
 };
+use async_recursion::async_recursion;
 use std::{sync::Arc, time::SystemTime};
 use tokio::sync::oneshot;
 
@@ -13,94 +14,108 @@ pub async fn execute_submission(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission: Submission,
 ) -> anyhow::Result<Submission> {
-    let mut queue = flatten_tasks(submission.root.tasks.iter().cloned());
-    // TODO: queue is initially empty?
-    while !queue.is_empty() {
-        let mut next_queue = vec![];
-
-        let enqueued_at = SystemTime::now();
-        let reports = futures_util::future::join_all(
-            queue.iter().map(|(_, config)| submit_task(worker_queue_tx.clone(), config.clone())),
-        )
-        .await;
-
-        for (i, report) in reports.into_iter().enumerate() {
-            let node = submission.id_to_node_map.get(&queue[i].0.id).unwrap();
-
-            *node.config.status.write().unwrap() = match report {
-                Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
-                    enqueued_at,
-                    run_at: None,
-                    time_elapsed_ms: None,
-                    message: format!("Error submitting the task: {:#?}", err),
-                }),
-                Ok(report) => match report {
-                    TaskReport::Success(report) => TaskStatus::Success(report),
-                    TaskReport::Failed(report) => TaskStatus::Failed(report),
-                },
-            };
-
-            if let Some(parent) = node
-                .schedule_parent_id
-                .as_ref()
-                .and_then(|parent| submission.id_to_node_map.get(parent))
-            {
-                if let TaskNodeExtra::Schedule(nodes) = &parent.extra {
-                    *parent.config.status.write().unwrap() = {
-                        let mut status = TaskStatus::Success(TaskSuccessReport::Schedule);
-                        for child_status in
-                            nodes.iter().map(|node| node.config.status.read().unwrap())
-                        {
-                            match *child_status {
-                                TaskStatus::Pending => {
-                                    status = TaskStatus::Pending;
-                                }
-                                TaskStatus::Failed(_) => {
-                                    status = TaskStatus::Failed(TaskFailedReport::Schedule);
-                                    break;
-                                }
-                                TaskStatus::Skipped => {
-                                    panic!("Unexpected child status: Skipped")
-                                }
-                                _ => {}
-                            }
-                        }
-                        status
-                    };
-                }
-            }
-
-            let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
-                .children
-                .iter()
-                .partition(|child_node| predicate::check_node_predicate(node, child_node));
-
-            for node in skipped_nodes {
-                mark_children_as_skipped(node);
-            }
-
-            next_queue.extend(flatten_tasks(continue_nodes.into_iter().cloned()));
-        }
-
-        queue = next_queue;
-    }
+    futures_util::future::join_all(
+        submission
+            .root
+            .tasks
+            .iter()
+            .cloned()
+            .map(|task| track_task_execution(worker_queue_tx.clone(), task)),
+    )
+    .await;
 
     Ok(submission)
 }
 
-fn flatten_tasks(
-    tasks: impl Iterator<Item = Arc<TaskNode>>,
-) -> Vec<(Arc<TaskNode>, Arc<ActionTaskConfig>)> {
-    tasks.fold(vec![], |mut acc, task| match &task.extra {
-        TaskNodeExtra::Schedule(tasks) => {
-            acc.extend(flatten_tasks(tasks.iter().cloned()));
-            acc
-        }
+#[async_recursion]
+async fn track_task_execution(
+    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    node: Arc<TaskNode>,
+) {
+    match &node.extra {
         TaskNodeExtra::Action(config) => {
-            acc.push((task.clone(), config.clone()));
-            acc
+            track_action_execution(worker_queue_tx.clone(), node.clone(), config.clone()).await
         }
-    })
+        TaskNodeExtra::Schedule(tasks) => {
+            track_schedule_execution(worker_queue_tx.clone(), node.clone(), tasks).await
+        }
+    }
+
+    let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
+        .children
+        .iter()
+        .partition(|child_node| predicate::check_node_predicate(&node, child_node));
+
+    for node in skipped_nodes {
+        mark_children_as_skipped(node);
+    }
+
+    futures_util::future::join_all(
+        continue_nodes
+            .into_iter()
+            .map(|node| track_task_execution(worker_queue_tx.clone(), node.clone())),
+    )
+    .await;
+}
+
+#[async_recursion]
+async fn track_action_execution(
+    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    node: Arc<TaskNode>,
+    config: Arc<ActionTaskConfig>,
+) {
+    let enqueued_at = SystemTime::now();
+    let result = submit_task(worker_queue_tx.clone(), config.clone()).await;
+
+    *node.config.status.write().unwrap() = match result {
+        Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
+            enqueued_at,
+            run_at: None,
+            time_elapsed_ms: None,
+            message: format!("Error submitting the task: {:#?}", err),
+        }),
+        Ok(report) => match report {
+            TaskReport::Success(report) => TaskStatus::Success(report),
+            TaskReport::Failed(report) => TaskStatus::Failed(report),
+        },
+    };
+}
+
+async fn track_schedule_execution(
+    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    node: Arc<TaskNode>,
+    tasks: &[Arc<TaskNode>],
+) {
+    futures_util::future::join_all(
+        tasks.iter().cloned().map(|task| track_task_execution(worker_queue_tx.clone(), task)),
+    )
+    .await;
+
+    *node.config.status.write().unwrap() = match &node.config.extra {
+        TaskExtraConfig::Action(_) => panic!("Unexpected schedule task"),
+        TaskExtraConfig::Parallel(config) => resolve_parent_status(config.tasks.iter().cloned()),
+        TaskExtraConfig::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
+    };
+}
+
+fn resolve_parent_status(tasks: impl Iterator<Item = Arc<TaskConfig>>) -> TaskStatus {
+    let mut status = TaskStatus::Success(TaskSuccessReport::Schedule);
+    for task in tasks {
+        match *task.status.read().unwrap() {
+            TaskStatus::Pending => {
+                status = TaskStatus::Pending;
+            }
+            TaskStatus::Failed(_) => {
+                status = TaskStatus::Failed(TaskFailedReport::Schedule);
+                break;
+            }
+            TaskStatus::Skipped => {
+                panic!("Unexpected child status: Skipped")
+            }
+            _ => {}
+        }
+    }
+    status
 }
 
 fn mark_children_as_skipped(task: &TaskNode) {

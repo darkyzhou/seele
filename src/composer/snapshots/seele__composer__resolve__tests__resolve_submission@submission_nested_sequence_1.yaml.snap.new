@@ -111,7 +111,7 @@ Submission {
                         ..
                     },
                 },
-                id: "EBeeFks2",
+                id: "26EUqqEE",
                 children: [
                     TaskNode {
                         schedule_parent_id: None,
@@ -162,7 +162,7 @@ Submission {
                                 ..
                             },
                         },
-                        id: "om7koMUr",
+                        id: "FLP3evLM",
                         children: [
                             TaskNode {
                                 schedule_parent_id: None,
@@ -182,7 +182,7 @@ Submission {
                                         ..
                                     },
                                 },
-                                id: "L7eAOsNQ",
+                                id: "6WcsrMLB",
                                 children: [],
                                 extra: Action(
                                     Test(
@@ -197,7 +197,7 @@ Submission {
                             [
                                 TaskNode {
                                     schedule_parent_id: Some(
-                                        "om7koMUr",
+                                        "FLP3evLM",
                                     ),
                                     config: TaskConfig {
                                         when: None,
@@ -215,11 +215,11 @@ Submission {
                                             ..
                                         },
                                     },
-                                    id: "LqAR332F",
+                                    id: "roNFYLqQ",
                                     children: [
                                         TaskNode {
                                             schedule_parent_id: Some(
-                                                "om7koMUr",
+                                                "FLP3evLM",
                                             ),
                                             config: TaskConfig {
                                                 when: None,
@@ -237,7 +237,7 @@ Submission {
                                                     ..
                                                 },
                                             },
-                                            id: "cb6LlPgQ",
+                                            id: "oqWBqWkR",
                                             children: [],
                                             extra: Action(
                                                 Test(
@@ -271,69 +271,66 @@ Submission {
         ],
     },
     id_to_node_map: {
-        "cb6LlPgQ": TaskNode {
-            schedule_parent_id: Some(
-                "om7koMUr",
-            ),
+        "FLP3evLM": TaskNode {
+            schedule_parent_id: None,
             config: TaskConfig {
                 when: None,
                 needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 22,
+                extra: Sequence(
+                    SequenceTaskConfig {
+                        tasks: {
+                            "two-one": TaskConfig {
+                                when: None,
+                                needs: None,
+                                extra: Action(
+                                    Test(
+                                        ActionTestConfig {
+                                            test: 21,
+                                        },
+                                    ),
+                                ),
+                                status: RwLock {
+                                    data: Pending,
+                                    poisoned: false,
+                                    ..
+                                },
+                            },
+                            "two-two": TaskConfig {
+                                when: None,
+                                needs: None,
+                                extra: Action(
+                                    Test(
+                                        ActionTestConfig {
+                                            test: 22,
+                                        },
+                                    ),
+                                ),
+                                status: RwLock {
+                                    data: Pending,
+                                    poisoned: false,
+                                    ..
+                                },
+                            },
                         },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            id: "cb6LlPgQ",
-            children: [],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 22,
                     },
                 ),
-            ),
-        },
-        "LqAR332F": TaskNode {
-            schedule_parent_id: Some(
-                "om7koMUr",
-            ),
-            config: TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 21,
-                        },
-                    ),
-                ),
                 status: RwLock {
                     data: Pending,
                     poisoned: false,
                     ..
                 },
             },
-            id: "LqAR332F",
+            id: "FLP3evLM",
             children: [
                 TaskNode {
-                    schedule_parent_id: Some(
-                        "om7koMUr",
-                    ),
+                    schedule_parent_id: None,
                     config: TaskConfig {
                         when: None,
                         needs: None,
                         extra: Action(
                             Test(
                                 ActionTestConfig {
-                                    test: 22,
+                                    test: 3,
                                 },
                             ),
                         ),
@@ -343,26 +340,84 @@ Submission {
                             ..
                         },
                     },
-                    id: "cb6LlPgQ",
+                    id: "6WcsrMLB",
                     children: [],
                     extra: Action(
                         Test(
                             ActionTestConfig {
-                                test: 22,
+                                test: 3,
                             },
                         ),
                     ),
                 },
             ],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 21,
+            extra: Schedule(
+                [
+                    TaskNode {
+                        schedule_parent_id: Some(
+                            "FLP3evLM",
+                        ),
+                        config: TaskConfig {
+                            when: None,
+                            needs: None,
+                            extra: Action(
+                                Test(
+                                    ActionTestConfig {
+                                        test: 21,
+                                    },
+                                ),
+                            ),
+                            status: RwLock {
+                                data: Pending,
+                                poisoned: false,
+                                ..
+                            },
+                        },
+                        id: "roNFYLqQ",
+                        children: [
+                            TaskNode {
+                                schedule_parent_id: Some(
+                                    "FLP3evLM",
+                                ),
+                                config: TaskConfig {
+                                    when: None,
+                                    needs: None,
+                                    extra: Action(
+                                        Test(
+                                            ActionTestConfig {
+                                                test: 22,
+                                            },
+                                        ),
+                                    ),
+                                    status: RwLock {
+                                        data: Pending,
+                                        poisoned: false,
+                                        ..
+                                    },
+                                },
+                                id: "oqWBqWkR",
+                                children: [],
+                                extra: Action(
+                                    Test(
+                                        ActionTestConfig {
+                                            test: 22,
+                                        },
+                                    ),
+                                ),
+                            },
+                        ],
+                        extra: Action(
+                            Test(
+                                ActionTestConfig {
+                                    test: 21,
+                                },
+                            ),
+                        ),
                     },
-                ),
+                ],
             ),
         },
-        "EBeeFks2": TaskNode {
+        "26EUqqEE": TaskNode {
             schedule_parent_id: None,
             config: TaskConfig {
                 when: None,
@@ -380,7 +435,7 @@ Submission {
                     ..
                 },
             },
-            id: "EBeeFks2",
+            id: "26EUqqEE",
             children: [
                 TaskNode {
                     schedule_parent_id: None,
@@ -431,7 +486,7 @@ Submission {
                             ..
                         },
                     },
-                    id: "om7koMUr",
+                    id: "FLP3evLM",
                     children: [
                         TaskNode {
                             schedule_parent_id: None,
@@ -451,7 +506,7 @@ Submission {
                                     ..
                                 },
                             },
-                            id: "L7eAOsNQ",
+                            id: "6WcsrMLB",
                             children: [],
                             extra: Action(
                                 Test(
@@ -466,7 +521,7 @@ Submission {
                         [
                             TaskNode {
                                 schedule_parent_id: Some(
-                                    "om7koMUr",
+                                    "FLP3evLM",
                                 ),
                                 config: TaskConfig {
                                     when: None,
@@ -484,11 +539,11 @@ Submission {
                                         ..
                                     },
                                 },
-                                id: "LqAR332F",
+                                id: "roNFYLqQ",
                                 children: [
                                     TaskNode {
                                         schedule_parent_id: Some(
-                                            "om7koMUr",
+                                            "FLP3evLM",
                                         ),
                                         config: TaskConfig {
                                             when: None,
@@ -506,7 +561,7 @@ Submission {
                                                 ..
                                             },
                                         },
-                                        id: "cb6LlPgQ",
+                                        id: "oqWBqWkR",
                                         children: [],
                                         extra: Action(
                                             Test(
@@ -537,48 +592,19 @@ Submission {
                 ),
             ),
         },
-        "om7koMUr": TaskNode {
-            schedule_parent_id: None,
+        "roNFYLqQ": TaskNode {
+            schedule_parent_id: Some(
+                "FLP3evLM",
+            ),
             config: TaskConfig {
                 when: None,
                 needs: None,
-                extra: Sequence(
-                    SequenceTaskConfig {
-                        tasks: {
-                            "two-one": TaskConfig {
-                                when: None,
-                                needs: None,
-                                extra: Action(
-                                    Test(
-                                        ActionTestConfig {
-                                            test: 21,
-                                        },
-                                    ),
-                                ),
-                                status: RwLock {
-                                    data: Pending,
-                                    poisoned: false,
-                                    ..
-                                },
-                            },
-                            "two-two": TaskConfig {
-                                when: None,
-                                needs: None,
-                                extra: Action(
-                                    Test(
-                                        ActionTestConfig {
-                                            test: 22,
-                                        },
-                                    ),
-                                ),
-                                status: RwLock {
-                                    data: Pending,
-                                    poisoned: false,
-                                    ..
-                                },
-                            },
+                extra: Action(
+                    Test(
+                        ActionTestConfig {
+                            test: 21,
                         },
-                    },
+                    ),
                 ),
                 status: RwLock {
                     data: Pending,
@@ -586,17 +612,19 @@ Submission {
                     ..
                 },
             },
-            id: "om7koMUr",
+            id: "roNFYLqQ",
             children: [
                 TaskNode {
-                    schedule_parent_id: None,
+                    schedule_parent_id: Some(
+                        "FLP3evLM",
+                    ),
                     config: TaskConfig {
                         when: None,
                         needs: None,
                         extra: Action(
                             Test(
                                 ActionTestConfig {
-                                    test: 3,
+                                    test: 22,
                                 },
                             ),
                         ),
@@ -606,84 +634,26 @@ Submission {
                             ..
                         },
                     },
-                    id: "L7eAOsNQ",
+                    id: "oqWBqWkR",
                     children: [],
                     extra: Action(
                         Test(
                             ActionTestConfig {
-                                test: 3,
+                                test: 22,
                             },
                         ),
                     ),
                 },
             ],
-            extra: Schedule(
-                [
-                    TaskNode {
-                        schedule_parent_id: Some(
-                            "om7koMUr",
-                        ),
-                        config: TaskConfig {
-                            when: None,
-                            needs: None,
-                            extra: Action(
-                                Test(
-                                    ActionTestConfig {
-                                        test: 21,
-                                    },
-                                ),
-                            ),
-                            status: RwLock {
-                                data: Pending,
-                                poisoned: false,
-                                ..
-                            },
-                        },
-                        id: "LqAR332F",
-                        children: [
-                            TaskNode {
-                                schedule_parent_id: Some(
-                                    "om7koMUr",
-                                ),
-                                config: TaskConfig {
-                                    when: None,
-                                    needs: None,
-                                    extra: Action(
-                                        Test(
-                                            ActionTestConfig {
-                                                test: 22,
-                                            },
-                                        ),
-                                    ),
-                                    status: RwLock {
-                                        data: Pending,
-                                        poisoned: false,
-                                        ..
-                                    },
-                                },
-                                id: "cb6LlPgQ",
-                                children: [],
-                                extra: Action(
-                                    Test(
-                                        ActionTestConfig {
-                                            test: 22,
-                                        },
-                                    ),
-                                ),
-                            },
-                        ],
-                        extra: Action(
-                            Test(
-                                ActionTestConfig {
-                                    test: 21,
-                                },
-                            ),
-                        ),
+            extra: Action(
+                Test(
+                    ActionTestConfig {
+                        test: 21,
                     },
-                ],
+                ),
             ),
         },
-        "L7eAOsNQ": TaskNode {
+        "6WcsrMLB": TaskNode {
             schedule_parent_id: None,
             config: TaskConfig {
                 when: None,
@@ -701,12 +671,42 @@ Submission {
                     ..
                 },
             },
-            id: "L7eAOsNQ",
+            id: "6WcsrMLB",
             children: [],
             extra: Action(
                 Test(
                     ActionTestConfig {
                         test: 3,
+                    },
+                ),
+            ),
+        },
+        "oqWBqWkR": TaskNode {
+            schedule_parent_id: Some(
+                "FLP3evLM",
+            ),
+            config: TaskConfig {
+                when: None,
+                needs: None,
+                extra: Action(
+                    Test(
+                        ActionTestConfig {
+                            test: 22,
+                        },
+                    ),
+                ),
+                status: RwLock {
+                    data: Pending,
+                    poisoned: false,
+                    ..
+                },
+            },
+            id: "oqWBqWkR",
+            children: [],
+            extra: Action(
+                Test(
+                    ActionTestConfig {
+                        test: 22,
                     },
                 ),
             ),

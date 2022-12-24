@@ -80,7 +80,7 @@ Submission {
                         ..
                     },
                 },
-                id: "Ws7meU6Z",
+                id: "Mq7QUq6M",
                 children: [
                     TaskNode {
                         schedule_parent_id: None,
@@ -100,7 +100,7 @@ Submission {
                                 ..
                             },
                         },
-                        id: "WOQNELNB",
+                        id: "UZBYc6eF",
                         children: [
                             TaskNode {
                                 schedule_parent_id: None,
@@ -120,7 +120,7 @@ Submission {
                                         ..
                                     },
                                 },
-                                id: "2Zc3q2bk",
+                                id: "EMOgg7cc",
                                 children: [],
                                 extra: Action(
                                     Test(
@@ -151,35 +151,7 @@ Submission {
         ],
     },
     id_to_node_map: {
-        "2Zc3q2bk": TaskNode {
-            schedule_parent_id: None,
-            config: TaskConfig {
-                when: None,
-                needs: None,
-                extra: Action(
-                    Test(
-                        ActionTestConfig {
-                            test: 3,
-                        },
-                    ),
-                ),
-                status: RwLock {
-                    data: Pending,
-                    poisoned: false,
-                    ..
-                },
-            },
-            id: "2Zc3q2bk",
-            children: [],
-            extra: Action(
-                Test(
-                    ActionTestConfig {
-                        test: 3,
-                    },
-                ),
-            ),
-        },
-        "WOQNELNB": TaskNode {
+        "UZBYc6eF": TaskNode {
             schedule_parent_id: None,
             config: TaskConfig {
                 when: None,
@@ -197,7 +169,7 @@ Submission {
                     ..
                 },
             },
-            id: "WOQNELNB",
+            id: "UZBYc6eF",
             children: [
                 TaskNode {
                     schedule_parent_id: None,
@@ -217,7 +189,7 @@ Submission {
                             ..
                         },
                     },
-                    id: "2Zc3q2bk",
+                    id: "EMOgg7cc",
                     children: [],
                     extra: Action(
                         Test(
@@ -236,7 +208,35 @@ Submission {
                 ),
             ),
         },
-        "Ws7meU6Z": TaskNode {
+        "EMOgg7cc": TaskNode {
+            schedule_parent_id: None,
+            config: TaskConfig {
+                when: None,
+                needs: None,
+                extra: Action(
+                    Test(
+                        ActionTestConfig {
+                            test: 3,
+                        },
+                    ),
+                ),
+                status: RwLock {
+                    data: Pending,
+                    poisoned: false,
+                    ..
+                },
+            },
+            id: "EMOgg7cc",
+            children: [],
+            extra: Action(
+                Test(
+                    ActionTestConfig {
+                        test: 3,
+                    },
+                ),
+            ),
+        },
+        "Mq7QUq6M": TaskNode {
             schedule_parent_id: None,
             config: TaskConfig {
                 when: None,
@@ -254,7 +254,7 @@ Submission {
                     ..
                 },
             },
-            id: "Ws7meU6Z",
+            id: "Mq7QUq6M",
             children: [
                 TaskNode {
                     schedule_parent_id: None,
@@ -274,7 +274,7 @@ Submission {
                             ..
                         },
                     },
-                    id: "WOQNELNB",
+                    id: "UZBYc6eF",
                     children: [
                         TaskNode {
                             schedule_parent_id: None,
@@ -294,7 +294,7 @@ Submission {
                                     ..
                                 },
                             },
-                            id: "2Zc3q2bk",
+                            id: "EMOgg7cc",
                             children: [],
                             extra: Action(
                                 Test(
