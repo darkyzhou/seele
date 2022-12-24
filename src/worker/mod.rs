@@ -2,14 +2,18 @@ use crate::{
     conf,
     entity::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
 };
-use std::{sync::Arc, time::SystemTime};
+use std::{path::PathBuf, sync::Arc, time::SystemTime};
 use tokio::sync::oneshot;
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::error;
 
 mod action;
 
-pub type WorkerQueueItem = (Arc<ActionTaskConfig>, oneshot::Sender<TaskReport>);
+pub struct WorkerQueueItem {
+    pub submission_id: String,
+    pub config: Arc<ActionTaskConfig>,
+    pub report_tx: oneshot::Sender<TaskReport>,
+}
 
 pub async fn worker_main(
     handle: SubsystemHandle,
@@ -28,8 +32,8 @@ async fn worker_main_impl(
     handle: SubsystemHandle,
     queue_rx: async_channel::Receiver<WorkerQueueItem>,
 ) -> anyhow::Result<()> {
-    while let Ok(Ok((config, tx))) = queue_rx.recv().cancel_on_shutdown(&handle).await {
-        let report = match handle_action(&config).await {
+    while let Ok(Ok(ctx)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
+        let report = match handle_action(ctx.submission_id, &ctx.config).await {
             Err(err) => TaskReport::Failed(TaskFailedReport::Action {
                 run_at: None,
                 time_elapsed_ms: None,
@@ -38,23 +42,34 @@ async fn worker_main_impl(
             Ok(report) => report,
         };
 
-        if let Err(err) = tx.send(report) {
-            error!("Error sending the report");
+        if let Err(err) = ctx.report_tx.send(report) {
+            error!("Error sending the report: {:#?}", err);
         }
     }
 
     Ok(())
 }
 
-async fn handle_action(task: &ActionTaskConfig) -> anyhow::Result<TaskReport> {
-    let now = std::time::Instant::now();
-    let run_at = SystemTime::now();
-
-    let result = match task {
-        ActionTaskConfig::Noop(config) => action::run_noop_action(config).await,
-        ActionTaskConfig::AddFile(config) => todo!(),
+async fn handle_action(
+    submission_id: String,
+    task: &ActionTaskConfig,
+) -> anyhow::Result<TaskReport> {
+    let context = action::ActionContext {
+        submission_root: &[
+            conf::CONFIG.root_path.clone(),
+            "submissions".into(),
+            submission_id.into(),
+        ]
+        .iter()
+        .collect::<PathBuf>(),
     };
 
+    let now = std::time::Instant::now();
+    let run_at = SystemTime::now();
+    let result = match task {
+        ActionTaskConfig::Noop(config) => action::run_noop_action(config).await,
+        ActionTaskConfig::AddFile(config) => action::run_add_file_action(&context, config).await,
+    };
     let time_elapsed_ms = {
         let new_now = std::time::Instant::now();
         new_now.saturating_duration_since(now).as_millis().try_into()?

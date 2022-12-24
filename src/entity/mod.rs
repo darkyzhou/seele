@@ -9,6 +9,10 @@ use std::{
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 
+mod action;
+
+pub use action::*;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubmissionConfig {
     #[cfg_attr(test, serde(skip_serializing))]
@@ -70,26 +74,6 @@ pub struct SequenceTaskConfig {
 pub struct ParallelTaskConfig {
     #[serde(rename = "parallel")]
     pub tasks: ParallelTasks,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(tag = "action")]
-pub enum ActionTaskConfig {
-    #[serde(rename = "seele/noop@1")]
-    Noop(ActionNoopConfig),
-    #[serde(rename = "seele/add-file@1")]
-    AddFile(ActionAddFileConfig),
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionNoopConfig {
-    #[serde(default)]
-    pub test: u64,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionAddFileConfig {
-    pub files: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

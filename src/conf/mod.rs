@@ -4,6 +4,14 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
     pub concurrency: usize,
+
+    #[serde(default = "default_root_path")]
+    pub root_path: String,
+}
+
+#[inline]
+fn default_root_path() -> String {
+    "/seele".into()
 }
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {

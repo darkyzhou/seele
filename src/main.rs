@@ -1,8 +1,5 @@
 use std::time::Duration;
-use tokio::{
-    runtime,
-    sync::{broadcast, mpsc},
-};
+use tokio::{runtime, sync::mpsc};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::error;
 
@@ -15,6 +12,8 @@ mod shared;
 mod worker;
 
 fn main() {
+    std::fs::create_dir_all(&conf::CONFIG.root_path).expect("Failed to create root directory");
+
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
         .max_blocking_threads(1)

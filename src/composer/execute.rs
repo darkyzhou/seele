@@ -10,34 +10,38 @@ use async_recursion::async_recursion;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
+#[derive(Debug, Clone)]
+struct ExecutionContext {
+    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    submission_id: String,
+}
+
 pub async fn execute_submission(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission: Submission,
 ) -> anyhow::Result<Submission> {
-    futures_util::future::join_all(
-        submission
-            .root
-            .tasks
-            .iter()
-            .cloned()
-            .map(|task| track_task_execution(worker_queue_tx.clone(), task)),
-    )
+    futures_util::future::join_all(submission.root.tasks.iter().cloned().map(|task| {
+        track_task_execution(
+            ExecutionContext {
+                worker_queue_tx: worker_queue_tx.clone(),
+                submission_id: submission.id.clone(),
+            },
+            task,
+        )
+    }))
     .await;
 
     Ok(submission)
 }
 
 #[async_recursion]
-async fn track_task_execution(
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
-    node: Arc<TaskNode>,
-) {
+async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
     match &node.extra {
         TaskNodeExtra::Action(config) => {
-            track_action_execution(worker_queue_tx.clone(), node.clone(), config.clone()).await
+            track_action_execution(ctx.clone(), node.clone(), config.clone()).await
         }
         TaskNodeExtra::Schedule(tasks) => {
-            track_schedule_execution(worker_queue_tx.clone(), node.clone(), tasks).await
+            track_schedule_execution(ctx.clone(), node.clone(), tasks).await
         }
     }
 
@@ -51,20 +55,18 @@ async fn track_task_execution(
     }
 
     futures_util::future::join_all(
-        continue_nodes
-            .into_iter()
-            .map(|node| track_task_execution(worker_queue_tx.clone(), node.clone())),
+        continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
     )
     .await;
 }
 
 #[async_recursion]
 async fn track_action_execution(
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    ctx: ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) {
-    let result = submit_task(worker_queue_tx.clone(), config.clone()).await;
+    let result = submit_task(ctx.clone(), config.clone()).await;
 
     *node.config.status.write().unwrap() = match result {
         Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
@@ -80,12 +82,12 @@ async fn track_action_execution(
 }
 
 async fn track_schedule_execution(
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
+    ctx: ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) {
     futures_util::future::join_all(
-        tasks.iter().cloned().map(|task| track_task_execution(worker_queue_tx.clone(), task)),
+        tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
 
@@ -124,11 +126,13 @@ fn mark_children_as_skipped(task: &TaskNode) {
 }
 
 async fn submit_task(
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
-    task: Arc<ActionTaskConfig>,
+    ctx: ExecutionContext,
+    config: Arc<ActionTaskConfig>,
 ) -> anyhow::Result<TaskReport> {
     let (tx, rx) = oneshot::channel();
-    worker_queue_tx.send((task, tx)).await?;
+    ctx.worker_queue_tx
+        .send(WorkerQueueItem { submission_id: ctx.submission_id, config, report_tx: tx })
+        .await?;
 
     // TODO: timeout
     Ok(rx.await?)
@@ -139,6 +143,7 @@ mod tests {
     use crate::{
         composer::resolve::resolve_submission,
         entity::{TaskReport, TaskSuccessReport, TaskSuccessReportExtra},
+        worker::WorkerQueueItem,
     };
     use insta::glob;
     use std::{fs, time::SystemTime};
@@ -159,15 +164,16 @@ mod tests {
                     });
 
                     let mut results = vec![];
-                    while let Ok((config, tx)) = rx.recv().await {
-                        results.push((config,));
+                    while let Ok(WorkerQueueItem { config, report_tx, .. }) = rx.recv().await {
+                        results.push(config);
 
-                        tx.send(TaskReport::Success(TaskSuccessReport::Action {
-                            run_at: SystemTime::now(),
-                            time_elapsed_ms: 0,
-                            extra: TaskSuccessReportExtra::Noop(0),
-                        }))
-                        .unwrap();
+                        report_tx
+                            .send(TaskReport::Success(TaskSuccessReport::Action {
+                                run_at: SystemTime::now(),
+                                time_elapsed_ms: 0,
+                                extra: TaskSuccessReportExtra::Noop(0),
+                            }))
+                            .unwrap();
                     }
 
                     handle.await.unwrap();
