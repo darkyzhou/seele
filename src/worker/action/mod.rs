@@ -1,5 +1,6 @@
 mod add_file;
 mod noop;
+mod run_container;
 
 use std::path::Path;
 

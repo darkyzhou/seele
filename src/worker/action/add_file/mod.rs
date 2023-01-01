@@ -2,12 +2,14 @@ use super::ActionContext;
 use crate::{
     conf,
     entity::{ActionAddFileConfig, ActionAddFileFileItem, TaskSuccessReportExtra},
-    shared,
+    shared::{self, cond_group::CondGroup},
 };
-use anyhow::Context;
-use futures_util::TryStreamExt;
+use anyhow::{anyhow, Context};
+use futures_util::{FutureExt, TryStreamExt};
 use once_cell::sync::Lazy;
 use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -76,30 +78,61 @@ async fn handle_inline_file(
     Ok(())
 }
 
-async fn handle_http_file(ctx: &ActionContext<'_>, path: &Path, url: &str) -> anyhow::Result<()> {
-    let mut file = {
-        let path: PathBuf = [ctx.submission_root, path].iter().collect();
-        shared::file_utils::create_file(&path).await?
-    };
+static HTTP_TASKS: Lazy<CondGroup<String, Result<PathBuf, String>>> =
+    Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
-    let mut stream = {
-        use std::io::{Error, ErrorKind};
-        StreamReader::new(
-            HTTP_CLIENT
-                .get(url)
-                .send()
-                .await
-                .context("Error sending the request")?
-                .bytes_stream()
-                .map_err(|err| Error::new(ErrorKind::Other, err)),
-        )
-    };
+async fn handle_http_file(
+    ctx: &ActionContext<'_>,
+    path: &Path,
+    url: &String,
+) -> anyhow::Result<()> {
+    use tokio::fs;
 
-    tokio::io::copy(&mut stream, &mut file)
-        .await
-        .context("Error copying data from the response")?;
+    let src_path = HTTP_TASKS.run(url).await.map_err(|msg| anyhow!(msg))?;
+    let target_path: PathBuf = [ctx.submission_root, path].iter().collect();
+
+    if let Some(parent_path) = target_path.parent() {
+        fs::create_dir_all(parent_path).await?;
+    }
+
+    fs::hard_link(src_path, target_path).await?;
 
     Ok(())
+}
+
+async fn download_http_file(url: String) -> Result<PathBuf, String> {
+    async {
+        let file_path: PathBuf = {
+            let mut hasher = DefaultHasher::new();
+            url.hash(&mut hasher);
+            [&conf::CONFIG.root_path, "download", &format!("{:x}", hasher.finish())]
+                .iter()
+                .collect()
+        };
+
+        let mut file = shared::file_utils::create_file(&file_path).await?;
+
+        let mut stream = {
+            use std::io::{Error, ErrorKind};
+            StreamReader::new(
+                HTTP_CLIENT
+                    .get(url)
+                    .send()
+                    .await
+                    .context("Error sending the request")?
+                    .bytes_stream()
+                    .map_err(|err| Error::new(ErrorKind::Other, err)),
+            )
+        };
+
+        tokio::io::copy(&mut stream, &mut file)
+            .await
+            .context("Error copying data from the response")?;
+
+        anyhow::Result::<PathBuf>::Ok(file_path)
+    }
+    .await
+    .map_err(|err| format!("Error downloading the http file: {:#?}", err))
 }
 
 #[cfg(test)]
@@ -138,7 +171,7 @@ mod tests {
         super::handle_http_file(
             &ActionContext { submission_root },
             target_path,
-            "https://reqbin.com/echo/get/json",
+            &"https://reqbin.com/echo/get/json".to_string(),
         )
         .await
         .unwrap();
