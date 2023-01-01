@@ -55,13 +55,9 @@ async fn handle_action(
     task: &ActionTaskConfig,
 ) -> anyhow::Result<TaskReport> {
     let context = action::ActionContext {
-        submission_root: &[
-            conf::CONFIG.root_path.clone(),
-            "submissions".into(),
-            submission_id.into(),
-        ]
-        .iter()
-        .collect::<PathBuf>(),
+        submission_root: &[conf::CONFIG.root_path.clone(), "submissions".into(), submission_id]
+            .iter()
+            .collect::<PathBuf>(),
     };
 
     let now = std::time::Instant::now();

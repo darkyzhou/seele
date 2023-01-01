@@ -7,12 +7,11 @@ mod composer;
 mod conf;
 mod entity;
 mod exchange;
-mod queues;
 mod shared;
 mod worker;
 
 fn main() {
-    std::fs::create_dir_all(&conf::CONFIG.root_path).expect("Failed to create root directory");
+    std::fs::create_dir_all(&conf::CONFIG.root_path).expect("Failed to create the root directory");
 
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
