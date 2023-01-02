@@ -1,10 +1,6 @@
-use std::sync::Arc;
-
-use crate::{
-    entity::SubmissionConfig,
-    worker::{WorkerQueueItem, WorkerQueueTx},
-};
+use crate::{entity::SubmissionConfig, worker::WorkerQueueTx};
 use anyhow::Context;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::error;
