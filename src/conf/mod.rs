@@ -1,17 +1,30 @@
+pub use exchange::ExchangeConfig;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
+mod exchange;
+
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
-    pub concurrency: usize,
-
     #[serde(default = "default_root_path")]
     pub root_path: String,
+
+    #[serde(default = "default_concurrency")]
+    pub concurrency: usize,
+
+    #[serde(default)]
+    pub exchange: Vec<ExchangeConfig>,
 }
 
 #[inline]
 fn default_root_path() -> String {
     "/seele".into()
+}
+
+#[inline]
+fn default_concurrency() -> usize {
+    // TODO: infer from cpu core numbers
+    4
 }
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {

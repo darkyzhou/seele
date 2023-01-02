@@ -31,7 +31,7 @@ fn make_submitted_at() -> SystemTime {
 #[cfg_attr(test, derive(Serialize))]
 pub struct Submission {
     pub id: String,
-    pub config: SubmissionConfig,
+    pub config: Arc<SubmissionConfig>,
     pub root: Arc<RootTaskNode>,
     #[cfg_attr(test, serde(skip_serializing))]
     pub id_to_node_map: HashMap<String, Arc<TaskNode>>,

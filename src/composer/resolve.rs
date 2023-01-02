@@ -8,7 +8,7 @@ use crate::{
 use anyhow::{bail, Context};
 use std::{collections::HashMap, sync::Arc};
 
-pub fn resolve_submission(config: SubmissionConfig) -> anyhow::Result<Submission> {
+pub fn resolve_submission(config: Arc<SubmissionConfig>) -> anyhow::Result<Submission> {
     let root_id = config.id.clone();
     let root = Arc::new(RootTaskNode {
         id: root_id.clone(),

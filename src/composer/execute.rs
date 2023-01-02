@@ -19,7 +19,7 @@ struct ExecutionContext {
 pub async fn execute_submission(
     worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission: Submission,
-) -> anyhow::Result<Submission> {
+) -> anyhow::Result<()> {
     futures_util::future::join_all(submission.root.tasks.iter().cloned().map(|task| {
         track_task_execution(
             ExecutionContext {
@@ -31,7 +31,7 @@ pub async fn execute_submission(
     }))
     .await;
 
-    Ok(submission)
+    Ok(())
 }
 
 #[async_recursion]

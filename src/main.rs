@@ -11,9 +11,19 @@ mod shared;
 mod worker;
 
 fn main() {
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::fmt()
+            .compact()
+            .with_line_number(true)
+            .with_max_level(tracing::Level::DEBUG)
+            .finish(),
+    )
+    .expect("Failed to initialize the logger");
+
     std::fs::create_dir_all(&conf::CONFIG.root_path).expect("Failed to create the root directory");
 
-    let rt = runtime::Builder::new_current_thread()
+    let rt = runtime::Builder::new_multi_thread()
+        .worker_threads(3)
         .enable_all()
         .max_blocking_threads(1)
         .build()
