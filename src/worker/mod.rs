@@ -15,10 +15,10 @@ pub struct WorkerQueueItem {
     pub report_tx: oneshot::Sender<TaskReport>,
 }
 
-pub async fn worker_main(
-    handle: SubsystemHandle,
-    queue_rx: async_channel::Receiver<WorkerQueueItem>,
-) -> anyhow::Result<()> {
+pub type WorkerQueueTx = async_channel::Sender<WorkerQueueItem>;
+pub type WorkerQueueRx = async_channel::Receiver<WorkerQueueItem>;
+
+pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> anyhow::Result<()> {
     for i in 0..conf::CONFIG.concurrency {
         let queue_rx = queue_rx.clone();
         handle.start(&format!("worker-{}", i), |handle| worker_main_impl(handle, queue_rx));
@@ -28,10 +28,7 @@ pub async fn worker_main(
     Ok(())
 }
 
-async fn worker_main_impl(
-    handle: SubsystemHandle,
-    queue_rx: async_channel::Receiver<WorkerQueueItem>,
-) -> anyhow::Result<()> {
+async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> anyhow::Result<()> {
     while let Ok(Ok(ctx)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
         let report = match handle_action(ctx.submission_id, &ctx.config).await {
             Err(err) => TaskReport::Failed(TaskFailedReport::Action {

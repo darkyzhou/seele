@@ -1,10 +1,10 @@
-use super::predicate;
+use super::{predicate, SubmissionProgressTx};
 use crate::{
     entity::{
         ActionTaskConfig, Submission, TaskConfig, TaskExtraConfig, TaskFailedReport, TaskNode,
         TaskNodeExtra, TaskReport, TaskStatus, TaskSuccessReport,
     },
-    worker::WorkerQueueItem,
+    worker::{WorkerQueueItem, WorkerQueueTx},
 };
 use async_recursion::async_recursion;
 use std::sync::Arc;
@@ -12,19 +12,22 @@ use tokio::sync::oneshot;
 
 #[derive(Debug, Clone)]
 struct ExecutionContext {
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission_id: String,
+    worker_queue_tx: WorkerQueueTx,
+    submission_progress_tx: SubmissionProgressTx,
 }
 
 pub async fn execute_submission(
-    worker_queue_tx: async_channel::Sender<WorkerQueueItem>,
     submission: Submission,
+    worker_queue_tx: WorkerQueueTx,
+    submission_progress_tx: SubmissionProgressTx,
 ) -> anyhow::Result<()> {
     futures_util::future::join_all(submission.root.tasks.iter().cloned().map(|task| {
         track_task_execution(
             ExecutionContext {
-                worker_queue_tx: worker_queue_tx.clone(),
                 submission_id: submission.id.clone(),
+                worker_queue_tx: worker_queue_tx.clone(),
+                submission_progress_tx: submission_progress_tx.clone(),
             },
             task,
         )
@@ -62,7 +65,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
 
 #[async_recursion]
 async fn track_action_execution(
-    ctx: ExecutionContext,
+    mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) {
@@ -79,10 +82,12 @@ async fn track_action_execution(
             TaskReport::Failed(report) => TaskStatus::Failed(report),
         },
     };
+
+    let _ = ctx.submission_progress_tx.send(());
 }
 
 async fn track_schedule_execution(
-    ctx: ExecutionContext,
+    mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) {
@@ -96,6 +101,8 @@ async fn track_schedule_execution(
         TaskExtraConfig::Parallel(config) => resolve_parent_status(config.tasks.iter().cloned()),
         TaskExtraConfig::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
     };
+
+    let _ = ctx.submission_progress_tx.send(());
 }
 
 fn resolve_parent_status(tasks: impl Iterator<Item = Arc<TaskConfig>>) -> TaskStatus {
@@ -146,7 +153,7 @@ mod tests {
         worker::WorkerQueueItem,
     };
     use insta::glob;
-    use std::{fs, time::SystemTime};
+    use std::{fs, num::NonZeroUsize, time::SystemTime};
 
     #[test]
     fn test_execute_submission() {
@@ -158,13 +165,18 @@ mod tests {
                     )
                     .expect("Error resolving the submission");
 
-                    let (tx, rx) = async_channel::unbounded();
+                    let (worker_tx, worker_rx) = async_channel::unbounded();
+                    let (progress_tx, _progress_rx) =
+                        ring_channel::ring_channel(NonZeroUsize::new(1).unwrap());
                     let handle = tokio::spawn(async move {
-                        super::execute_submission(tx, submission).await.unwrap();
+                        super::execute_submission(submission, worker_tx, progress_tx)
+                            .await
+                            .unwrap();
                     });
 
                     let mut results = vec![];
-                    while let Ok(WorkerQueueItem { config, report_tx, .. }) = rx.recv().await {
+                    while let Ok(WorkerQueueItem { config, report_tx, .. }) = worker_rx.recv().await
+                    {
                         results.push(config);
 
                         report_tx
