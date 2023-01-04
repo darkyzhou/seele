@@ -29,11 +29,11 @@ pub async fn prepare_image(image: &OciImage) -> anyhow::Result<String> {
 }
 
 async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
-    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {:#?}", err))?;
+    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
 
     let path = unpack_image(&image)
         .await
-        .map_err(|err| format!("Error unpacking the image: {:#?}", err))?;
+        .map_err(|err| format!("Error unpacking the image: {:#}", err))?;
     Ok(path)
 }
 

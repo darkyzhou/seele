@@ -29,7 +29,7 @@ pub async fn composer_main(
                 // TODO: pass the `handle`
                 debug!("Receives the submission, start handling");
                 if let Err(err) = handle_submission(submission, worker_queue_tx, status_tx).await {
-                    error!("Error handling the submission: {:#?}", err);
+                    error!("Error handling the submission: {:#}", err);
                 }
             }
             .instrument(span)

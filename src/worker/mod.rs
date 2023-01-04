@@ -35,13 +35,13 @@ async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> a
             Err(err) => TaskReport::Failed(TaskFailedReport::Action {
                 run_at: None,
                 time_elapsed_ms: None,
-                message: format!("Error handling the action: {:#?}", err),
+                message: format!("Error handling the action: {:#}", err),
             }),
             Ok(report) => report,
         };
 
-        if let Err(err) = ctx.report_tx.send(report) {
-            error!("Error sending the report: {:#?}", err);
+        if ctx.report_tx.send(report).is_err() {
+            error!("Error sending the report");
         }
     }
 
@@ -73,7 +73,7 @@ async fn handle_action(
         Err(err) => TaskReport::Failed(TaskFailedReport::Action {
             run_at: Some(run_at),
             time_elapsed_ms: Some(time_elapsed_ms),
-            message: format!("Error running the action: {:#?}", err),
+            message: format!("Error running the action: {:#}", err),
         }),
         Ok(extra) => {
             TaskReport::Success(TaskSuccessReport::Action { run_at, time_elapsed_ms, extra })

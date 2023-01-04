@@ -1,6 +1,5 @@
-use std::path::Path;
-
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, path::Path};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action")]
@@ -23,10 +22,21 @@ pub struct ActionAddFileConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum ActionAddFileFileItem {
-    #[serde(rename = "url")]
     Http { path: Box<Path>, url: String },
-    #[serde(rename = "inline")]
     Inline { path: Box<Path>, text: String },
+}
+
+impl Display for ActionAddFileFileItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ellipse::Ellipse;
+
+        match self {
+            Self::Http { path, url } => write!(f, "{}({})", path.display(), url),
+            Self::Inline { path, text } => {
+                write!(f, "{}({}...)", path.display(), text.as_str().truncate_ellipse(20))
+            }
+        }
+    }
 }

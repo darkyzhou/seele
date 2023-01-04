@@ -4,7 +4,7 @@ use crate::{
     entity::{ActionAddFileConfig, ActionAddFileFileItem, TaskSuccessReportExtra},
     shared::{self, cond_group::CondGroup},
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use futures_util::{FutureExt, TryStreamExt};
 use once_cell::sync::Lazy;
 use std::{
@@ -49,17 +49,26 @@ pub async fn run_add_file_action(
     ctx: &ActionContext<'_>,
     config: &ActionAddFileConfig,
 ) -> anyhow::Result<TaskSuccessReportExtra> {
-    futures_util::future::join_all(config.files.iter().map(|item| async move {
+    let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
         match item {
-            ActionAddFileFileItem::Inline { path, text } => handle_inline_file(ctx, path, text)
-                .await
-                .with_context(|| format!("Error handling the inline file item {}", path.display())),
-            ActionAddFileFileItem::Http { path, url } => handle_http_file(ctx, path, url)
-                .await
-                .with_context(|| format!("Error handling the http file item {}", path.display())),
+            ActionAddFileFileItem::Inline { path, text } => {
+                handle_inline_file(ctx, path, text).await
+            }
+            ActionAddFileFileItem::Http { path, url } => handle_http_file(ctx, path, url).await,
         }
     }))
     .await;
+
+    let failed_items: Vec<_> = results
+        .iter()
+        .enumerate()
+        .filter_map(|(i, result)| {
+            result.as_ref().err().map(|err| format!("{}: {:#}", config.files[i], err))
+        })
+        .collect();
+    if !failed_items.is_empty() {
+        bail!("Failed to handle some of the files:\n{}", failed_items.join("\n"));
+    }
 
     Ok(TaskSuccessReportExtra::AddFile)
 }
@@ -132,7 +141,7 @@ async fn download_http_file(url: String) -> Result<PathBuf, String> {
         anyhow::Result::<PathBuf>::Ok(file_path)
     }
     .await
-    .map_err(|err| format!("Error downloading the http file: {:#?}", err))
+    .map_err(|err| format!("Error downloading the http file: {:#}", err))
 }
 
 #[cfg(test)]

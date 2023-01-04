@@ -76,7 +76,7 @@ async fn track_action_execution(
         Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
             run_at: None,
             time_elapsed_ms: None,
-            message: format!("Error submitting the task: {:#?}", err),
+            message: format!("Error submitting the task: {:#}", err),
         }),
         Ok(report) => match report {
             TaskReport::Success(report) => TaskStatus::Success(report),

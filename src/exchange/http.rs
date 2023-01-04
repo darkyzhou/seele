@@ -29,7 +29,7 @@ pub async fn run_http_exchange(
                             Ok(response) => response,
                             Err(err) => Response::builder()
                                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                .body(Body::from(format!("Internal error: {:#?}", err)))
+                                .body(Body::from(format!("Internal error: {:#}", err)))
                                 .unwrap(),
                         },
                     )
@@ -69,7 +69,7 @@ async fn handle_submission_request(
     let stream = status_rx.map(move |_| {
         Result::<_, Infallible>::Ok(match serde_yaml::to_string(&submission) {
             Err(err) => {
-                error!("Error serializing the submission: {:#?}", err);
+                error!("Error serializing the submission: {:#}", err);
                 "".to_string()
             }
             Ok(json) => {
