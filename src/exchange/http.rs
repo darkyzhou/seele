@@ -1,71 +1,80 @@
-use crate::{composer::ComposerQueueItem, entity::SubmissionConfig};
-use async_stream::stream;
-use futures_util::FutureExt;
-use std::{convert::Infallible, net::IpAddr, num::NonZeroUsize, sync::Arc};
-use tokio::sync::{mpsc, oneshot};
+use crate::{composer::ComposerQueueTx, entity::SubmissionConfig};
+use bytes::Buf;
+use futures_util::StreamExt;
+use http::{Request, Response, StatusCode};
+use hyper::{
+    body::aggregate,
+    service::{make_service_fn, service_fn},
+    Body, Server,
+};
+use std::{
+    convert::Infallible,
+    net::{IpAddr, SocketAddr},
+    num::NonZeroUsize,
+    sync::Arc,
+};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{debug, error, info};
-use warp::Filter;
 
 pub async fn run_http_exchange(
     handle: SubsystemHandle,
-    composer_queue_tx: mpsc::Sender<ComposerQueueItem>,
+    tx: ComposerQueueTx,
     addr: IpAddr,
     port: u16,
 ) -> anyhow::Result<()> {
     const POST_BODY_SIZE_LIMIT: u64 = 1024 * 1024 * 4;
 
-    let routes = warp::post()
-        .and(warp::path("submission"))
-        .and(warp::body::content_length_limit(POST_BODY_SIZE_LIMIT))
-        .and(warp::body::json())
-        .and_then(move |submission: SubmissionConfig| {
-            use http::{Response, StatusCode};
-            use hyper::Body;
-
-            let composer_queue_tx = composer_queue_tx.clone();
-            async move {
-                let submission = Arc::new(submission);
-                let (tx, mut rx) = ring_channel::ring_channel(NonZeroUsize::new(1).unwrap());
-                match composer_queue_tx.send((submission.clone(), tx)).await {
-                    Err(err) => {
-                        error!("Error sending submission to composer_queue_tx: {:#?}", err);
-                        Response::builder()
+    let service = make_service_fn(move |_| {
+        let tx = tx.clone();
+        async {
+            Ok::<_, Infallible>(service_fn(move |req| {
+                let tx = tx.clone();
+                async move {
+                    Ok::<_, Infallible>(match handle_submission_request(tx, req).await {
+                        Ok(response) => response,
+                        Err(err) => Response::builder()
                             .status(StatusCode::INTERNAL_SERVER_ERROR)
-                            .body(Body::from(""))
-                            .unwrap()
-                    }
-                    Ok(_) => {
-                        let stream = stream! {
-                            while let Ok(_) = rx.recv() {
-                                match serde_json::to_string(&submission) {
-                                    Err(err) => {
-                                        error!("Error serializing the submission: {:#?}", err);
-                                    }
-                                    Ok(json) => {
-                                        debug!("Emitting the submission json");
-                                        yield Result::<_, Infallible>::Ok(json)
-                                    }
-                                }
-                            }
-                        };
-
-                        Response::new(Body::wrap_stream(stream))
-                    }
+                            .body(Body::from(format!("Internal error: {:#?}", err)))
+                            .unwrap(),
+                    })
                 }
-            }
-            .map(Result::<_, Infallible>::Ok)
-        });
-
-    let (tx, rx) = oneshot::channel();
-    let (_, server) = warp::serve(routes).bind_with_graceful_shutdown((addr, port), async move {
-        rx.await.ok();
+            }))
+        }
     });
 
     info!("Running http exchange on {}:{}", addr, port);
-    tokio::spawn(server);
+    Server::bind(&SocketAddr::from((addr, port)))
+        .serve(service)
+        .with_graceful_shutdown(async move {
+            handle.on_shutdown_requested().await;
+        })
+        .await?;
 
-    handle.on_shutdown_requested().await;
-    let _ = tx.send(());
     Ok(())
+}
+
+async fn handle_submission_request(
+    tx: ComposerQueueTx,
+    req: Request<Body>,
+) -> anyhow::Result<Response<Body>> {
+    let body = aggregate(req).await?;
+    let submission: Arc<SubmissionConfig> = Arc::new(serde_yaml::from_reader(body.reader())?);
+
+    let (status_tx, status_rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
+    debug!(id = submission.id, "Sending the submission into the composer_tx");
+    tx.send((submission.clone(), status_tx)).await?;
+
+    let stream = status_rx.map(move |_| {
+        Result::<_, Infallible>::Ok(match serde_yaml::to_string(&submission) {
+            Err(err) => {
+                error!("Error serializing the submission: {:#?}", err);
+                "".to_string()
+            }
+            Ok(json) => {
+                debug!("Emitting the submission json");
+                json
+            }
+        })
+    });
+    Ok(Response::new(Body::wrap_stream(stream)))
 }

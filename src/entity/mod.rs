@@ -1,13 +1,14 @@
+use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
-    time::SystemTime,
 };
 
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
+pub type UtcTimestamp = DateTime<Utc>;
 
 mod action;
 
@@ -17,14 +18,14 @@ pub use action::*;
 pub struct SubmissionConfig {
     #[cfg_attr(test, serde(skip_serializing))]
     #[serde(skip_deserializing, default = "make_submitted_at")]
-    pub submitted_at: SystemTime,
+    pub submitted_at: UtcTimestamp,
     pub id: String,
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 }
 
-fn make_submitted_at() -> SystemTime {
-    SystemTime::now()
+fn make_submitted_at() -> UtcTimestamp {
+    Utc::now()
 }
 
 #[derive(Debug, Clone)]
@@ -39,15 +40,15 @@ pub struct Submission {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TaskConfig {
+    #[serde(skip_deserializing, default, flatten)]
+    pub status: RwLock<TaskStatus>,
+
     #[serde(skip_serializing, default)]
     pub when: Option<String>,
     #[serde(skip_serializing, default)]
     pub needs: Option<String>,
     #[serde(skip_serializing_if = "TaskExtraConfig::is_action_task", flatten)]
     pub extra: TaskExtraConfig,
-
-    #[serde(skip_deserializing, default)]
-    pub status: RwLock<TaskStatus>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -77,7 +78,7 @@ pub struct ParallelTaskConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "status")]
 pub enum TaskStatus {
     #[serde(rename = "pending")]
     Pending,
@@ -102,10 +103,11 @@ pub enum TaskReport {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum TaskSuccessReport {
     Schedule,
     Action {
-        run_at: SystemTime,
+        run_at: UtcTimestamp,
         time_elapsed_ms: u64,
         #[serde(flatten)]
         extra: TaskSuccessReportExtra,
@@ -113,18 +115,17 @@ pub enum TaskSuccessReport {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "kind")]
+#[serde(untagged)]
 pub enum TaskSuccessReportExtra {
-    #[serde(rename = "noop")]
-    Noop(u64),
-    #[serde(rename = "add-file")]
+    Noop { test: u64 },
     AddFile,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum TaskFailedReport {
     Schedule,
-    Action { run_at: Option<SystemTime>, time_elapsed_ms: Option<u64>, message: String },
+    Action { run_at: Option<UtcTimestamp>, time_elapsed_ms: Option<u64>, message: String },
 }
 
 #[derive(Debug, Clone)]

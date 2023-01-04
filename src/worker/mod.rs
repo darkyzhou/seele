@@ -2,8 +2,9 @@ use crate::{
     conf,
     entity::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
 };
-use std::{path::PathBuf, sync::Arc, time::SystemTime};
-use tokio::sync::oneshot;
+use chrono::Utc;
+use std::{path::PathBuf, sync::Arc};
+use tokio::{sync::oneshot, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::error;
 
@@ -57,14 +58,14 @@ async fn handle_action(
             .collect::<PathBuf>(),
     };
 
-    let now = std::time::Instant::now();
-    let run_at = SystemTime::now();
+    let now = Instant::now();
+    let run_at = Utc::now();
     let result = match task {
         ActionTaskConfig::Noop(config) => action::run_noop_action(config).await,
         ActionTaskConfig::AddFile(config) => action::run_add_file_action(&context, config).await,
     };
     let time_elapsed_ms = {
-        let new_now = std::time::Instant::now();
+        let new_now = Instant::now();
         new_now.saturating_duration_since(now).as_millis().try_into()?
     };
 
