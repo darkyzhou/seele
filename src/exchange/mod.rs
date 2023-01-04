@@ -15,10 +15,10 @@ pub async fn exchange_main(
 
     for exchange in &conf::CONFIG.exchange {
         match exchange {
-            ExchangeConfig::Http { address, port } => {
+            ExchangeConfig::Http(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("http-{}-{}", address, port), move |handle| {
-                    run_http_exchange(handle, tx.clone(), *address, *port)
+                handle.start(&format!("http-{}-{}", config.address, config.port), move |handle| {
+                    run_http_exchange(handle, tx.clone(), config)
                 });
             }
         }

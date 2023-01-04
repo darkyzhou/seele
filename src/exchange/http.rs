@@ -1,49 +1,45 @@
-use crate::{composer::ComposerQueueTx, entity::SubmissionConfig};
+use crate::{composer::ComposerQueueTx, conf::HttpExchangeConfig, entity::SubmissionConfig};
+use anyhow::bail;
 use bytes::Buf;
 use futures_util::StreamExt;
 use http::{Request, Response, StatusCode};
 use hyper::{
-    body::aggregate,
+    body::{aggregate, HttpBody},
     service::{make_service_fn, service_fn},
     Body, Server,
 };
-use std::{
-    convert::Infallible,
-    net::{IpAddr, SocketAddr},
-    num::NonZeroUsize,
-    sync::Arc,
-};
+use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, sync::Arc};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{debug, error, info};
 
 pub async fn run_http_exchange(
     handle: SubsystemHandle,
     tx: ComposerQueueTx,
-    addr: IpAddr,
-    port: u16,
+    config: &HttpExchangeConfig,
 ) -> anyhow::Result<()> {
-    const POST_BODY_SIZE_LIMIT: u64 = 1024 * 1024 * 4;
-
     let service = make_service_fn(move |_| {
         let tx = tx.clone();
-        async {
-            Ok::<_, Infallible>(service_fn(move |req| {
+        let body_size_limit_bytes = config.max_body_size_bytes;
+        async move {
+            Ok::<_, Infallible>(service_fn(move |request| {
                 let tx = tx.clone();
                 async move {
-                    Ok::<_, Infallible>(match handle_submission_request(tx, req).await {
-                        Ok(response) => response,
-                        Err(err) => Response::builder()
-                            .status(StatusCode::INTERNAL_SERVER_ERROR)
-                            .body(Body::from(format!("Internal error: {:#?}", err)))
-                            .unwrap(),
-                    })
+                    Ok::<_, Infallible>(
+                        match handle_submission_request(request, tx, body_size_limit_bytes).await {
+                            Ok(response) => response,
+                            Err(err) => Response::builder()
+                                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                                .body(Body::from(format!("Internal error: {:#?}", err)))
+                                .unwrap(),
+                        },
+                    )
                 }
             }))
         }
     });
 
-    info!("Running http exchange on {}:{}", addr, port);
-    Server::bind(&SocketAddr::from((addr, port)))
+    info!("Running http exchange on {}:{}", config.address, config.port);
+    Server::bind(&SocketAddr::from((config.address, config.port)))
         .serve(service)
         .with_graceful_shutdown(async move {
             handle.on_shutdown_requested().await;
@@ -54,10 +50,16 @@ pub async fn run_http_exchange(
 }
 
 async fn handle_submission_request(
+    request: Request<Body>,
     tx: ComposerQueueTx,
-    req: Request<Body>,
+    body_size_limit_bytes: u64,
 ) -> anyhow::Result<Response<Body>> {
-    let body = aggregate(req).await?;
+    let body_size = request.body().size_hint().upper().unwrap_or(body_size_limit_bytes + 1);
+    if body_size > body_size_limit_bytes {
+        bail!("The size of the request body exceeds the limit: {}", body_size);
+    }
+
+    let body = aggregate(request).await?;
     let submission: Arc<SubmissionConfig> = Arc::new(serde_yaml::from_reader(body.reader())?);
 
     let (status_tx, status_rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
