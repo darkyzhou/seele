@@ -61,8 +61,8 @@ async fn handle_action(
     let now = Instant::now();
     let run_at = Utc::now();
     let result = match task {
-        ActionTaskConfig::Noop(config) => action::run_noop_action(config).await,
-        ActionTaskConfig::AddFile(config) => action::run_add_file_action(&context, config).await,
+        ActionTaskConfig::Noop(config) => action::noop(config).await,
+        ActionTaskConfig::AddFile(config) => action::add_file(&context, config).await,
     };
     let time_elapsed_ms = {
         let new_now = Instant::now();

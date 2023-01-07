@@ -45,7 +45,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     .build()
 });
 
-pub async fn run_add_file_action(
+pub async fn add_file(
     ctx: &ActionContext<'_>,
     config: &ActionAddFileConfig,
 ) -> anyhow::Result<TaskSuccessReportExtra> {
