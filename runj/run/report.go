@@ -96,6 +96,7 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 	return &spec.ExecutionReport{
 		Reason:          reason,
 		ExitCode:        code,
+		WallTimeMs:      uint64(wallTime.Milliseconds()),
 		CpuUserTimeMs:   cpuUserMs,
 		CpuKernelTimeMs: cpuKernelMs,
 		MemoryUsageKiB:  memoryUsage,

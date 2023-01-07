@@ -49,15 +49,3 @@ type RlimitConfig struct {
 	Hard uint64 `mapstructure:"hard"  validate:"required"`
 	Soft uint64 `mapstructure:"soft"  validate:"required"`
 }
-
-type ExecutionReport struct {
-	Reason          string `mapstructure:"reason"`
-	ExitCode        int    `mapstructure:"exit_code"`
-	CpuUserTimeMs   uint64 `mapstructure:"cpu_user_time_ms"`
-	CpuKernelTimeMs uint64 `mapstructure:"cpu_kernel_time_ms"`
-	MemoryUsageKiB  uint64 `mapstructure:"memory_usage_kib"`
-	IsOOM           bool   `mapstructure:"is_oom"`
-	IsWallTLE       bool   `mapstructure:"is_wall_tle"`
-	IsSystemTLE     bool   `mapstructure:"is_system_tle"`
-	IsUserTLE       bool   `mapstructure:"is_user_tle"`
-}
