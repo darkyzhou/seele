@@ -34,7 +34,7 @@ func InitSubCgroupV2() (string, error) {
 	if count := lo.CountBy(availableControllers, func(controller string) bool {
 		return controller == "cpu" || controller == "cpuset" || controller == "memory"
 	}); count < 3 {
-		return "", fmt.Errorf("Missing cgroup controller, available controllers: %s", content)
+		return "", fmt.Errorf("Missing some cgroup controllers, available controllers: %s", content)
 	}
 
 	if err := initSlice("seele.slice", dbus); err != nil {
@@ -67,7 +67,7 @@ func initSlice(unitName string, dbus *dbusConnManager) error {
 
 	// There is no need to worry about creating duplicate units
 	// because `startUnit` already handles that case.
-	properties = append(properties, systemdDbus.PropDescription("Seele containers"))
+	properties = append(properties, systemdDbus.PropDescription("Seele runj containers"))
 	properties = append(properties, newProp("MemoryAccounting", true), newProp("CPUAccounting", true), newProp("IOAccounting", true), newProp("TasksAccounting", true))
 	properties = append(properties, newProp("DefaultDependencies", false))
 
@@ -83,7 +83,7 @@ func initScope(unitName string, dbus *dbusConnManager) error {
 
 	// There is no need to worry about creating duplicate units
 	// because `startUnit` already handles that case.
-	properties = append(properties, systemdDbus.PropDescription(fmt.Sprintf("Seele run-container action %s", id)))
+	properties = append(properties, systemdDbus.PropDescription(fmt.Sprintf("Seele runj instance %s", id)))
 	properties = append(properties, systemdDbus.PropSlice("user.slice"))
 	properties = append(properties, newProp("Delegate", true))
 	properties = append(properties, newProp("PIDs", []uint32{uint32(os.Getpid())}))
