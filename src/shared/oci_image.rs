@@ -1,8 +1,16 @@
+use std::fmt::Display;
+
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct OciImage {
     pub registry: String,
     pub name: String,
     pub tag: String,
+}
+
+impl Display for OciImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "image({}/{}:{})", self.registry, self.name, self.tag)
+    }
 }
 
 impl From<&str> for OciImage {
@@ -27,6 +35,27 @@ impl From<&str> for OciImage {
         };
 
         Self { registry: registry.to_string(), name: name.to_string(), tag: tag.to_string() }
+    }
+}
+
+pub mod serde_format {
+    use super::OciImage;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(image: &OciImage, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}/{}:{}", image.registry, image.name, image.tag);
+        serializer.serialize_str(&s)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<OciImage, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let str = String::deserialize(deserializer)?;
+        Ok(str.as_str().into())
     }
 }
 

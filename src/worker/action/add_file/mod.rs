@@ -1,7 +1,7 @@
 use super::ActionContext;
 use crate::{
     conf,
-    entity::{ActionAddFileConfig, ActionAddFileFileItem, TaskSuccessReportExtra},
+    entity::ActionExecutionReport,
     shared::{self, cond_group::CondGroup},
 };
 use anyhow::{anyhow, bail, Context};
@@ -14,18 +14,18 @@ use std::{
     time::Duration,
 };
 use tokio_util::io::StreamReader;
+use tracing::instrument;
+
+pub use self::config::*;
+
+mod config;
 
 static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|| {
     use http_cache_reqwest::{CACacheManager, Cache, CacheMode, HttpCache};
     use reqwest::Client;
     use reqwest_middleware::ClientBuilder;
 
-    let cache_path = [&conf::CONFIG.root_path, "http_cache"]
-        .iter()
-        .collect::<PathBuf>()
-        .into_os_string()
-        .into_string()
-        .unwrap();
+    let cache_path = conf::PATHS.http_cache.to_str().unwrap().to_string();
 
     ClientBuilder::new(
         Client::builder()
@@ -45,10 +45,11 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     .build()
 });
 
+#[instrument]
 pub async fn add_file(
-    ctx: &ActionContext<'_>,
+    ctx: &ActionContext,
     config: &ActionAddFileConfig,
-) -> anyhow::Result<TaskSuccessReportExtra> {
+) -> anyhow::Result<ActionExecutionReport> {
     let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
         match item {
             ActionAddFileFileItem::Inline { path, text } => {
@@ -70,16 +71,12 @@ pub async fn add_file(
         bail!("Failed to handle some of the files:\n{}", failed_items.join("\n"));
     }
 
-    Ok(TaskSuccessReportExtra::AddFile)
+    Ok(ActionExecutionReport::AddFile)
 }
 
-async fn handle_inline_file(
-    ctx: &ActionContext<'_>,
-    path: &Path,
-    text: &str,
-) -> anyhow::Result<()> {
+async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> anyhow::Result<()> {
     let mut file = {
-        let path: PathBuf = [ctx.submission_root, path].iter().collect();
+        let path: PathBuf = ctx.submission_root.join(path);
         shared::file_utils::create_file(&path).await?
     };
     let mut text = text.as_bytes();
@@ -90,15 +87,12 @@ async fn handle_inline_file(
 static HTTP_TASKS: Lazy<CondGroup<String, Result<PathBuf, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
-async fn handle_http_file(
-    ctx: &ActionContext<'_>,
-    path: &Path,
-    url: &String,
-) -> anyhow::Result<()> {
+#[instrument]
+async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> anyhow::Result<()> {
     use tokio::fs;
 
     let src_path = HTTP_TASKS.run(url).await.map_err(|msg| anyhow!(msg))?;
-    let target_path: PathBuf = [ctx.submission_root, path].iter().collect();
+    let target_path: PathBuf = ctx.submission_root.join(path);
 
     if let Some(parent_path) = target_path.parent() {
         fs::create_dir_all(parent_path).await?;
@@ -114,9 +108,7 @@ async fn download_http_file(url: String) -> Result<PathBuf, String> {
         let file_path: PathBuf = {
             let mut hasher = DefaultHasher::new();
             url.hash(&mut hasher);
-            [&conf::CONFIG.root_path, "download", &format!("{:x}", hasher.finish())]
-                .iter()
-                .collect()
+            conf::PATHS.downloads.join(format!("{:x}", hasher.finish()))
         };
 
         let mut file = shared::file_utils::create_file(&file_path).await?;
@@ -147,39 +139,38 @@ async fn download_http_file(url: String) -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use crate::worker::action::ActionContext;
-    use std::path::{Path, PathBuf};
+    use std::{iter, path::PathBuf};
     use tokio::fs;
 
     #[tokio::test]
     async fn test_handle_inline_file() {
-        let submission_root = Path::new("./test_inline");
-        let target_path = Path::new("foo/bar.txt");
-        fs::create_dir_all(submission_root).await.unwrap();
+        let submission_root: PathBuf = iter::once("./test_inline").collect();
+        let target_path: PathBuf = iter::once("foo/bar.txt").collect();
+        fs::create_dir_all(&submission_root).await.unwrap();
 
         let text = "EXAMPLE 测试".to_string();
-        super::handle_inline_file(&ActionContext { submission_root }, target_path, &text)
-            .await
-            .unwrap();
+        super::handle_inline_file(
+            &ActionContext { submission_root: submission_root.clone() },
+            &target_path,
+            &text,
+        )
+        .await
+        .unwrap();
 
-        assert_eq!(
-            text,
-            fs::read_to_string([submission_root, target_path].iter().collect::<PathBuf>())
-                .await
-                .unwrap()
-        );
+        assert_eq!(text, fs::read_to_string(submission_root.join(target_path)).await.unwrap());
 
         fs::remove_dir_all(submission_root).await.unwrap();
     }
 
     #[tokio::test]
     async fn test_handle_http_file() {
-        let submission_root = Path::new("./test_http");
-        let target_path = Path::new("foo/bar.json");
-        fs::create_dir_all(submission_root).await.unwrap();
+        let submission_root: PathBuf = iter::once("./test_inline").collect();
+        let target_path: PathBuf = iter::once("foo/bar.txt").collect();
+        fs::create_dir_all(&submission_root).await.unwrap();
 
         super::handle_http_file(
-            &ActionContext { submission_root },
-            target_path,
+            &ActionContext { submission_root: submission_root.clone() },
+            &target_path,
             &"https://reqbin.com/echo/get/json".to_string(),
         )
         .await
@@ -187,9 +178,7 @@ mod tests {
 
         assert_eq!(
             "{\"success\":\"true\"}\n",
-            fs::read_to_string([submission_root, target_path].iter().collect::<PathBuf>())
-                .await
-                .unwrap()
+            fs::read_to_string(submission_root.join(target_path)).await.unwrap()
         );
 
         fs::remove_dir_all(submission_root).await.unwrap();

@@ -3,10 +3,12 @@ use crate::{
     entity::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
 };
 use chrono::Utc;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tokio::{sync::oneshot, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::error;
+use tracing::{error, instrument};
+
+pub use action::*;
 
 mod action;
 
@@ -48,21 +50,20 @@ async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> a
     Ok(())
 }
 
+#[instrument]
 async fn handle_action(
     submission_id: String,
     task: &ActionTaskConfig,
 ) -> anyhow::Result<TaskReport> {
-    let context = action::ActionContext {
-        submission_root: &[conf::CONFIG.root_path.clone(), "submissions".into(), submission_id]
-            .iter()
-            .collect::<PathBuf>(),
-    };
+    let ctx =
+        action::ActionContext { submission_root: conf::PATHS.submissions.join(submission_id) };
 
     let now = Instant::now();
     let run_at = Utc::now();
     let result = match task {
         ActionTaskConfig::Noop(config) => action::noop(config).await,
-        ActionTaskConfig::AddFile(config) => action::add_file(&context, config).await,
+        ActionTaskConfig::AddFile(config) => action::add_file(&ctx, config).await,
+        ActionTaskConfig::RunContainer(config) => action::run_container(&ctx, config).await,
     };
     let time_elapsed_ms = {
         let new_now = Instant::now();
@@ -75,8 +76,8 @@ async fn handle_action(
             time_elapsed_ms: Some(time_elapsed_ms),
             message: format!("Error running the action: {:#}", err),
         }),
-        Ok(extra) => {
-            TaskReport::Success(TaskSuccessReport::Action { run_at, time_elapsed_ms, extra })
+        Ok(report) => {
+            TaskReport::Success(TaskSuccessReport::Action { run_at, time_elapsed_ms, report })
         }
     })
 }

@@ -1,58 +1,51 @@
-use crate::conf;
 use crate::shared::cond_group::CondGroup;
 use crate::shared::oci_image::OciImage;
+use crate::{conf, shared};
 use anyhow::{anyhow, bail, Context};
 use futures_util::FutureExt;
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::time::Duration;
+use tokio::fs;
 use tokio::process::Command;
+use tokio::time::timeout;
+use tracing::{debug, instrument};
 
-macro_rules! collect_output {
-    ($output:expr) => {
-        String::from_utf8_lossy(
-            &$output
-                .stdout
-                .into_iter()
-                .chain($output.stderr.into_iter())
-                .take(200)
-                .collect::<Vec<_>>(),
-        )
-    };
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct TaskPayload(PathBuf, OciImage);
+
+static PREPARATION_TASKS: Lazy<CondGroup<TaskPayload, Result<String, String>>> = Lazy::new(|| {
+    CondGroup::new(|payload: &TaskPayload| prepare_image_impl(payload.clone()).boxed())
+});
+
+pub async fn prepare_image(root_path: PathBuf, image: &OciImage) -> anyhow::Result<String> {
+    PREPARATION_TASKS.run(&TaskPayload(root_path, image.clone())).await.map_err(|msg| anyhow!(msg))
 }
 
-static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<String, String>>> =
-    Lazy::new(|| CondGroup::new(|image: &OciImage| prepare_image_impl(image.clone()).boxed()));
+#[instrument]
+async fn prepare_image_impl(payload: TaskPayload) -> Result<String, String> {
+    pull_image(&payload).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
 
-pub async fn prepare_image(image: &OciImage) -> anyhow::Result<String> {
-    PREPARATION_TASKS.run(image).await.map_err(|msg| anyhow!(msg))
-}
-
-async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
-    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
-
-    let path = unpack_image(&image)
+    let path = unpack_image(&payload)
         .await
         .map_err(|err| format!("Error unpacking the image: {:#}", err))?;
     Ok(path)
 }
 
-static OCI_IMAGES_PATH: Lazy<PathBuf> =
-    Lazy::new(|| [&conf::CONFIG.root_path, "images"].iter().collect());
-
-async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
+#[instrument]
+async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<()> {
     const PULL_TIMEOUT_SECONDS: u64 = 30;
 
-    use tokio::fs::{canonicalize, metadata};
-    use tokio::time::timeout;
-
-    let path = canonicalize(get_image_path(image).join("oci")).await?;
-
+    let path = root_path.join(get_oci_image_path(image));
     // TODO: check the integrity
-    if metadata(&path).await.is_ok() {
+    if fs::metadata(&path).await.is_ok() {
+        debug!(path = %path.display(), "The image directory already presents, skip pulling");
         return Ok(());
     }
 
+    fs::create_dir_all(&path).await.context("Error creating the image directory")?;
+
+    debug!(path = %path.display(), "Pulling the container image using skopeo");
     let output = timeout(
         Duration::from_secs(PULL_TIMEOUT_SECONDS),
         Command::new("skopeo")
@@ -70,22 +63,29 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
     .context("Error executing the skopeo process")?
     .context("The skopeo process took too long to finish")?;
     if !output.status.success() {
-        bail!("The skopeo process failed with the following output: {}", collect_output!(output));
+        bail!(
+            "The skopeo process failed with the following output: {}",
+            shared::collect_output(&output)
+        );
     }
+
     Ok(())
 }
 
-async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
+#[instrument]
+async fn unpack_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<String> {
     const UNPACK_TIMEOUT_SECONDS: u64 = 30;
 
-    use tokio::fs::{canonicalize, metadata};
-    use tokio::time::timeout;
-
-    let image_path = canonicalize(get_image_path(image).join("oci")).await?;
-    let unpacked_path = canonicalize(get_image_path(image).join("unpacked")).await?;
-
+    let image_path = root_path.join(get_oci_image_path(image));
+    let unpacked_path = root_path.join(get_unpacked_image_path(image));
     // TODO: check the integrity
-    if metadata(&unpacked_path).await.is_err() {
+    if fs::metadata(&unpacked_path).await.is_err() {
+        debug!(image = %image_path.display(), unpacked = %unpacked_path.display(), "The unpacked image directory does not exist, unpacking the image");
+
+        fs::create_dir_all(&unpacked_path)
+            .await
+            .context("Error creating the unpacked image directory")?;
+
         let output = timeout(
             Duration::from_secs(UNPACK_TIMEOUT_SECONDS),
             Command::new("umoci")
@@ -103,26 +103,38 @@ async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
         .await
         .context("Error executing the umoci process")?
         .context("The umoci process took too long to finish")?;
+
         if !output.status.success() {
             bail!(
                 "The umoci process failed with the following output: {}",
-                collect_output!(output)
+                shared::collect_output(&output)
             );
         }
     }
 
-    let rootfs_path = unpacked_path
+    unpacked_path
         .join("rootfs")
         .into_os_string()
         .into_string()
-        .map_err(|_| anyhow!("Error resolving the rootfs path"))?;
-    Ok(rootfs_path)
+        .map_err(|_| anyhow!("Error resolving the rootfs path"))
 }
 
-fn get_image_path(image: &OciImage) -> PathBuf {
-    OCI_IMAGES_PATH.join(&image.registry).join(escape_image_name(&image.name))
+#[inline]
+pub fn get_image_path(image: &OciImage) -> PathBuf {
+    conf::PATHS.images.join(&image.registry).join(escape_image_name(&image.name))
 }
 
+#[inline]
+pub fn get_oci_image_path(image: &OciImage) -> PathBuf {
+    get_image_path(image).join("oci")
+}
+
+#[inline]
+pub fn get_unpacked_image_path(image: &OciImage) -> PathBuf {
+    get_image_path(image).join("unpacked")
+}
+
+#[inline]
 fn escape_image_name(name: &str) -> String {
     // https://docs.docker.com/registry/spec/api/#overview
     name.replace('/', "_")

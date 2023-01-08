@@ -110,15 +110,8 @@ pub enum TaskSuccessReport {
         run_at: UtcTimestamp,
         time_elapsed_ms: u64,
         #[serde(flatten)]
-        extra: TaskSuccessReportExtra,
+        report: ActionExecutionReport,
     },
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-pub enum TaskSuccessReportExtra {
-    Noop { test: u64 },
-    AddFile,
 }
 
 #[derive(Debug, Clone, Serialize)]

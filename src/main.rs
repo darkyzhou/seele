@@ -1,7 +1,7 @@
 use std::time::Duration;
 use tokio::{runtime, sync::mpsc};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
-use tracing::error;
+use tracing::{error, info};
 
 mod composer;
 mod conf;
@@ -20,16 +20,20 @@ fn main() {
     )
     .expect("Failed to initialize the logger");
 
-    std::fs::create_dir_all(&conf::CONFIG.root_path).expect("Failed to create the root directory");
+    info!(root = %conf::PATHS.root.display(), "Creating directories");
+    std::fs::create_dir_all(&conf::PATHS.images).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.http_cache).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.downloads).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.submissions).unwrap();
 
-    let rt = runtime::Builder::new_multi_thread()
+    info!("Creating runtime");
+    let runtime = runtime::Builder::new_multi_thread()
         .worker_threads(3)
         .enable_all()
         .max_blocking_threads(1)
         .build()
-        .expect("Failed to create the tokio runtime");
-
-    rt.block_on(async {
+        .unwrap();
+    runtime.block_on(async {
         let (composer_queue_tx, composer_queue_rx) =
             mpsc::channel::<composer::ComposerQueueItem>(16);
         let (worker_queue_tx, worker_queue_rx) =

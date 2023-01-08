@@ -155,8 +155,8 @@ async fn submit_task(
 mod tests {
     use crate::{
         composer::resolve::resolve_submission,
-        entity::{TaskReport, TaskSuccessReport, TaskSuccessReportExtra},
-        worker::WorkerQueueItem,
+        entity::{ActionExecutionReport, TaskReport, TaskSuccessReport},
+        worker::{NoopExecutionReport, WorkerQueueItem},
     };
     use chrono::Utc;
     use insta::glob;
@@ -187,7 +187,9 @@ mod tests {
                             .send(TaskReport::Success(TaskSuccessReport::Action {
                                 run_at: Utc::now(),
                                 time_elapsed_ms: 0,
-                                extra: TaskSuccessReportExtra::Noop { test: 0 },
+                                report: ActionExecutionReport::Noop(NoopExecutionReport {
+                                    test: 0,
+                                }),
                             }))
                             .unwrap();
                     }

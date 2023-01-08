@@ -1,13 +1,15 @@
 mod add_file;
 mod noop;
 mod run_container;
+mod run_judge;
 
-use std::path::Path;
+use std::path::PathBuf;
 
-pub use add_file::add_file;
-pub use noop::noop;
-pub use run_container::run_container;
+pub use add_file::*;
+pub use noop::*;
+pub use run_container::*;
 
-pub struct ActionContext<'a> {
-    pub submission_root: &'a Path,
+#[derive(Debug)]
+pub struct ActionContext {
+    pub submission_root: PathBuf,
 }
