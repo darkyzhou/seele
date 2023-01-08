@@ -43,11 +43,10 @@ static OCI_IMAGES_PATH: Lazy<PathBuf> =
 async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
     const PULL_TIMEOUT_SECONDS: u64 = 30;
 
-    use std::fs::canonicalize;
-    use tokio::fs::metadata;
+    use tokio::fs::{canonicalize, metadata};
     use tokio::time::timeout;
 
-    let path = canonicalize(get_image_path(image).join("oci"))?;
+    let path = canonicalize(get_image_path(image).join("oci")).await?;
 
     // TODO: check the integrity
     if metadata(&path).await.is_ok() {
@@ -79,12 +78,11 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
 async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
     const UNPACK_TIMEOUT_SECONDS: u64 = 30;
 
-    use std::fs::canonicalize;
-    use tokio::fs::metadata;
+    use tokio::fs::{canonicalize, metadata};
     use tokio::time::timeout;
 
-    let image_path = canonicalize(get_image_path(image).join("oci"))?;
-    let unpacked_path = canonicalize(get_image_path(image).join("unpacked"))?;
+    let image_path = canonicalize(get_image_path(image).join("oci")).await?;
+    let unpacked_path = canonicalize(get_image_path(image).join("unpacked")).await?;
 
     // TODO: check the integrity
     if metadata(&unpacked_path).await.is_err() {
