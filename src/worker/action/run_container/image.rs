@@ -48,7 +48,7 @@ async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Resu
     debug!(path = %path.display(), "Pulling the container image using skopeo");
     let output = timeout(
         Duration::from_secs(PULL_TIMEOUT_SECONDS),
-        Command::new("skopeo")
+        Command::new(&conf::CONFIG.skopeo_path)
             .args([
                 "copy",
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
@@ -88,7 +88,7 @@ async fn unpack_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Re
 
         let output = timeout(
             Duration::from_secs(UNPACK_TIMEOUT_SECONDS),
-            Command::new("umoci")
+            Command::new(&conf::CONFIG.umoci_path)
                 .args([
                     "--log",
                     "error",

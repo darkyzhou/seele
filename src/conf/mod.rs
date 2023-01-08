@@ -19,17 +19,14 @@ pub struct SeeleConfig {
     #[serde(default = "default_runj_path")]
     pub runj_path: String,
 
+    #[serde(default = "default_skopeo_path")]
+    pub skopeo_path: String,
+
+    #[serde(default = "default_umoci_path")]
+    pub umoci_path: String,
+
     #[serde(default)]
     pub exchange: Vec<ExchangeConfig>,
-}
-
-#[derive(Debug)]
-pub struct SeelePaths {
-    pub root: PathBuf,
-    pub images: PathBuf,
-    pub http_cache: PathBuf,
-    pub downloads: PathBuf,
-    pub submissions: PathBuf,
 }
 
 #[inline]
@@ -46,6 +43,25 @@ fn default_concurrency() -> usize {
 #[inline]
 fn default_runj_path() -> String {
     "runj".to_string()
+}
+
+#[inline]
+fn default_skopeo_path() -> String {
+    "skopeo".to_string()
+}
+
+#[inline]
+fn default_umoci_path() -> String {
+    "umoci".to_string()
+}
+
+#[derive(Debug)]
+pub struct SeelePaths {
+    pub root: PathBuf,
+    pub images: PathBuf,
+    pub http_cache: PathBuf,
+    pub downloads: PathBuf,
+    pub submissions: PathBuf,
 }
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
