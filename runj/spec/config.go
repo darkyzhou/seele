@@ -6,7 +6,7 @@ type RunjConfig struct {
 	Command []string       `mapstructure:"command" validate:"required,dive,required"`
 	Fd      *FdConfig      `mapstructure:"fd"`
 	Mounts  []*MountConfig `mapstructure:"mounts"`
-	Limit   *LimitConfig   `mapstructure:"limit"`
+	Limits  *LimitsConfig  `mapstructure:"limits"`
 }
 
 type FdConfig struct {
@@ -15,13 +15,19 @@ type FdConfig struct {
 	StdErr string `mapstructure:"stderr"`
 }
 
-type LimitConfig struct {
-	Time   *TimeLimitConfig `mapstructure:"time"`
-	Cgroup *CgroupConfig    `mapstructure:"cgroup"`
-	Rlimit []*RlimitConfig  `mapstructure:"rlimit"`
+type MountConfig struct {
+	From    string   `mapstructure:"from"  validate:"required"`
+	To      string   `mapstructure:"to"  validate:"required"`
+	Options []string `mapstructure:"options"`
 }
 
-type TimeLimitConfig struct {
+type LimitsConfig struct {
+	Time   *TimeLimitsConfig `mapstructure:"time"`
+	Cgroup *CgroupConfig     `mapstructure:"cgroup"`
+	Rlimit []*RlimitConfig   `mapstructure:"rlimit"`
+}
+
+type TimeLimitsConfig struct {
 	WallLimitMs   uint64 `mapstructure:"wall"`
 	KernelLimitMs uint64 `mapstructure:"kernel"`
 	UserLimitMs   uint64 `mapstructure:"user"`
@@ -36,12 +42,6 @@ type CgroupConfig struct {
 	CpusetCpus        string `mapstructure:"cpuset_cpus"`
 	CpusetMems        string `mapstructure:"cpuset_mems"`
 	PidsLimit         int64  `mapstructure:"pids_limit"`
-}
-
-type MountConfig struct {
-	From    string   `mapstructure:"from"  validate:"required"`
-	To      string   `mapstructure:"to"  validate:"required"`
-	Options []string `mapstructure:"options"`
 }
 
 type RlimitConfig struct {

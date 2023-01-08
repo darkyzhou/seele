@@ -122,19 +122,19 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	}()
 
 	var timeLimit uint64
-	if config.Limit != nil && config.Limit.Time != nil {
-		if config.Limit.Time.WallLimitMs != 0 {
-			timeLimit = config.Limit.Time.WallLimitMs
+	if config.Limits != nil && config.Limits.Time != nil {
+		if config.Limits.Time.WallLimitMs != 0 {
+			timeLimit = config.Limits.Time.WallLimitMs
 		} else {
-			if config.Limit.Time.KernelLimitMs != 0 || config.Limit.Time.UserLimitMs != 0 {
-				timeLimit = config.Limit.Time.KernelLimitMs + config.Limit.Time.UserLimitMs
+			if config.Limits.Time.KernelLimitMs != 0 || config.Limits.Time.UserLimitMs != 0 {
+				timeLimit = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
 			}
 		}
 	}
 
 	rlimits := defaultRlimitRules[:]
-	if config.Limit != nil && config.Limit.Rlimit != nil {
-		for _, rule := range config.Limit.Rlimit {
+	if config.Limits != nil && config.Limits.Rlimit != nil {
+		for _, rule := range config.Limits.Rlimit {
 			rlimitType, ok := rlimitTypeMap[rule.Type]
 			if !ok {
 				return nil, fmt.Errorf("Invalid rlimit type: %s", rule.Type)

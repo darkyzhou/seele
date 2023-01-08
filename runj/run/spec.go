@@ -97,30 +97,30 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 	cgroupMemRules.Swappiness = &swappiness
 
 	// Apply the cgroup configurations
-	if config.Limit != nil && config.Limit.Cgroup != nil {
-		if config.Limit.Cgroup.CpuQuota != 0 {
-			cgroupCpuRules.Quota = &config.Limit.Cgroup.CpuQuota
+	if config.Limits != nil && config.Limits.Cgroup != nil {
+		if config.Limits.Cgroup.CpuQuota != 0 {
+			cgroupCpuRules.Quota = &config.Limits.Cgroup.CpuQuota
 		}
-		if config.Limit.Cgroup.CpuShares != 0 {
-			cgroupCpuRules.Shares = &config.Limit.Cgroup.CpuShares
+		if config.Limits.Cgroup.CpuShares != 0 {
+			cgroupCpuRules.Shares = &config.Limits.Cgroup.CpuShares
 		}
-		if config.Limit.Cgroup.CpusetCpus != "" {
-			cgroupCpuRules.Cpus = config.Limit.Cgroup.CpusetCpus
+		if config.Limits.Cgroup.CpusetCpus != "" {
+			cgroupCpuRules.Cpus = config.Limits.Cgroup.CpusetCpus
 		}
-		if config.Limit.Cgroup.CpusetMems != "" {
-			cgroupCpuRules.Mems = config.Limit.Cgroup.CpusetMems
+		if config.Limits.Cgroup.CpusetMems != "" {
+			cgroupCpuRules.Mems = config.Limits.Cgroup.CpusetMems
 		}
-		if config.Limit.Cgroup.Memory != 0 {
-			cgroupMemRules.Limit = &config.Limit.Cgroup.Memory
+		if config.Limits.Cgroup.Memory != 0 {
+			cgroupMemRules.Limit = &config.Limits.Cgroup.Memory
 		}
-		if config.Limit.Cgroup.MemoryReservation != 0 {
-			cgroupMemRules.Reservation = &config.Limit.Cgroup.MemoryReservation
+		if config.Limits.Cgroup.MemoryReservation != 0 {
+			cgroupMemRules.Reservation = &config.Limits.Cgroup.MemoryReservation
 		}
-		if config.Limit.Cgroup.MemorySwap != 0 {
-			cgroupMemRules.Swap = &config.Limit.Cgroup.MemorySwap
+		if config.Limits.Cgroup.MemorySwap != 0 {
+			cgroupMemRules.Swap = &config.Limits.Cgroup.MemorySwap
 		}
-		if config.Limit.Cgroup.PidsLimit != 0 {
-			cgroupPidRules.Limit = config.Limit.Cgroup.PidsLimit
+		if config.Limits.Cgroup.PidsLimit != 0 {
+			cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
 		} else {
 			// By default we set it to 64
 			cgroupPidRules.Limit = 64

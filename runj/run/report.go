@@ -72,16 +72,16 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 		}
 	}
 
-	if config.Limit != nil && config.Limit.Time != nil {
-		if config.Limit.Time.KernelLimitMs != 0 && cpuKernelMs > config.Limit.Time.KernelLimitMs {
+	if config.Limits != nil && config.Limits.Time != nil {
+		if config.Limits.Time.KernelLimitMs != 0 && cpuKernelMs > config.Limits.Time.KernelLimitMs {
 			reason = REASON_TIME_LIMIT_EXCEEDED
 			isSystemTLE = true
 		}
-		if config.Limit.Time.UserLimitMs != 0 && cpuUserMs > config.Limit.Time.UserLimitMs {
+		if config.Limits.Time.UserLimitMs != 0 && cpuUserMs > config.Limits.Time.UserLimitMs {
 			reason = REASON_TIME_LIMIT_EXCEEDED
 			isUserTLE = true
 		}
-		if config.Limit.Time.WallLimitMs != 0 && lo.Max([]uint64{uint64(wallTime.Milliseconds()), cpuTotalMs}) > config.Limit.Time.WallLimitMs {
+		if config.Limits.Time.WallLimitMs != 0 && lo.Max([]uint64{uint64(wallTime.Milliseconds()), cpuTotalMs}) > config.Limits.Time.WallLimitMs {
 			reason = REASON_TIME_LIMIT_EXCEEDED
 			isWallTLE = true
 		}
