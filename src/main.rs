@@ -20,10 +20,8 @@ fn main() {
     )
     .expect("Failed to initialize the logger");
 
-    info!(root = %conf::PATHS.root.display(), "Creating directories");
+    info!(root = %conf::PATHS.root.display(), "Creating necessary directories");
     std::fs::create_dir_all(&conf::PATHS.images).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.http_cache).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.downloads).unwrap();
     std::fs::create_dir_all(&conf::PATHS.submissions).unwrap();
 
     info!("Creating runtime");

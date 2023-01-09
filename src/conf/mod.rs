@@ -4,9 +4,11 @@ use std::path::PathBuf;
 
 pub use action::*;
 pub use exchange::*;
+pub use path::*;
 
 mod action;
 mod exchange;
+mod path;
 
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
@@ -27,6 +29,9 @@ pub struct SeeleConfig {
 
     #[serde(default)]
     pub exchange: Vec<ExchangeConfig>,
+
+    #[serde(default)]
+    pub action: ActionConfig,
 }
 
 #[inline]
@@ -55,15 +60,6 @@ fn default_umoci_path() -> String {
     "umoci".to_string()
 }
 
-#[derive(Debug)]
-pub struct SeelePaths {
-    pub root: PathBuf,
-    pub images: PathBuf,
-    pub http_cache: PathBuf,
-    pub downloads: PathBuf,
-    pub submissions: PathBuf,
-}
-
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
     config::Config::builder()
         .add_source(config::File::with_name("config"))
@@ -72,12 +68,4 @@ pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
         .expect("Failed to load the config")
         .try_deserialize()
         .expect("Failed to parse the config")
-});
-
-pub static PATHS: Lazy<SeelePaths> = Lazy::new(|| SeelePaths {
-    root: CONFIG.root_path.clone(),
-    images: CONFIG.root_path.join("images"),
-    http_cache: CONFIG.root_path.join("http_cache"),
-    downloads: CONFIG.root_path.join("downloads"),
-    submissions: CONFIG.root_path.join("submissions"),
 });

@@ -5,15 +5,14 @@ use crate::{
     shared::{self, cond_group::CondGroup},
 };
 use anyhow::{anyhow, bail, Context};
-use futures_util::{FutureExt, TryStreamExt};
+use bytes::Bytes;
+use futures_util::FutureExt;
 use once_cell::sync::Lazy;
 use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
     path::{Path, PathBuf},
-    time::Duration,
+    sync::Arc,
 };
-use tokio_util::io::StreamReader;
+use tokio::io;
 use tracing::instrument;
 
 pub use self::config::*;
@@ -21,11 +20,11 @@ pub use self::config::*;
 mod config;
 
 static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|| {
-    use http_cache_reqwest::{CACacheManager, Cache, CacheMode, HttpCache};
+    use http_cache::MokaManager;
+    use http_cache_reqwest::{Cache, CacheMode, HttpCache};
     use reqwest::Client;
     use reqwest_middleware::ClientBuilder;
-
-    let cache_path = conf::PATHS.http_cache.to_str().unwrap().to_string();
+    use std::time::Duration;
 
     ClientBuilder::new(
         Client::builder()
@@ -39,7 +38,19 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     .with(Cache(HttpCache {
         // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline), the stale response will be returned.
         mode: CacheMode::Default,
-        manager: CACacheManager { path: cache_path },
+        manager: MokaManager::new({
+            use moka::future::Cache;
+
+            let config = &conf::CONFIG.action.add_file;
+            Cache::builder()
+                .name("seele-add-file")
+                .weigher(|_, value: &Arc<Vec<u8>>| -> u32 {
+                    value.len().try_into().unwrap_or(u32::MAX)
+                })
+                .max_capacity(1024 * 1024 * config.cache_size_mib)
+                .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
+                .build()
+        }),
         options: None,
     }))
     .build()
@@ -77,63 +88,44 @@ pub async fn add_file(
 async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> anyhow::Result<()> {
     let mut file = {
         let path: PathBuf = ctx.submission_root.join(path);
-        shared::file_utils::create_file(&path).await?
+        shared::file_utils::create_file(&path).await.context("Error creating the file")?
     };
+
     let mut text = text.as_bytes();
-    tokio::io::copy_buf(&mut text, &mut file).await?;
+    io::copy_buf(&mut text, &mut file).await.context("Error writing the data")?;
+
     Ok(())
 }
 
-static HTTP_TASKS: Lazy<CondGroup<String, Result<PathBuf, String>>> =
+static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
 #[instrument]
 async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> anyhow::Result<()> {
-    use tokio::fs;
+    let mut file = {
+        let target_path: PathBuf = ctx.submission_root.join(path);
+        shared::file_utils::create_file(&target_path).await.context("Error creating the file")?
+    };
 
-    let src_path = HTTP_TASKS.run(url).await.map_err(|msg| anyhow!(msg))?;
-    let target_path: PathBuf = ctx.submission_root.join(path);
-
-    if let Some(parent_path) = target_path.parent() {
-        fs::create_dir_all(parent_path).await?;
-    }
-
-    fs::hard_link(src_path, target_path).await?;
+    let data =
+        HTTP_TASKS.run(url).await.map_err(|msg| anyhow!("Error downloading the file: {}", msg))?;
+    let mut data = data.as_ref();
+    io::copy_buf(&mut data, &mut file).await.context("Error writing the data")?;
 
     Ok(())
 }
 
-async fn download_http_file(url: String) -> Result<PathBuf, String> {
-    async {
-        let file_path: PathBuf = {
-            let mut hasher = DefaultHasher::new();
-            url.hash(&mut hasher);
-            conf::PATHS.downloads.join(format!("{:x}", hasher.finish()))
-        };
-
-        let mut file = shared::file_utils::create_file(&file_path).await?;
-
-        let mut stream = {
-            use std::io::{Error, ErrorKind};
-            StreamReader::new(
-                HTTP_CLIENT
-                    .get(url)
-                    .send()
-                    .await
-                    .context("Error sending the request")?
-                    .bytes_stream()
-                    .map_err(|err| Error::new(ErrorKind::Other, err)),
-            )
-        };
-
-        tokio::io::copy(&mut stream, &mut file)
-            .await
-            .context("Error copying data from the response")?;
-
-        anyhow::Result::<PathBuf>::Ok(file_path)
-    }
-    .await
-    .map_err(|err| format!("Error downloading the http file: {:#}", err))
+async fn download_http_file(url: String) -> Result<Bytes, String> {
+    // TODO: We should use streams, but need to find a way
+    // to share it across CondGroup consumers
+    HTTP_CLIENT
+        .get(url)
+        .send()
+        .await
+        .map_err(|err| format!("Error sending the request: {:#}", err))?
+        .bytes()
+        .await
+        .map_err(|err| format!("Error downloading the content: {:#}", err))
 }
 
 #[cfg(test)]
@@ -164,7 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_http_file() {
-        let submission_root: PathBuf = iter::once("./test_inline").collect();
+        let submission_root: PathBuf = iter::once("./test_http").collect();
         let target_path: PathBuf = iter::once("foo/bar.txt").collect();
         fs::create_dir_all(&submission_root).await.unwrap();
 
