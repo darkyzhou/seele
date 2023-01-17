@@ -112,9 +112,9 @@ impl EvictionManager {
         Ok(state.items.len())
     }
 
-    pub async fn save_states(&self, data: &mut [u8]) -> anyhow::Result<()> {
+    pub async fn save_states(&self, writer: &mut Vec<u8>) -> anyhow::Result<()> {
         let state = self.state.lock().await;
-        Ok(ciborium::ser::into_writer(&*state, data)?)
+        Ok(ciborium::ser::into_writer(&*state, writer)?)
     }
 
     async fn do_visit<'a>(&self, mut state: MutexGuard<'a, EvictionState>, data: &PathBuf) {

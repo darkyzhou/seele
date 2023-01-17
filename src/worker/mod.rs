@@ -8,7 +8,6 @@ use chrono::Utc;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     fs::{self, File},
-    io::AsyncWriteExt,
     sync::oneshot,
     time::Instant,
 };
@@ -51,10 +50,9 @@ macro_rules! new_eviction_manager {
 macro_rules! save_states {
     ($manager:expr, $file:expr) => {
         if let Some(manager) = $manager.as_ref() {
-            let mut submission_file = File::create($file).await?;
-            let mut data = vec![];
-            manager.save_states(&mut data[..]).await?;
-            submission_file.write_all(&data[..]).await?;
+            let mut data = Vec::new();
+            manager.save_states(&mut data).await?;
+            fs::write($file, &data).await?;
         }
     };
 }
