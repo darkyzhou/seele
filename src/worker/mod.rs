@@ -166,7 +166,7 @@ async fn worker_main_impl(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip(submission_eviction_manager, image_eviction_manager))]
 async fn handle_action(
     submission_id: String,
     task: &ActionTaskConfig,
