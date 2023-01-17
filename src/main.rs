@@ -53,7 +53,7 @@ fn main() {
             for error in err.get_subsystem_errors() {
                 match error {
                     SubsystemError::Failed(name, err) => {
-                        error!("Subsystem '{}' failed: {:#}", name, err);
+                        error!("Subsystem '{}' failed: {:?}", name, err);
                     }
                     SubsystemError::Cancelled(name) => {
                         error!("Subsystem '{}' was cancelled", name)
