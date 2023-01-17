@@ -23,6 +23,8 @@ fn main() {
     info!(root = %conf::PATHS.root.display(), "Creating necessary directories");
     std::fs::create_dir_all(&conf::PATHS.images).unwrap();
     std::fs::create_dir_all(&conf::PATHS.submissions).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.evicted).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.states).unwrap();
 
     info!("Creating runtime");
     let runtime = runtime::Builder::new_multi_thread()

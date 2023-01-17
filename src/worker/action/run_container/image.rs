@@ -34,7 +34,7 @@ async fn prepare_image_impl(payload: TaskPayload) -> Result<String, String> {
 
 #[instrument]
 async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<()> {
-    const PULL_TIMEOUT_SECONDS: u64 = 30;
+    const PULL_TIMEOUT_SECOND: u64 = 30;
 
     let path = root_path.join(get_oci_image_path(image));
     // TODO: check the integrity
@@ -47,7 +47,7 @@ async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Resu
 
     debug!(path = %path.display(), "Pulling the container image using skopeo");
     let output = timeout(
-        Duration::from_secs(PULL_TIMEOUT_SECONDS),
+        Duration::from_secs(PULL_TIMEOUT_SECOND),
         Command::new(&conf::CONFIG.skopeo_path)
             .args([
                 "copy",
@@ -74,7 +74,7 @@ async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Resu
 
 #[instrument]
 async fn unpack_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<String> {
-    const UNPACK_TIMEOUT_SECONDS: u64 = 30;
+    const UNPACK_TIMEOUT_SECOND: u64 = 30;
 
     let image_path = root_path.join(get_oci_image_path(image));
     let unpacked_path = root_path.join(get_unpacked_image_path(image));
@@ -87,7 +87,7 @@ async fn unpack_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Re
             .context("Error creating the unpacked image directory")?;
 
         let output = timeout(
-            Duration::from_secs(UNPACK_TIMEOUT_SECONDS),
+            Duration::from_secs(UNPACK_TIMEOUT_SECOND),
             Command::new(&conf::CONFIG.umoci_path)
                 .args([
                     "--log",

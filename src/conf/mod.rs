@@ -5,10 +5,14 @@ use std::path::PathBuf;
 pub use action::*;
 pub use exchange::*;
 pub use path::*;
+pub use worker::*;
+
+use self::worker::WorkerConfig;
 
 mod action;
 mod exchange;
 mod path;
+mod worker;
 
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
@@ -31,7 +35,7 @@ pub struct SeeleConfig {
     pub exchange: Vec<ExchangeConfig>,
 
     #[serde(default)]
-    pub action: ActionConfig,
+    pub worker: WorkerConfig,
 }
 
 #[inline]

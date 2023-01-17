@@ -41,7 +41,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
         manager: MokaManager::new({
             use moka::future::Cache;
 
-            let config = &conf::CONFIG.action.add_file;
+            let config = &conf::CONFIG.worker.action.add_file;
             Cache::builder()
                 .name("seele-add-file")
                 .weigher(|_, value: &Arc<Vec<u8>>| -> u32 {
@@ -131,7 +131,7 @@ async fn download_http_file(url: String) -> Result<Bytes, String> {
 #[cfg(test)]
 mod tests {
     use crate::worker::action::ActionContext;
-    use std::{iter, path::PathBuf};
+    use std::{iter, path::PathBuf, sync::Arc};
     use tokio::fs;
 
     #[tokio::test]
@@ -142,7 +142,11 @@ mod tests {
 
         let text = "EXAMPLE 测试".to_string();
         super::handle_inline_file(
-            &ActionContext { submission_root: submission_root.clone() },
+            &ActionContext {
+                submission_root: submission_root.clone(),
+                submission_eviction_manager: Arc::default(),
+                image_eviction_manager: Arc::default(),
+            },
             &target_path,
             &text,
         )
@@ -161,7 +165,11 @@ mod tests {
         fs::create_dir_all(&submission_root).await.unwrap();
 
         super::handle_http_file(
-            &ActionContext { submission_root: submission_root.clone() },
+            &ActionContext {
+                submission_root: submission_root.clone(),
+                submission_eviction_manager: Arc::default(),
+                image_eviction_manager: Arc::default(),
+            },
             &target_path,
             &"https://reqbin.com/echo/get/json".to_string(),
         )
