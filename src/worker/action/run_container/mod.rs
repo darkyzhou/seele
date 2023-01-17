@@ -26,9 +26,7 @@ pub async fn run_container(
     if let Some(manager) = ctx.image_eviction_manager.as_ref() {
         manager.visit_enter(&image_path).await;
     }
-    image::prepare_image(ctx.submission_root.clone(), &config.image)
-        .await
-        .context("Error preparing the container image")?;
+    image::prepare_image(&config.image).await.context("Error preparing the container image")?;
 
     let result = async move {
         let config = {

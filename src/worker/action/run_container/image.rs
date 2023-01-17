@@ -11,32 +11,28 @@ use tokio::process::Command;
 use tokio::time::timeout;
 use tracing::{debug, instrument};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct TaskPayload(PathBuf, OciImage);
+static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<String, String>>> =
+    Lazy::new(|| CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed()));
 
-static PREPARATION_TASKS: Lazy<CondGroup<TaskPayload, Result<String, String>>> = Lazy::new(|| {
-    CondGroup::new(|payload: &TaskPayload| prepare_image_impl(payload.clone()).boxed())
-});
-
-pub async fn prepare_image(root_path: PathBuf, image: &OciImage) -> anyhow::Result<String> {
-    PREPARATION_TASKS.run(&TaskPayload(root_path, image.clone())).await.map_err(|msg| anyhow!(msg))
+pub async fn prepare_image(image: &OciImage) -> anyhow::Result<String> {
+    PREPARATION_TASKS.run(image).await.map_err(|err| anyhow!(err))
 }
 
 #[instrument]
-async fn prepare_image_impl(payload: TaskPayload) -> Result<String, String> {
-    pull_image(&payload).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
+async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
+    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
 
-    let path = unpack_image(&payload)
+    let path = unpack_image(&image)
         .await
         .map_err(|err| format!("Error unpacking the image: {:#}", err))?;
     Ok(path)
 }
 
 #[instrument]
-async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<()> {
+async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
     const PULL_TIMEOUT_SECOND: u64 = 30;
 
-    let path = root_path.join(get_oci_image_path(image));
+    let path = get_oci_image_path(image);
     // TODO: check the integrity
     if fs::metadata(&path).await.is_ok() {
         debug!(path = %path.display(), "The image directory already presents, skip pulling");
@@ -73,11 +69,11 @@ async fn pull_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Resu
 }
 
 #[instrument]
-async fn unpack_image(TaskPayload(root_path, image): &TaskPayload) -> anyhow::Result<String> {
+async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
     const UNPACK_TIMEOUT_SECOND: u64 = 30;
 
-    let image_path = root_path.join(get_oci_image_path(image));
-    let unpacked_path = root_path.join(get_unpacked_image_path(image));
+    let image_path = get_oci_image_path(image);
+    let unpacked_path = get_unpacked_image_path(image);
     // TODO: check the integrity
     if fs::metadata(&unpacked_path).await.is_err() {
         debug!(image = %image_path.display(), unpacked = %unpacked_path.display(), "The unpacked image directory does not exist, unpacking the image");
