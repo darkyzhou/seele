@@ -8,7 +8,7 @@ use chrono::Utc;
 use std::{sync::Arc, time::Duration};
 use tokio::{
     fs::{self, File},
-    io::AsyncReadExt,
+    io::AsyncWriteExt,
     sync::oneshot,
     time::Instant,
 };
@@ -53,8 +53,8 @@ macro_rules! save_states {
         if let Some(manager) = $manager.as_ref() {
             let mut submission_file = File::create($file).await?;
             let mut data = vec![];
-            submission_file.read_to_end(&mut data).await?;
             manager.save_states(&mut data[..]).await?;
+            submission_file.write_all(&data[..]).await?;
         }
     };
 }
