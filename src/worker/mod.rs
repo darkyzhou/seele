@@ -13,7 +13,7 @@ use tokio::{
     time::Instant,
 };
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 pub use action::*;
 
@@ -174,10 +174,15 @@ async fn handle_action(
     image_eviction_manager: Arc<Option<EvictionManager>>,
 ) -> anyhow::Result<TaskReport> {
     let ctx = Arc::new(ActionContext {
-        submission_root: conf::PATHS.submissions.join(submission_id),
+        submission_root: conf::PATHS.submissions.join(&submission_id),
         submission_eviction_manager,
         image_eviction_manager,
     });
+
+    if fs::metadata(&ctx.submission_root).await.is_ok() {
+        warn!(path = %ctx.submission_root.display(), "The submission directory already exists, it may because of the duplicate submission id, now deleting it");
+        fs::remove_dir_all(&ctx.submission_root).await?;
+    }
 
     fs::create_dir_all(&ctx.submission_root)
         .await
