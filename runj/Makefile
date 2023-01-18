@@ -20,7 +20,7 @@ test-all:
 	@echo "Testing..."
 	@go test -v ./...
 
-build:
+build: clean
 	@echo "Building runj..."
 	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags '$(GO_LDFLAGS)' -o $(BIN_PATH) $(MAIN_ENTRYPOINT)
 	@echo "Successfully built into $(BIN_PATH)"
