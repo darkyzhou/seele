@@ -1,12 +1,13 @@
 package spec
 
 type RunjConfig struct {
-	Rootfs  string         `mapstructure:"rootfs" validate:"required"`
-	Cwd     string         `mapstructure:"cwd" validate:"required"`
-	Command []string       `mapstructure:"command" validate:"required,dive,required"`
-	Fd      *FdConfig      `mapstructure:"fd"`
-	Mounts  []*MountConfig `mapstructure:"mounts"`
-	Limits  *LimitsConfig  `mapstructure:"limits"`
+	Rootfs   string         `mapstructure:"rootfs" validate:"required"`
+	Cwd      string         `mapstructure:"cwd" validate:"required"`
+	Command  []string       `mapstructure:"command" validate:"required,dive,required"`
+	Fd       *FdConfig      `mapstructure:"fd"`
+	Mounts   []*MountConfig `mapstructure:"mounts"`
+	Limits   *LimitsConfig  `mapstructure:"limits"`
+	Rootless bool           `mapstructure:"rootless"`
 }
 
 type FdConfig struct {

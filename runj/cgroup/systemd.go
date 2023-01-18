@@ -7,34 +7,25 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	systemdDbus "github.com/coreos/go-systemd/v22/dbus"
 	securejoin "github.com/cyphar/filepath-securejoin"
 	dbus "github.com/godbus/dbus/v5"
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
-	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 )
 
 var id = gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
 
-func InitSubCgroupV2() (string, error) {
+// Initialize a new cgroup v2 directory using systemd.
+// Mainly used for bare-metal environments.
+func InitSystemdCgroup() (string, error) {
 	dbus := newDbusConnManager()
 
-	content, err := supportedControllers()
-	if err != nil {
-		return "", fmt.Errorf("Failed to get supported controllers: %w", err)
-	}
-	availableControllers := strings.Fields(content)
-
-	if count := lo.CountBy(availableControllers, func(controller string) bool {
-		return controller == "cpu" || controller == "cpuset" || controller == "memory"
-	}); count < 3 {
-		return "", fmt.Errorf("Missing some cgroup controllers, available controllers: %s", content)
+	if err := checkSupportedControllers(); err != nil {
+		return "", fmt.Errorf("Failed to check supported controllers: %w", err)
 	}
 
 	if err := initSlice("seele.slice", dbus); err != nil {
@@ -50,11 +41,8 @@ func InitSubCgroupV2() (string, error) {
 		return "", fmt.Errorf("Failed to find sub-cgroup path: %w", err)
 	}
 
-	// Manually initialize subtree_control with all available controllers
-	for _, controller := range []string{"cpu", "cpuset", "memory"} {
-		if err := cgroups.WriteFile(slicePath, "cgroup.subtree_control", "+"+controller); err != nil {
-			return "", fmt.Errorf("Failed to write the cgroup controller to cgroup.subtree_control: %w", err)
-		}
+	if err := initMandatoryControllers(slicePath); err != nil {
+		return "", fmt.Errorf("Failed to init mandatory controllers: %w", err)
 	}
 
 	// TODO: Maybe we should toggle memory.oom.group for cgroups inside the slice?
@@ -104,10 +92,6 @@ func newProp(name string, units interface{}) systemdDbus.Property {
 		Name:  name,
 		Value: dbus.MakeVariant(units),
 	}
-}
-
-func supportedControllers() (string, error) {
-	return cgroups.ReadFile(fs2.UnifiedMountpoint, "/cgroup.controllers")
 }
 
 func getPath(unitName string, cm *dbusConnManager) (string, error) {

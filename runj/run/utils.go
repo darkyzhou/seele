@@ -30,13 +30,17 @@ func prepareContainerFactory() error {
 	return err
 }
 
-func prepareCgroupPath() error {
+func prepareCgroupPath(useSystemdCgroupDriver bool) error {
 	if cgroupPath != "" {
 		return nil
 	}
 
 	var err error
-	cgroupPath, err = cgroup.InitSubCgroupV2()
+	if useSystemdCgroupDriver {
+		cgroupPath, err = cgroup.InitSystemdCgroup()
+	} else {
+		cgroupPath, err = cgroup.InitFsCgroup()
+	}
 	return err
 }
 

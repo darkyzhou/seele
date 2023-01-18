@@ -33,12 +33,14 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}
 
-	if err := prepareCgroupPath(); err != nil {
+	if err := prepareCgroupPath(config.Rootless); err != nil {
 		return nil, fmt.Errorf("Error preparing cgroup path: %w", err)
 	}
 
-	if err := prepareIdMaps(); err != nil {
-		return nil, fmt.Errorf("Error preparing id maps: %w", err)
+	if config.Rootless {
+		if err := prepareIdMaps(); err != nil {
+			return nil, fmt.Errorf("Error preparing id maps: %w", err)
+		}
 	}
 
 	spec, err := makeContainerSpec(config)
@@ -46,24 +48,24 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		return nil, fmt.Errorf("Error making container specification: %w", err)
 	}
 
+	containerId := makeContainerId()
+
+	fullCgroupPath := filepath.Join(cgroupPath, containerId)
+	if err := os.Mkdir(fullCgroupPath, 0770); err != nil {
+		return nil, fmt.Errorf("Error creating cgroup directory: %w", err)
+	}
+
 	cfg, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		Spec:             spec,
-		RootlessEUID:     true,
-		RootlessCgroups:  true,
+		RootlessEUID:     config.Rootless,
+		RootlessCgroups:  config.Rootless,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Error creating libcontainer config: %w", err)
 	}
-
-	containerId := makeContainerId()
-
-	subCgroupPath := filepath.Join(cgroupPath, containerId)
-	if err := os.Mkdir(subCgroupPath, 0770); err != nil {
-		return nil, fmt.Errorf("Error creating subcgroup directory: %w", err)
-	}
 	// This is mandatory for libcontainer to correctly handle cgroup path
-	cfg.Cgroups.Path = strings.Replace(subCgroupPath, fs2.UnifiedMountpoint, "", 1)
+	cfg.Cgroups.Path = strings.Replace(fullCgroupPath, fs2.UnifiedMountpoint, "", 1)
 
 	container, err := factory.Create(containerId, cfg)
 	if err != nil {
@@ -196,7 +198,7 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	wallTimeEnd := time.Now()
 	processFinished = true
 
-	isOOM, err := checkIsOOM(subCgroupPath)
+	isOOM, err := checkIsOOM(fullCgroupPath)
 	if err != nil {
 		return nil, fmt.Errorf("Error checking if container ran out of memory: %w", err)
 	}

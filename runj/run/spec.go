@@ -162,6 +162,32 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 		}
 	}
 
+	namespaces := []specs.LinuxNamespace{
+		{
+			Type: specs.PIDNamespace,
+		},
+		{
+			Type: specs.NetworkNamespace,
+		},
+		{
+			Type: specs.IPCNamespace,
+		},
+		{
+			Type: specs.UTSNamespace,
+		},
+		{
+			Type: specs.MountNamespace,
+		},
+		{
+			Type: specs.CgroupNamespace,
+		},
+	}
+	if config.Rootless {
+		namespaces = append(namespaces, specs.LinuxNamespace{
+			Type: specs.UserNamespace,
+		})
+	}
+
 	return &specs.Spec{
 		Version: specs.Version,
 		Root: &specs.Root{
@@ -204,29 +230,7 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 				Pids:   cgroupPidRules,
 				// TODO: Maybe we should have rules for device?
 			},
-			Namespaces: []specs.LinuxNamespace{
-				{
-					Type: specs.UserNamespace,
-				},
-				{
-					Type: specs.PIDNamespace,
-				},
-				{
-					Type: specs.NetworkNamespace,
-				},
-				{
-					Type: specs.IPCNamespace,
-				},
-				{
-					Type: specs.UTSNamespace,
-				},
-				{
-					Type: specs.MountNamespace,
-				},
-				{
-					Type: specs.CgroupNamespace,
-				},
-			},
+			Namespaces: namespaces,
 		},
 	}, nil
 }
