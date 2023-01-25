@@ -56,7 +56,7 @@ impl EvictionManager {
         let manager = Self {
             name,
             interval,
-            ttl: chrono::Duration::from_std(ttl.clone())?,
+            ttl: chrono::Duration::from_std(ttl)?,
             capacity,
             state: Default::default(),
         };
@@ -117,21 +117,17 @@ impl EvictionManager {
         Ok(ciborium::ser::into_writer(&*state, writer)?)
     }
 
-    async fn do_visit<'a>(&self, mut state: MutexGuard<'a, EvictionState>, data: &PathBuf) {
+    async fn do_visit<'a>(&self, mut state: MutexGuard<'a, EvictionState>, data: &Path) {
         let now = Utc::now();
 
         state.items.push(Reverse(now));
 
         match state.time_to_data_map.get_mut(&now) {
             None => {
-                state.time_to_data_map.insert(now, {
-                    let mut vec = Vec::with_capacity(1);
-                    vec.push(data.clone());
-                    vec
-                });
+                state.time_to_data_map.insert(now, vec![data.into()]);
             }
             Some(vec) => {
-                vec.push(data.clone());
+                vec.push(data.into());
             }
         }
     }
