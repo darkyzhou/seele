@@ -78,7 +78,7 @@ pub struct RlimitConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ContainerExecutionReport {
-    reason: String,
+    status: String,
     exit_code: i64,
     wall_time_ms: u64,
     cpu_user_time_ms: u64,

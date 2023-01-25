@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	REASON_NORMAL              = "NORMAL"
-	REASON_RUNTIME_ERROR       = "RUNTIME_ERROR"
-	REASON_SIGNAL_TERMINATE    = "SIGNAL_TERMINATE"
-	REASON_SIGNAL_STOP         = "SIGNAL_STOP"
-	REASON_TIME_LIMIT_EXCEEDED = "TIME_LIMIT_EXCEEDED"
-	REASON_OUT_OF_MEMORY       = "OUT_OF_MEMORY"
-	REASON_UNKNOWN             = "UNKNOWN"
+	STATUS_NORMAL                = "NORMAL"
+	STATUS_RUNTIME_ERROR         = "RUNTIME_ERROR"
+	STATUS_SIGNAL_TERMINATE      = "SIGNAL_TERMINATE"
+	STATUS_SIGNAL_STOP           = "SIGNAL_STOP"
+	STATUS_TIME_LIMIT_EXCEEDED   = "TIME_LIMIT_EXCEEDED"
+	STATUS_MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED"
+	STATUS_UNKNOWN               = "UNKNOWN"
 )
 
 func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.ProcessState, stats *libcontainer.Stats, wallTime time.Duration) (*spec.ExecutionReport, error) {
@@ -28,7 +28,7 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 		cpuTotalMs  uint64
 		cpuKernelMs uint64
 		cpuUserMs   uint64
-		reason      = REASON_UNKNOWN
+		exitStatus  = STATUS_UNKNOWN
 		code        = -1
 		isWallTLE   bool
 		isSystemTLE bool
@@ -51,22 +51,22 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 		case status.Exited():
 			code = status.ExitStatus()
 			if code == 0 {
-				reason = REASON_NORMAL
+				exitStatus = STATUS_NORMAL
 			} else {
-				reason = REASON_RUNTIME_ERROR
+				exitStatus = STATUS_RUNTIME_ERROR
 			}
 		case status.Signaled():
 			s := status.Signal()
 			code = int(s) + 128
 			if s == unix.SIGXCPU {
-				reason = REASON_TIME_LIMIT_EXCEEDED
+				exitStatus = STATUS_TIME_LIMIT_EXCEEDED
 			} else {
-				reason = REASON_SIGNAL_TERMINATE
+				exitStatus = STATUS_SIGNAL_TERMINATE
 			}
 		case status.Stopped():
 			s := status.StopSignal()
 			code = int(s) + 128
-			reason = REASON_SIGNAL_STOP
+			exitStatus = STATUS_SIGNAL_STOP
 		default:
 			return nil, fmt.Errorf("Unknown status: %v", status)
 		}
@@ -74,27 +74,27 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 
 	if config.Limits != nil && config.Limits.Time != nil {
 		if config.Limits.Time.KernelLimitMs != 0 && cpuKernelMs > config.Limits.Time.KernelLimitMs {
-			reason = REASON_TIME_LIMIT_EXCEEDED
+			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
 			isSystemTLE = true
 		}
 		if config.Limits.Time.UserLimitMs != 0 && cpuUserMs > config.Limits.Time.UserLimitMs {
-			reason = REASON_TIME_LIMIT_EXCEEDED
+			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
 			isUserTLE = true
 		}
 		if config.Limits.Time.WallLimitMs != 0 && lo.Max([]uint64{uint64(wallTime.Milliseconds()), cpuTotalMs}) > config.Limits.Time.WallLimitMs {
-			reason = REASON_TIME_LIMIT_EXCEEDED
+			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
 			isWallTLE = true
 		}
 	}
 
 	if isOOM {
-		// In the oom case, the reason would actually be REASON_SIGNAL_TERMINATE
-		// but we choose to specify it with a new reason
-		reason = REASON_OUT_OF_MEMORY
+		// In the oom case, the exitStatus is actually STATUS_SIGNAL_TERMINATE
+		// here we specialize it with a new status.
+		exitStatus = STATUS_MEMORY_LIMIT_EXCEEDED
 	}
 
 	return &spec.ExecutionReport{
-		Reason:          reason,
+		Status:          exitStatus,
 		ExitCode:        code,
 		WallTimeMs:      uint64(wallTime.Milliseconds()),
 		CpuUserTimeMs:   cpuUserMs,

@@ -1,7 +1,7 @@
 package spec
 
 type ExecutionReport struct {
-	Reason          string `json:"reason"`
+	Status          string `json:"status"`
 	ExitCode        int    `json:"exit_code"`
 	WallTimeMs      uint64 `json:"wall_time_ms"`
 	CpuUserTimeMs   uint64 `json:"cpu_user_time_ms"`
