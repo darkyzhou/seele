@@ -1,7 +1,7 @@
 use super::ActionContext;
 use crate::{
     conf,
-    entity::ActionExecutionReport,
+    entities::ActionExecutionReport,
     shared::{self, cond_group::CondGroup},
 };
 use anyhow::{anyhow, bail, Context};

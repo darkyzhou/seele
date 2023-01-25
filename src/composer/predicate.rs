@@ -1,4 +1,4 @@
-use crate::entity::{TaskNode, TaskStatus};
+use crate::entities::{TaskNode, TaskStatus};
 
 const TRUE: &str = "true";
 const PREVIOUS_OK: &str = "previous.ok";

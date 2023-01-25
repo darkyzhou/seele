@@ -1,7 +1,7 @@
 use super::{config::ActionCompileConfig, MOUNT_DIRECTORY};
 use crate::{
     conf,
-    entity::ActionExecutionReport,
+    entities::ActionExecutionReport,
     worker::{run_container, runj, ActionContext, MountConfig},
 };
 use anyhow::{bail, Context};

@@ -5,7 +5,7 @@ use tracing::{error, info};
 
 mod composer;
 mod conf;
-mod entity;
+mod entities;
 mod exchange;
 mod shared;
 mod worker;

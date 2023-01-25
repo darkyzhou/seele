@@ -1,6 +1,6 @@
 use super::predicate;
 use crate::{
-    entity::{
+    entities::{
         ActionTaskConfig, Submission, TaskConfig, TaskExtraConfig, TaskFailedReport, TaskNode,
         TaskNodeExtra, TaskReport, TaskStatus, TaskSuccessReport,
     },
@@ -155,7 +155,7 @@ async fn submit_task(
 mod tests {
     use crate::{
         composer::resolve::resolve_submission,
-        entity::{ActionExecutionReport, TaskReport, TaskSuccessReport},
+        entities::{ActionExecutionReport, TaskReport, TaskSuccessReport},
         worker::{NoopExecutionReport, WorkerQueueItem},
     };
     use chrono::Utc;

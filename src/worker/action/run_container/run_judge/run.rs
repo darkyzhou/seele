@@ -1,6 +1,6 @@
 use super::{config::ActionRunConfig, MOUNT_DIRECTORY};
 use crate::{
-    entity::ActionExecutionReport,
+    entities::ActionExecutionReport,
     worker::{run_container, runj, ActionContext, MountConfig},
 };
 use tracing::instrument;

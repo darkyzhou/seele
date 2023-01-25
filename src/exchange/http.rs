@@ -1,4 +1,4 @@
-use crate::{composer::ComposerQueueTx, conf::HttpExchangeConfig, entity::SubmissionConfig};
+use crate::{composer::ComposerQueueTx, conf::HttpExchangeConfig, entities::SubmissionConfig};
 use anyhow::bail;
 use bytes::Buf;
 use futures_util::StreamExt;

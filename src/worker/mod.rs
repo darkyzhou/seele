@@ -1,7 +1,7 @@
 use self::eviction::EvictionManager;
 use crate::{
     conf,
-    entity::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
+    entities::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
 };
 use anyhow::Context;
 use chrono::Utc;

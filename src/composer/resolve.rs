@@ -1,5 +1,5 @@
 use crate::{
-    entity::{
+    entities::{
         RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig, TaskExtraConfig,
         TaskNode, TaskNodeExtra,
     },

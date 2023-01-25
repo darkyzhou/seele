@@ -1,4 +1,4 @@
-use crate::{entity::SubmissionConfig, worker::WorkerQueueTx};
+use crate::{entities::SubmissionConfig, worker::WorkerQueueTx};
 use anyhow::Context;
 use std::sync::Arc;
 use tokio::sync::mpsc;

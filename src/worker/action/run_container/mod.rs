@@ -1,6 +1,6 @@
 use self::utils::{check_and_create_directories, convert_to_runj_config};
 use super::ActionContext;
-use crate::entity::ActionExecutionReport;
+use crate::entities::ActionExecutionReport;
 use crate::{conf, shared};
 use anyhow::{anyhow, bail, Context};
 use std::process::Stdio;

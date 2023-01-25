@@ -1,4 +1,4 @@
-use crate::entity::ActionExecutionReport;
+use crate::entities::ActionExecutionReport;
 use serde::{Deserialize, Serialize};
 
 pub async fn noop(config: &ActionNoopConfig) -> anyhow::Result<ActionExecutionReport> {
