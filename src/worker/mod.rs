@@ -5,22 +5,24 @@ use crate::{
 };
 use anyhow::Context;
 use chrono::Utc;
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     fs::{self, File},
     sync::oneshot,
     time::Instant,
 };
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, instrument};
 
 pub use action::*;
 
 mod action;
 mod eviction;
 
+#[derive(Debug)]
 pub struct WorkerQueueItem {
     pub submission_id: String,
+    pub submission_root: PathBuf,
     pub config: Arc<ActionTaskConfig>,
     pub report_tx: oneshot::Sender<TaskReport>,
 }
@@ -139,10 +141,11 @@ async fn worker_main_impl(
     submission_eviction_manager: Arc<Option<EvictionManager>>,
     image_eviction_manager: Arc<Option<EvictionManager>>,
 ) -> anyhow::Result<()> {
-    while let Ok(Ok(ctx)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
+    while let Ok(Ok(item)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
         let report = match handle_action(
-            ctx.submission_id,
-            &ctx.config,
+            item.submission_id,
+            item.submission_root,
+            &item.config,
             submission_eviction_manager.clone(),
             image_eviction_manager.clone(),
         )
@@ -156,7 +159,7 @@ async fn worker_main_impl(
             Ok(report) => report,
         };
 
-        if ctx.report_tx.send(report).is_err() {
+        if item.report_tx.send(report).is_err() {
             error!("Error sending the report");
         }
     }
@@ -166,25 +169,18 @@ async fn worker_main_impl(
 
 #[instrument(skip(submission_eviction_manager, image_eviction_manager))]
 async fn handle_action(
-    submission_id: String,
+    _submission_id: String,
+    submission_root: PathBuf,
     task: &ActionTaskConfig,
     submission_eviction_manager: Arc<Option<EvictionManager>>,
     image_eviction_manager: Arc<Option<EvictionManager>>,
 ) -> anyhow::Result<TaskReport> {
     let ctx = Arc::new(ActionContext {
-        submission_root: conf::PATHS.submissions.join(&submission_id),
+        submission_root,
         submission_eviction_manager,
         image_eviction_manager,
     });
 
-    if fs::metadata(&ctx.submission_root).await.is_ok() {
-        warn!(path = %ctx.submission_root.display(), "The submission directory already exists, it may because of the duplicate submission id, now deleting it");
-        fs::remove_dir_all(&ctx.submission_root).await?;
-    }
-
-    fs::create_dir_all(&ctx.submission_root)
-        .await
-        .context("Error creating the submission directory")?;
     if let Some(manager) = ctx.submission_eviction_manager.as_ref() {
         manager.visit_enter(&ctx.submission_root).await;
     }

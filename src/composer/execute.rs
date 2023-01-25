@@ -8,12 +8,13 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use futures_util::{stream, StreamExt};
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::oneshot;
 use tracing::{debug, instrument};
 
 #[derive(Debug, Clone)]
 struct ExecutionContext {
+    submission_root: PathBuf,
     submission_id: String,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<()>,
@@ -21,11 +22,17 @@ struct ExecutionContext {
 
 #[instrument(skip_all, fields(id = submission.id))]
 pub async fn execute_submission(
+    submission_root: PathBuf,
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<()>,
 ) -> anyhow::Result<()> {
-    let ctx = ExecutionContext { submission_id: submission.id.clone(), worker_queue_tx, status_tx };
+    let ctx = ExecutionContext {
+        submission_root,
+        submission_id: submission.id,
+        worker_queue_tx,
+        status_tx,
+    };
 
     futures_util::future::join_all(
         submission.root.tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
@@ -144,7 +151,12 @@ async fn submit_task(
 ) -> anyhow::Result<TaskReport> {
     let (tx, rx) = oneshot::channel();
     ctx.worker_queue_tx
-        .send(WorkerQueueItem { submission_id: ctx.submission_id, config, report_tx: tx })
+        .send(WorkerQueueItem {
+            submission_root: ctx.submission_root,
+            submission_id: ctx.submission_id,
+            config,
+            report_tx: tx,
+        })
         .await?;
 
     // TODO: timeout
@@ -175,7 +187,9 @@ mod tests {
                     let (worker_tx, worker_rx) = async_channel::unbounded();
                     let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
                     let handle = tokio::spawn(async move {
-                        super::execute_submission(submission, worker_tx, tx).await.unwrap();
+                        super::execute_submission("test".into(), submission, worker_tx, tx)
+                            .await
+                            .unwrap();
                     });
 
                     let mut results = vec![];
