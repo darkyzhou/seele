@@ -101,14 +101,17 @@ func findIdMap(containerId uint32, path string) (*specs.LinuxIDMapping, error) {
 			if len(data) < 3 {
 				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
 			}
+
 			id, err := strconv.Atoi(data[1])
 			if err != nil {
 				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
 			}
+
 			size, err := strconv.Atoi(data[2])
 			if err != nil {
 				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
 			}
+
 			return &specs.LinuxIDMapping{
 				ContainerID: containerId,
 				HostID:      uint32(id),
@@ -116,9 +119,11 @@ func findIdMap(containerId uint32, path string) (*specs.LinuxIDMapping, error) {
 			}, nil
 		}
 	}
+
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("Failed to read %s: %w", path, err)
 	}
+
 	return nil, fmt.Errorf("Cannot find current user %s in %s", u.Username, path)
 }
 
