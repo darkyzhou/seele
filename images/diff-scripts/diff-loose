@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Loose diff
+# 
+# Ignores extra spaces and empty lines at the end
+# 
+# Conventions: 
+# - the output from user's program should be mounted as file `./user.out`
+# - the standard output (aka. correct answer) should be mounted as `./standard.out`
+
+diff --strip-trailing-cr --ignore-trailing-space --ignore-space-change --ignore-blank-lines user.out standard.out >/dev/null 2>&1
+
+EXITCODE=$?
+[[ $EXITCODE -gt 1 ]] && exit 1 # Unexpected internal error
+[[ $EXITCODE -ne 0 ]] && exit 8 # Wrong answer
+
+exit 0 # Accepted
