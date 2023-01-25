@@ -8,12 +8,13 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tracing::{debug, error, instrument};
 
-pub use self::config::ActionRunContainerConfig;
+pub use self::config::*;
 pub use self::runj::ContainerExecutionReport;
 
 mod config;
 mod image;
-mod runj;
+pub mod run_judge;
+pub mod runj;
 mod utils;
 
 #[instrument]

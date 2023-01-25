@@ -25,6 +25,7 @@ fn main() {
     std::fs::create_dir_all(&conf::PATHS.submissions).unwrap();
     std::fs::create_dir_all(&conf::PATHS.evicted).unwrap();
     std::fs::create_dir_all(&conf::PATHS.states).unwrap();
+    std::fs::create_dir_all(&conf::PATHS.temp_mounts).unwrap();
 
     info!("Creating runtime");
     let runtime = runtime::Builder::new_multi_thread()

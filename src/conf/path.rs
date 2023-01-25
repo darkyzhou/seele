@@ -9,6 +9,7 @@ pub struct SeelePaths {
     pub submissions: PathBuf,
     pub evicted: PathBuf,
     pub states: PathBuf,
+    pub temp_mounts: PathBuf,
 }
 
 pub static PATHS: Lazy<SeelePaths> = Lazy::new(|| SeelePaths {
@@ -17,4 +18,5 @@ pub static PATHS: Lazy<SeelePaths> = Lazy::new(|| SeelePaths {
     submissions: CONFIG.root_path.join("submissions"),
     evicted: CONFIG.root_path.join("evicted"),
     states: CONFIG.root_path.join("states"),
+    temp_mounts: CONFIG.root_path.join("temp_mounts"),
 });
