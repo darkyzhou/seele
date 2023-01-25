@@ -17,6 +17,7 @@ bytes = "1.3.0"
 chrono = { version = "0.4.23", features = ["serde"] }
 ciborium = "0.2.0"
 config = "0.13.3"
+either = "1.8.0"
 ellipse = "0.2.0"
 futures-util = "0.3.25"
 http = "0.2.8"
