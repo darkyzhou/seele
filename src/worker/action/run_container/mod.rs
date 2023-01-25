@@ -63,7 +63,7 @@ pub async fn run_container(
         if !output.status.success() {
             let texts = shared::collect_output(&output);
             error!(texts = texts, code = output.status.code(), "Error running runj");
-            bail!("Error running runj")
+            bail!("Error running runj: {}", texts)
         }
 
         let report: ContainerExecutionReport =
