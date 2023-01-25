@@ -6,7 +6,7 @@ use crate::{
 use tracing::instrument;
 
 #[instrument]
-pub async fn run_judge_run(
+pub async fn run(
     ctx: &ActionContext,
     config: &ActionRunConfig,
 ) -> anyhow::Result<ActionExecutionReport> {

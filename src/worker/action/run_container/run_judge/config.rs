@@ -26,12 +26,6 @@ pub struct ActionCompileConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionJudgeConfig {
-    pub run_config: ActionRunConfig,
-    pub compare_config: ActionRunConfig,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CacheItem {
     String(String),

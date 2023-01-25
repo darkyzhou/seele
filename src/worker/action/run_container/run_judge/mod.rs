@@ -1,6 +1,6 @@
 pub use self::config::*;
-pub use compile::run_judge_compile;
-pub use run::run_judge_run;
+pub use compile::compile;
+pub use run::run;
 
 mod compile;
 mod config;

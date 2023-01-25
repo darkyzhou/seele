@@ -10,7 +10,7 @@ use tokio::fs;
 use tracing::instrument;
 
 #[instrument]
-pub async fn run_judge_compile(
+pub async fn compile(
     ctx: &ActionContext,
     config: &ActionCompileConfig,
 ) -> anyhow::Result<ActionExecutionReport> {

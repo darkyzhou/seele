@@ -199,6 +199,10 @@ async fn handle_action(
             ActionTaskConfig::Noop(config) => action::noop(config).await,
             ActionTaskConfig::AddFile(config) => action::add_file(&ctx, config).await,
             ActionTaskConfig::RunContainer(config) => action::run_container(&ctx, config).await,
+            ActionTaskConfig::RunJudgeCompile(config) => {
+                action::run_judge::compile(&ctx, config).await
+            }
+            ActionTaskConfig::RunJudgeRun(config) => action::run_judge::run(&ctx, config).await,
         };
         let time_elapsed_ms = {
             let new_now = Instant::now();

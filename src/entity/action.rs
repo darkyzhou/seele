@@ -1,6 +1,6 @@
 use crate::worker::{
-    ActionAddFileConfig, ActionNoopConfig, ActionRunContainerConfig, ContainerExecutionReport,
-    NoopExecutionReport,
+    run_judge, ActionAddFileConfig, ActionNoopConfig, ActionRunContainerConfig,
+    ContainerExecutionReport, NoopExecutionReport,
 };
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,12 @@ pub enum ActionTaskConfig {
 
     #[serde(rename = "seele/run-container@1")]
     RunContainer(ActionRunContainerConfig),
+
+    #[serde(rename = "seele/run-judge/compile@1")]
+    RunJudgeCompile(run_judge::ActionCompileConfig),
+
+    #[serde(rename = "seele/run-judge/run@1")]
+    RunJudgeRun(run_judge::ActionRunConfig),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
