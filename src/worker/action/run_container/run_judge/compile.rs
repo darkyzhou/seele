@@ -21,12 +21,6 @@ pub async fn compile(
         let mut run_container_config = config.run_container_config.clone();
         run_container_config.cwd = PathBuf::from(MOUNT_DIRECTORY);
 
-        run_container_config.mounts.push(MountConfig::Full(runj::MountConfig {
-            from: mount_directory.clone(),
-            to: PathBuf::from(MOUNT_DIRECTORY),
-            options: None,
-        }));
-
         run_container_config.mounts.extend(
             config
                 .source
@@ -38,6 +32,12 @@ pub async fn compile(
                 })
                 .map(MountConfig::Full),
         );
+
+        run_container_config.mounts.push(MountConfig::Full(runj::MountConfig {
+            from: mount_directory.clone(),
+            to: PathBuf::from(MOUNT_DIRECTORY),
+            options: None,
+        }));
 
         run_container_config
     };
