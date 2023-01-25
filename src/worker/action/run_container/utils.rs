@@ -1,5 +1,5 @@
 use super::{image, runj, ActionRunContainerConfig};
-use crate::{shared, worker::ActionContext};
+use crate::{conf, shared, worker::ActionContext};
 use anyhow::Context;
 
 pub fn convert_to_runj_config(
@@ -20,7 +20,15 @@ pub fn convert_to_runj_config(
         .collect::<Result<Vec<runj::MountConfig>, _>>()
         .context("Error parsing mount")?;
 
-    Ok(runj::RunjConfig { rootfs, cwd: config.cwd, command, fd, mounts, limits: config.limits })
+    Ok(runj::RunjConfig {
+        rootless: conf::CONFIG.rootless,
+        rootfs,
+        cwd: config.cwd,
+        command,
+        fd,
+        mounts,
+        limits: config.limits,
+    })
 }
 
 pub async fn check_and_create_directories(config: &runj::RunjConfig) -> anyhow::Result<()> {

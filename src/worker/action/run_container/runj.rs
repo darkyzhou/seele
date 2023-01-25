@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RunjConfig {
+    pub rootless: bool,
+
     pub rootfs: PathBuf,
 
     pub cwd: PathBuf,

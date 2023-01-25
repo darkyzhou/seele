@@ -1,3 +1,4 @@
+use self::worker::WorkerConfig;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -7,8 +8,6 @@ pub use exchange::*;
 pub use path::*;
 pub use worker::*;
 
-use self::worker::WorkerConfig;
-
 mod action;
 mod exchange;
 mod path;
@@ -16,6 +15,9 @@ mod worker;
 
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
+    #[serde(default = "default_rootless")]
+    pub rootless: bool,
+
     #[serde(default = "default_root_path")]
     pub root_path: PathBuf,
 
@@ -36,6 +38,11 @@ pub struct SeeleConfig {
 
     #[serde(default)]
     pub worker: WorkerConfig,
+}
+
+#[inline]
+fn default_rootless() -> bool {
+    !nix::unistd::geteuid().is_root()
 }
 
 #[inline]
