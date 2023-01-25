@@ -1,6 +1,5 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 148
 expression: submission
 input_file: src/composer/stubs/submission_nested_sequence_1.yaml
 ---
@@ -10,31 +9,21 @@ Submission(
     id: "[id]",
     steps: {
       "one": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
       "two": {
+        "status": "pending",
         "steps": {
           "two-one": {
-            "status": TaskStatus(
-              type: "pending",
-            ),
+            "status": "pending",
           },
           "two-two": {
-            "status": TaskStatus(
-              type: "pending",
-            ),
+            "status": "pending",
           },
         },
-        "status": TaskStatus(
-          type: "pending",
-        ),
       },
       "three": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
     },
   ),

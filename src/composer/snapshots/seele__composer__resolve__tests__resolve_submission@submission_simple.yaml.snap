@@ -1,6 +1,5 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 148
 expression: submission
 input_file: src/composer/stubs/submission_simple.yaml
 ---
@@ -10,19 +9,13 @@ Submission(
     id: "[id]",
     steps: {
       "one": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
       "two": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
       "three": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
     },
   ),

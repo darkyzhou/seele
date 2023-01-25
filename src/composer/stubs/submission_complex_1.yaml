@@ -1,0 +1,25 @@
+id: complex_1
+steps:
+  prepare_sources:
+    action: seele/noop@1
+    test: 1
+
+  compile:
+    parallel:
+      - action: seele/noop@1
+        test: 201
+      - action: seele/noop@1
+        test: 202
+
+  standard:
+    parallel:
+      - steps:
+          prepare:
+            action: seele/noop@1
+            test: 301
+          run:
+            action: seele/noop@1
+            test: 302
+          compare:
+            action: seele/noop@1
+            test: 303

@@ -1,0 +1,121 @@
+---
+source: src/composer/resolve.rs
+expression: submission
+input_file: src/composer/stubs/submission_complex_1.yaml
+---
+Submission(
+  id: "[id]",
+  config: SubmissionConfig(
+    id: "[id]",
+    steps: {
+      "prepare_sources": {
+        "status": "pending",
+      },
+      "compile": {
+        "status": "pending",
+        "parallel": [
+          {
+            "status": "pending",
+          },
+          {
+            "status": "pending",
+          },
+        ],
+      },
+      "standard": {
+        "status": "pending",
+        "parallel": [
+          {
+            "status": "pending",
+            "steps": {
+              "prepare": {
+                "status": "pending",
+              },
+              "run": {
+                "status": "pending",
+              },
+              "compare": {
+                "status": "pending",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ),
+  root: RootTaskNode(
+    id: "[id]",
+    tasks: [
+      TaskNode(
+        id: "[id]",
+        children: [
+          TaskNode(
+            id: "[id]",
+            children: [
+              TaskNode(
+                id: "[id]",
+                children: [],
+                extra: [
+                  TaskNode(
+                    id: "[id]",
+                    children: [],
+                    extra: [
+                      TaskNode(
+                        id: "[id]",
+                        children: [
+                          TaskNode(
+                            id: "[id]",
+                            children: [
+                              TaskNode(
+                                id: "[id]",
+                                children: [],
+                                extra: ActionNoopConfig(
+                                  action: "seele/noop@1",
+                                  test: 303,
+                                ),
+                              ),
+                            ],
+                            extra: ActionNoopConfig(
+                              action: "seele/noop@1",
+                              test: 302,
+                            ),
+                          ),
+                        ],
+                        extra: ActionNoopConfig(
+                          action: "seele/noop@1",
+                          test: 301,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+            extra: [
+              TaskNode(
+                id: "[id]",
+                children: [],
+                extra: ActionNoopConfig(
+                  action: "seele/noop@1",
+                  test: 201,
+                ),
+              ),
+              TaskNode(
+                id: "[id]",
+                children: [],
+                extra: ActionNoopConfig(
+                  action: "seele/noop@1",
+                  test: 202,
+                ),
+              ),
+            ],
+          ),
+        ],
+        extra: ActionNoopConfig(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

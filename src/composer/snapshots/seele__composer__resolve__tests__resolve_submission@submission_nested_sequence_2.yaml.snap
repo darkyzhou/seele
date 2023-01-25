@@ -1,6 +1,5 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 148
 expression: submission
 input_file: src/composer/stubs/submission_nested_sequence_2.yaml
 ---
@@ -10,77 +9,51 @@ Submission(
     id: "[id]",
     steps: {
       "one": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
       "two": {
+        "status": "pending",
         "steps": {
           "two-one": {
-            "status": TaskStatus(
-              type: "pending",
-            ),
+            "status": "pending",
           },
           "two-two": {
-            "status": TaskStatus(
-              type: "pending",
-            ),
+            "status": "pending",
           },
         },
-        "status": TaskStatus(
-          type: "pending",
-        ),
       },
       "three": {
-        "status": TaskStatus(
-          type: "pending",
-        ),
+        "status": "pending",
       },
       "four": {
+        "status": "pending",
         "steps": {
           "four-one": {
-            "status": TaskStatus(
-              type: "pending",
-            ),
+            "status": "pending",
           },
           "four-two": {
+            "status": "pending",
             "parallel": [
               {
-                "status": TaskStatus(
-                  type: "pending",
-                ),
+                "status": "pending",
               },
               {
-                "status": TaskStatus(
-                  type: "pending",
-                ),
+                "status": "pending",
               },
               {
-                "status": TaskStatus(
-                  type: "pending",
-                ),
+                "status": "pending",
               },
             ],
-            "status": TaskStatus(
-              type: "pending",
-            ),
           },
           "four-three": {
+            "status": "pending",
             "steps": {
               "four-three-one": {
-                "status": TaskStatus(
-                  type: "pending",
-                ),
+                "status": "pending",
               },
             },
-            "status": TaskStatus(
-              type: "pending",
-            ),
           },
         },
-        "status": TaskStatus(
-          type: "pending",
-        ),
       },
     },
   ),
