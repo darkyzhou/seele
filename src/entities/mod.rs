@@ -47,20 +47,20 @@ pub struct TaskConfig {
     pub when: Option<String>,
     #[serde(skip_serializing, default)]
     pub needs: Option<String>,
-    #[serde(skip_serializing_if = "TaskExtraConfig::is_action_task", flatten)]
-    pub extra: TaskExtraConfig,
+    #[serde(skip_serializing_if = "TaskConfigExt::is_action_task", flatten)]
+    pub ext: TaskConfigExt,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum TaskExtraConfig {
+pub enum TaskConfigExt {
     Sequence(SequenceTaskConfig),
     Parallel(ParallelTaskConfig),
     Action(ActionTaskConfig),
 }
 
-impl TaskExtraConfig {
-    fn is_action_task(config: &TaskExtraConfig) -> bool {
+impl TaskConfigExt {
+    fn is_action_task(config: &TaskConfigExt) -> bool {
         matches!(config, Self::Action(_))
     }
 }
@@ -135,13 +135,13 @@ pub struct TaskNode {
     pub config: Arc<TaskConfig>,
     pub id: String,
     pub children: Vec<Arc<TaskNode>>,
-    pub extra: TaskNodeExtra,
+    pub ext: TaskNodeExt,
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
 #[cfg_attr(test, serde(untagged))]
-pub enum TaskNodeExtra {
+pub enum TaskNodeExt {
     Schedule(Vec<Arc<TaskNode>>),
     Action(Arc<ActionTaskConfig>),
 }

@@ -1,8 +1,8 @@
 use super::predicate;
 use crate::{
     entities::{
-        ActionTaskConfig, Submission, TaskConfig, TaskExtraConfig, TaskFailedReport, TaskNode,
-        TaskNodeExtra, TaskReport, TaskStatus, TaskSuccessReport,
+        ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport, TaskNode,
+        TaskNodeExt, TaskReport, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -39,11 +39,11 @@ pub async fn execute_submission(
 
 #[async_recursion]
 async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
-    match &node.extra {
-        TaskNodeExtra::Action(config) => {
+    match &node.ext {
+        TaskNodeExt::Action(config) => {
             track_action_execution(ctx.clone(), node.clone(), config.clone()).await
         }
-        TaskNodeExtra::Schedule(tasks) => {
+        TaskNodeExt::Schedule(tasks) => {
             track_schedule_execution(ctx.clone(), node.clone(), tasks).await
         }
     }
@@ -100,10 +100,10 @@ async fn track_schedule_execution(
     )
     .await;
 
-    let status = match &node.config.extra {
-        TaskExtraConfig::Action(_) => panic!("Unexpected schedule task"),
-        TaskExtraConfig::Parallel(config) => resolve_parent_status(config.tasks.iter().cloned()),
-        TaskExtraConfig::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
+    let status = match &node.config.ext {
+        TaskConfigExt::Action(_) => panic!("Unexpected schedule task"),
+        TaskConfigExt::Parallel(config) => resolve_parent_status(config.tasks.iter().cloned()),
+        TaskConfigExt::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
     };
     debug!(status = ?status, "Setting the status");
     *node.config.status.write().unwrap() = status;

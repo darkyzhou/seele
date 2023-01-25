@@ -55,11 +55,11 @@ Submission(
               TaskNode(
                 id: "[id]",
                 children: [],
-                extra: [
+                ext: [
                   TaskNode(
                     id: "[id]",
                     children: [],
-                    extra: [
+                    ext: [
                       TaskNode(
                         id: "[id]",
                         children: [
@@ -69,19 +69,19 @@ Submission(
                               TaskNode(
                                 id: "[id]",
                                 children: [],
-                                extra: ActionNoopConfig(
+                                ext: ActionNoopConfig(
                                   action: "seele/noop@1",
                                   test: 303,
                                 ),
                               ),
                             ],
-                            extra: ActionNoopConfig(
+                            ext: ActionNoopConfig(
                               action: "seele/noop@1",
                               test: 302,
                             ),
                           ),
                         ],
-                        extra: ActionNoopConfig(
+                        ext: ActionNoopConfig(
                           action: "seele/noop@1",
                           test: 301,
                         ),
@@ -91,11 +91,11 @@ Submission(
                 ],
               ),
             ],
-            extra: [
+            ext: [
               TaskNode(
                 id: "[id]",
                 children: [],
-                extra: ActionNoopConfig(
+                ext: ActionNoopConfig(
                   action: "seele/noop@1",
                   test: 201,
                 ),
@@ -103,7 +103,7 @@ Submission(
               TaskNode(
                 id: "[id]",
                 children: [],
-                extra: ActionNoopConfig(
+                ext: ActionNoopConfig(
                   action: "seele/noop@1",
                   test: 202,
                 ),
@@ -111,7 +111,7 @@ Submission(
             ],
           ),
         ],
-        extra: ActionNoopConfig(
+        ext: ActionNoopConfig(
           action: "seele/noop@1",
           test: 1,
         ),

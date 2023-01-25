@@ -31,19 +31,19 @@ Submission(
               TaskNode(
                 id: "[id]",
                 children: [],
-                extra: ActionNoopConfig(
+                ext: ActionNoopConfig(
                   action: "seele/noop@1",
                   test: 3,
                 ),
               ),
             ],
-            extra: ActionNoopConfig(
+            ext: ActionNoopConfig(
               action: "seele/noop@1",
               test: 2,
             ),
           ),
         ],
-        extra: ActionNoopConfig(
+        ext: ActionNoopConfig(
           action: "seele/noop@1",
           test: 1,
         ),

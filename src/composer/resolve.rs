@@ -1,7 +1,7 @@
 use crate::{
     entities::{
-        RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig, TaskExtraConfig,
-        TaskNode, TaskNodeExtra,
+        RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig, TaskConfigExt,
+        TaskNode, TaskNodeExt,
     },
     shared,
 };
@@ -67,27 +67,26 @@ fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
 
 fn resolve_task(config: Arc<TaskConfig>) -> anyhow::Result<TaskNode> {
     let id = shared::random_task_id();
-    Ok(match &config.extra {
-        TaskExtraConfig::Sequence(extra) => {
-            let extra = TaskNodeExtra::Schedule({
-                vec![resolve_sequence(&extra.tasks).context("Error resolving sequence tasks")?]
+    Ok(match &config.ext {
+        TaskConfigExt::Sequence(ext) => {
+            let ext = TaskNodeExt::Schedule({
+                vec![resolve_sequence(&ext.tasks).context("Error resolving sequence tasks")?]
             });
-            TaskNode { config, id, children: vec![], extra }
+            TaskNode { config, id, children: vec![], ext }
         }
-        TaskExtraConfig::Parallel(extra) => {
-            let extra = TaskNodeExtra::Schedule(
-                extra
-                    .tasks
+        TaskConfigExt::Parallel(ext) => {
+            let ext = TaskNodeExt::Schedule(
+                ext.tasks
                     .iter()
                     .map(|task| resolve_task(task.clone()).map(Arc::new))
                     .collect::<anyhow::Result<_>>()
                     .context("Error resolving parallel tasks")?,
             );
-            TaskNode { config, id, children: vec![], extra }
+            TaskNode { config, id, children: vec![], ext }
         }
-        TaskExtraConfig::Action(extra) => {
-            let extra = TaskNodeExtra::Action(Arc::new(extra.clone()));
-            TaskNode { config, id, children: vec![], extra }
+        TaskConfigExt::Action(ext) => {
+            let ext = TaskNodeExt::Action(Arc::new(ext.clone()));
+            TaskNode { config, id, children: vec![], ext }
         }
     })
 }
@@ -120,7 +119,7 @@ fn get_id_to_node_map(root: Arc<RootTaskNode>) -> HashMap<String, Arc<TaskNode>>
         for node in queue {
             result.insert(node.id.clone(), node.clone());
 
-            if let TaskNodeExtra::Schedule(tasks) = &node.extra {
+            if let TaskNodeExt::Schedule(tasks) = &node.ext {
                 next_queue.extend(tasks.iter().cloned());
             }
 
