@@ -30,7 +30,7 @@ async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
 
 #[instrument]
 async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
-    const PULL_TIMEOUT_SECOND: u64 = 30;
+    const PULL_TIMEOUT_SECOND: u64 = 180;
 
     let path = get_oci_image_path(image);
     // TODO: check the integrity
@@ -70,7 +70,7 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
 
 #[instrument]
 async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
-    const UNPACK_TIMEOUT_SECOND: u64 = 30;
+    const UNPACK_TIMEOUT_SECOND: u64 = 120;
 
     let image_path = get_oci_image_path(image);
     let unpacked_path = get_unpacked_image_path(image);
