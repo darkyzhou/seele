@@ -153,11 +153,10 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 
 	noNewPrivileges := true
 
+	path := "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" + lo.Ternary(len(config.Paths) <= 0, "", ":"+strings.Join(config.Paths, ":"))
 	process := &libcontainer.Process{
-		Args: config.Command,
-		Env: []string{
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
+		Args:            config.Command,
+		Env:             []string{path},
 		Cwd:             config.Cwd,
 		User:            "65534:65534",
 		Stdin:           stdInFile,

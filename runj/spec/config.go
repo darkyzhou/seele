@@ -5,6 +5,7 @@ type RunjConfig struct {
 	Rootfs   string         `mapstructure:"rootfs" validate:"required"`
 	Cwd      string         `mapstructure:"cwd" validate:"required"`
 	Command  []string       `mapstructure:"command" validate:"required,dive,required"`
+	Paths    []string       `mapstructure:"paths" validate:"dive,required"`
 	Fd       *FdConfig      `mapstructure:"fd"`
 	Mounts   []*MountConfig `mapstructure:"mounts"`
 	Limits   *LimitsConfig  `mapstructure:"limits"`

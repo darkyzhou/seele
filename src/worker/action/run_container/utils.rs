@@ -25,6 +25,7 @@ pub fn convert_to_runj_config(
         rootfs,
         cwd: config.cwd,
         command,
+        paths: config.paths,
         fd,
         mounts,
         limits: config.limits,

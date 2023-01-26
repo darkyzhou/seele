@@ -13,6 +13,12 @@ pub async fn run(
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
+        if let Some(paths) = run_container_config.paths.as_mut() {
+            paths.push(MOUNT_DIRECTORY.to_string());
+        } else {
+            run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
+        }
+
         run_container_config.mounts.extend(
             config
                 .executable

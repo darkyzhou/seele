@@ -17,6 +17,9 @@ pub struct ActionRunContainerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fd: Option<runj::FdConfig>,
 
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub paths: Option<Vec<String>>,
+
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub mounts: Vec<MountConfig>,
 
