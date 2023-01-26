@@ -43,12 +43,14 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
 
     debug!(path = %path.display(), "Pulling the container image using skopeo");
     let output = timeout(
-        Duration::from_secs(PULL_TIMEOUT_SECOND),
+        Duration::from_secs(PULL_TIMEOUT_SECOND + 3),
         Command::new(&conf::CONFIG.skopeo_path)
             .args([
                 "copy",
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
                 &format!("oci:{}:{}", path.display(), image.tag),
+                "--command-timeout",
+                &format!("{}s", PULL_TIMEOUT_SECOND),
                 "--retry-times",
                 "3",
                 "--quiet",
