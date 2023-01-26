@@ -13,6 +13,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 )
 
 func prepareContainerFactory() error {
@@ -125,6 +126,21 @@ func findIdMap(containerId uint32, path string) (*specs.LinuxIDMapping, error) {
 	}
 
 	return nil, fmt.Errorf("Cannot find current user %s in %s", u.Username, path)
+}
+
+func prepareOutFile(path string) (*os.File, error) {
+	modes := os.O_WRONLY | os.O_TRUNC
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		modes = modes | os.O_CREATE | os.O_EXCL
+	}
+
+	mask := unix.Umask(0)
+	file, err := os.OpenFile(path, modes, 0664)
+	unix.Umask(mask)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening the file: %w", err)
+	}
+	return file, nil
 }
 
 func makeContainerId() string {

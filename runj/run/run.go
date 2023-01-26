@@ -1,10 +1,7 @@
 package run
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,46 +79,51 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		stdOutFile *os.File
 		stdErrFile *os.File
 	)
-	if config.Fd != nil {
-		if config.Fd.StdIn != "" {
-			stdInFile, err = os.Open(config.Fd.StdIn)
-			if err != nil {
-				return nil, fmt.Errorf("Error opening the stdin file: %w", err)
-			}
-			defer stdInFile.Close()
-		}
 
-		stdOutFilePath := lo.Ternary(config.Fd.StdOut == "", "/dev/null", config.Fd.StdOut)
-		stdOutFile, err = os.OpenFile(stdOutFilePath, os.O_CREATE|os.O_WRONLY, 0660)
-		if err != nil {
-			return nil, fmt.Errorf("Error opening the stdout file %s: %w", stdOutFilePath, err)
-		}
-		defer stdOutFile.Close()
-
-		stdErrFilePath := lo.Ternary(config.Fd.StdErr == "", "/dev/null", config.Fd.StdErr)
-		stdErrFile, err = os.OpenFile(stdErrFilePath, os.O_CREATE|os.O_WRONLY, 0660)
-		if err != nil {
-			return nil, fmt.Errorf("Error opening the stderr file %s: %w", stdErrFilePath, err)
-		}
-		defer stdErrFile.Close()
-	}
-
-	stdInR, stdInW, err := os.Pipe()
+	stdInFilePath := lo.TernaryF(
+		config.Fd == nil || config.Fd.StdIn == "",
+		func() string {
+			return "/dev/null"
+		},
+		func() string {
+			return config.Fd.StdIn
+		},
+	)
+	stdInFile, err = os.Open(stdInFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating the stdin pipe: %w", err)
+		return nil, fmt.Errorf("Error opening the stdin file %s: %w", stdInFilePath, err)
 	}
-	stdOutR, stdOutW, err := os.Pipe()
+	defer stdInFile.Close()
+
+	stdOutFilePath := lo.TernaryF(
+		config.Fd == nil || config.Fd.StdOut == "",
+		func() string {
+			return "/dev/null"
+		},
+		func() string {
+			return config.Fd.StdOut
+		},
+	)
+	stdOutFile, err = prepareOutFile(stdOutFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating the stdout pipe: %w", err)
+		return nil, fmt.Errorf("Error preparing the stdout file %s: %w", stdOutFilePath, err)
 	}
-	stdOutReader := bufio.NewReader(stdOutR)
-	var stdErrBuffer bytes.Buffer
-	defer func() {
-		_ = stdInR.Close()
-		_ = stdInW.Close()
-		_ = stdOutR.Close()
-		_ = stdOutW.Close()
-	}()
+	defer stdOutFile.Close()
+
+	stdErrFilePath := lo.TernaryF(
+		config.Fd == nil || config.Fd.StdErr == "",
+		func() string {
+			return "/dev/null"
+		},
+		func() string {
+			return config.Fd.StdErr
+		},
+	)
+	stdErrFile, err = prepareOutFile(stdErrFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("Error preparing the stderr file %s: %w", stdErrFilePath, err)
+	}
+	defer stdErrFile.Close()
 
 	var timeLimit uint64
 	if config.Limits != nil && config.Limits.Time != nil {
@@ -156,30 +158,15 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		Env: []string{
 			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		},
-		Cwd: config.Cwd,
-		// TODO: We should use 65534:65534 to force the process to be run as nobody for better security
-		User: "65534:65534",
-		// TODO: Should use buffered io
-		Stdin:           stdInR,
-		Stdout:          stdOutW,
-		Stderr:          &stdErrBuffer,
+		Cwd:             config.Cwd,
+		User:            "65534:65534",
+		Stdin:           stdInFile,
+		Stdout:          stdOutFile,
+		Stderr:          stdErrFile,
 		NoNewPrivileges: &noNewPrivileges,
 		Init:            true,
 		Rlimits:         rlimits,
 	}
-
-	wallTimeBegin := time.Now()
-
-	if err := container.Run(process); err != nil {
-		return nil, fmt.Errorf("Error initializing the container process: %w", err)
-	}
-
-	if stdInFile != nil {
-		if _, err := io.Copy(stdInW, stdInFile); err != nil {
-			return nil, fmt.Errorf("Error writing to stdin: %w", err)
-		}
-	}
-	_ = stdInW.Close()
 
 	processFinished := false
 	if timeLimit > 0 {
@@ -194,8 +181,13 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		}(timeLimit * 2)
 	}
 
+	wallTimeBegin := time.Now()
+	if err := container.Run(process); err != nil {
+		return nil, fmt.Errorf("Error initializing the container process: %w", err)
+	}
 	state, _ := process.Wait()
 	wallTimeEnd := time.Now()
+
 	processFinished = true
 
 	isOOM, err := checkIsOOM(fullCgroupPath)
@@ -213,15 +205,6 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	report, err := resolveExecutionReport(config, isOOM, state, containerStats, wallTime)
 	if err != nil {
 		return nil, fmt.Errorf("Error resolving execution report: %w", err)
-	}
-
-	_ = stdOutW.Close()
-	// TODO: This will produce an additional '\n' character
-	if _, err := io.Copy(stdOutFile, stdOutReader); err != nil {
-		return nil, fmt.Errorf("Error writing to the stdout file: %w", err)
-	}
-	if _, err := io.Copy(stdErrFile, &stdErrBuffer); err != nil {
-		return nil, fmt.Errorf("Error writing to the stderr file: %w", err)
 	}
 
 	return report, nil

@@ -138,10 +138,11 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 			options := append([]string{"bind", "ro", "private"}, mount.Options...)
 			if lo.Contains(options, "exec") {
 				mask := unix.Umask(0)
-				if err := os.Chmod(fromPath, 0777); err != nil {
+				err := os.Chmod(fromPath, 0777)
+				unix.Umask(mask)
+				if err != nil {
 					return nil, fmt.Errorf("Failed to chmod the file %s: %w", fromPath, err)
 				}
-				unix.Umask(mask)
 			}
 			mounts = append(mounts, specs.Mount{
 				Destination: toPath,
