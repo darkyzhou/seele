@@ -106,12 +106,7 @@ pub enum TaskReport {
 #[serde(untagged)]
 pub enum TaskSuccessReport {
     Schedule,
-    Action {
-        run_at: UtcTimestamp,
-        time_elapsed_ms: u64,
-        #[serde(flatten)]
-        report: ActionExecutionReport,
-    },
+    Action { run_at: UtcTimestamp, time_elapsed_ms: u64, report: ActionExecutionReport },
 }
 
 #[derive(Debug, Clone, Serialize)]
