@@ -66,7 +66,7 @@ pub async fn compile(
             bail!("Unknown file type: {}", file);
         }
 
-        anyhow::Ok(report)
+        Ok(report)
     }
     .await;
 
