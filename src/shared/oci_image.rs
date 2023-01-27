@@ -18,6 +18,7 @@ impl From<&str> for OciImage {
         const DEFAULT_TAG: &str = "latest";
         const DEFAULT_REGISTRY: &str = "docker.io";
 
+        // FIXME: Check validity according to the specification
         let (rest, tag) = match value.rfind(':').map(|i| value.split_at(i)) {
             None => (value, DEFAULT_TAG),
             Some((rest, tag)) => (rest, tag.trim_start_matches(':')),
