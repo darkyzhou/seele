@@ -6,13 +6,13 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+pub use action::*;
+
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 pub type UtcTimestamp = DateTime<Utc>;
 
 mod action;
-
-pub use action::*;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubmissionConfig {
