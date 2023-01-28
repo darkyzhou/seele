@@ -22,7 +22,7 @@ macro_rules! skip_if_empty {
 
 macro_rules! ellipse {
     ($source:expr, $max_len:expr) => {
-        if $source.len() < $max_len {
+        if $source.len() <= $max_len {
             Either::Left($source.iter())
         } else {
             Either::Right(
