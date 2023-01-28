@@ -21,9 +21,6 @@ pub struct SeeleConfig {
     #[serde(default = "default_root_path")]
     pub root_path: PathBuf,
 
-    #[serde(default = "default_concurrency")]
-    pub concurrency: usize,
-
     #[serde(default = "default_runj_path")]
     pub runj_path: String,
 
@@ -48,12 +45,6 @@ fn default_rootless() -> bool {
 #[inline]
 fn default_root_path() -> PathBuf {
     "/seele".into()
-}
-
-#[inline]
-fn default_concurrency() -> usize {
-    // TODO: infer from cpu core numbers
-    4
 }
 
 #[inline]

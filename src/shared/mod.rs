@@ -20,12 +20,12 @@ macro_rules! skip_if_empty {
     };
 }
 
-macro_rules! ellipse {
+macro_rules! ellipse_command_output {
     ($source:expr, $max_len:expr) => {
         if $source.len() <= $max_len {
-            Either::Left($source.iter())
+            either::Either::Left($source.iter())
         } else {
-            Either::Right(
+            either::Either::Right(
                 $source
                     .iter()
                     .take($max_len / 2)
@@ -41,11 +41,11 @@ pub fn collect_output(output: &Output) -> String {
 
     let output = skip_if_empty!(
         output.stdout,
-        b"\n--- stdout ---\n".iter().chain(ellipse!(output.stdout, MAX_LEN))
+        b"\n--- stdout ---\n".iter().chain(ellipse_command_output!(output.stdout, MAX_LEN))
     )
     .chain(skip_if_empty!(
         output.stderr,
-        b"\n--- stderr ---\n".iter().chain(ellipse!(output.stderr, MAX_LEN))
+        b"\n--- stderr ---\n".iter().chain(ellipse_command_output!(output.stderr, MAX_LEN))
     ))
     .copied()
     .collect::<Vec<_>>();

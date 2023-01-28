@@ -1,11 +1,13 @@
 use self::utils::{check_and_create_directories, convert_to_runj_config};
 use super::ActionContext;
+use crate::conf;
 use crate::entities::ActionExecutionReport;
-use crate::{conf, shared};
-use anyhow::{anyhow, bail, Context};
-use std::process::Stdio;
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
+use anyhow::{bail, Context};
+use duct::cmd;
+use once_cell::sync::Lazy;
+use std::io::Read;
+use threadpool::ThreadPool;
+use tokio::sync::{oneshot, Mutex};
 use tracing::{debug, error, instrument};
 
 pub use self::config::*;
@@ -16,6 +18,10 @@ mod image;
 pub mod run_judge;
 pub mod runj;
 mod utils;
+
+static RUNNER_POOL: Lazy<Mutex<ThreadPool>> = Lazy::new(|| {
+    Mutex::new(ThreadPool::new(conf::CONFIG.worker.action.run_container.container_concurrency))
+});
 
 #[instrument]
 pub async fn run_container(
@@ -39,38 +45,41 @@ pub async fn run_container(
             serde_json::to_string(&config).context("Error serializing the converted config")?
         };
 
-        let output = {
-            debug!(runj_config = config, "Running runj");
-            let mut child = Command::new(&conf::CONFIG.runj_path)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .context("Error spawning the runj process")?;
-            let mut stdin = child
-                .stdin
-                .take()
-                .ok_or_else(|| anyhow!("Error opening stdin of the runj process"))?;
-            tokio::spawn(async move {
-                if let Err(err) = stdin.write_all(config.as_bytes()).await {
-                    error!("Error passing the config to the runj process: {:#}", err);
+        let (tx, rx) = oneshot::channel();
+        {
+            RUNNER_POOL.lock().await.execute(move || {
+                fn run(config: &str) -> anyhow::Result<ContainerExecutionReport> {
+                    let mut reader = cmd!(&conf::CONFIG.runj_path)
+                        .stdin_bytes(config.as_bytes())
+                        .stderr_to_stdout()
+                        .reader()
+                        .context("Error running the runj process")?;
+
+                    let mut output = vec![];
+                    match reader.read_to_end(&mut output) {
+                        Err(_) => {
+                            let texts = {
+                                let output = output.into_iter().take(400).collect::<Vec<_>>();
+                                String::from_utf8_lossy(&output[..]).to_string()
+                            };
+                            error!(texts = %texts, "The runj process failed");
+                            bail!("The runj process failed: {}", texts)
+                        }
+                        Ok(_) => serde_json::from_slice(&output[..])
+                            .context("Error deserializing the report"),
+                    }
+                }
+
+                if tx.send(run(&config)).is_err() {
+                    error!("Error sending report to parent",);
                 }
             });
-
-            child.wait_with_output().await.context("Error awaiting the runj process")?
-        };
-
-        if !output.status.success() {
-            let texts = shared::collect_output(&output);
-            error!(texts = texts, code = output.status.code(), "Error running runj");
-            bail!("Error running runj: {}", texts)
         }
 
-        let report: ContainerExecutionReport =
-            serde_json::from_slice(&output.stdout[..]).context("Error deserializing the report")?;
-        Ok(ActionExecutionReport::RunContainer(report))
+        rx.await?
     }
-    .await;
+    .await
+    .map(ActionExecutionReport::RunContainer);
 
     if let Some(manager) = ctx.image_eviction_manager.as_ref() {
         manager.visit_leave(&image_path).await;

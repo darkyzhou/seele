@@ -60,10 +60,9 @@ macro_rules! save_states {
 }
 
 pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> anyhow::Result<()> {
-    let submission_eviction_file = conf::PATHS.states.join("submission_eviction");
-    let image_eviction_file = conf::PATHS.states.join("image_eviction");
-
     {
+        let submission_eviction_file = conf::PATHS.states.join("submission_eviction");
+        let image_eviction_file = conf::PATHS.states.join("image_eviction");
         let submission_eviction_manager = new_eviction_manager!(
             "submission",
             conf::CONFIG.worker.submission_eviction,
@@ -115,22 +114,11 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> an
             });
         }
 
-        for i in 0..conf::CONFIG.concurrency {
-            let queue_rx = queue_rx.clone();
-            let submission_eviction_manager = submission_eviction_manager.clone();
-            let image_eviction_manager = image_eviction_manager.clone();
-            handle.start(&format!("worker-{}", i), |handle| {
-                worker_main_impl(
-                    handle,
-                    queue_rx,
-                    submission_eviction_manager,
-                    image_eviction_manager,
-                )
-            });
-        }
+        handle.start("worker", |handle| {
+            worker_main_impl(handle, queue_rx, submission_eviction_manager, image_eviction_manager)
+        });
     }
 
-    drop(queue_rx);
     handle.on_shutdown_requested().await;
     Ok(())
 }
