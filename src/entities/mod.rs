@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    default,
     sync::{Arc, RwLock},
 };
 
@@ -19,13 +20,22 @@ pub struct SubmissionConfig {
     #[cfg_attr(test, serde(skip_serializing))]
     #[serde(skip_deserializing, default = "make_submitted_at")]
     pub submitted_at: UtcTimestamp,
+
+    #[serde(default = "random_submission_id")]
     pub id: String,
+
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 }
 
+#[inline]
 fn make_submitted_at() -> UtcTimestamp {
     Utc::now()
+}
+
+#[inline]
+fn random_submission_id() -> String {
+    nano_id::base62::<16>()
 }
 
 #[derive(Debug, Clone)]

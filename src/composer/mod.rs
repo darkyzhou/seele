@@ -1,9 +1,9 @@
 use crate::{conf, entities::SubmissionConfig, worker::WorkerQueueTx};
-use anyhow::Context;
+use anyhow::{bail, Context};
 use std::sync::Arc;
 use tokio::{fs, sync::mpsc};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{debug, debug_span, error, warn, Instrument};
+use tracing::{debug, debug_span, error, instrument, Instrument};
 
 mod execute;
 mod predicate;
@@ -39,6 +39,7 @@ pub async fn composer_main(
     Ok(())
 }
 
+#[instrument(level = "debug")]
 async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
@@ -50,9 +51,9 @@ async fn handle_submission(
 
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
-        warn!(path = %submission_root.display(), "The submission's directory already exists, it may indicate a duplicate submission id");
-        fs::remove_dir_all(&submission_root).await?;
+        bail!("The submission's directory already exists, it may indicate a duplicate submission id: {}", submission_root.display())
     }
+
     fs::create_dir_all(&submission_root)
         .await
         .context("Error creating the submission directory")?;
