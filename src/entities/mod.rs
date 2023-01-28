@@ -3,7 +3,6 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    default,
     sync::{Arc, RwLock},
 };
 
@@ -70,6 +69,7 @@ pub enum TaskConfigExt {
 }
 
 impl TaskConfigExt {
+    #[inline]
     fn is_action_task(config: &TaskConfigExt) -> bool {
         matches!(config, Self::Action(_))
     }
