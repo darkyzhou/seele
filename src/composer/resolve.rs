@@ -21,7 +21,7 @@ pub fn resolve_submission(
         ],
     });
     Ok(Submission {
-        id: config.id,
+        id: config.id.clone(),
         root_directory,
         config,
         nodes: get_id_to_node_map(root_node.clone()),
