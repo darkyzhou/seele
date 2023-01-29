@@ -1,28 +1,16 @@
-use crate::entities::{SubmissionConfig, SubmissionReportConfig, SubmissionReporter};
+use std::collections::HashMap;
+
 use anyhow::{anyhow, bail, Context};
 use quick_js::JsValue;
 use serde_json::Value;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::oneshot;
-use tracing::error;
 
-pub async fn make_submission_report(
-    config: Arc<SubmissionConfig>,
-    reporter: &SubmissionReporter,
-) -> anyhow::Result<SubmissionReportConfig> {
-    match reporter {
-        SubmissionReporter::JavaScript { source } => {
-            execute_javascript_reporter(serde_json::to_string(&config)?, source.to_string()).await
-        }
-    }
-}
+use crate::entities::SubmissionReportConfig;
 
-async fn execute_javascript_reporter(
+pub async fn execute_javascript_reporter(
     config: String,
     source: String,
 ) -> anyhow::Result<SubmissionReportConfig> {
-    let (tx, rx) = oneshot::channel();
-    tokio::task::spawn_blocking(move || {
+    let result = tokio::task::spawn_blocking(move || {
         fn run(config: String, source: String) -> anyhow::Result<SubmissionReportConfig> {
             let context = quick_js::Context::new()?;
             context.set_global("DATA", JsValue::String(config))?;
@@ -41,12 +29,10 @@ async fn execute_javascript_reporter(
             }
         }
 
-        if tx.send(run(config, source)).is_err() {
-            error!("Error sending reporter script result");
-        }
-    });
-
-    match rx.await? {
+        run(config, source)
+    })
+    .await?;
+    match result {
         Err(err) => bail!("Error running the script: {:#}", err),
         Ok(report) => Ok(report),
     }
@@ -104,7 +90,9 @@ mod tests {
             }
         }"#
         .to_string();
-        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,1,4,5,1,4]}}".to_string();
+        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,\
+                      1,4,5,1,4]}}"
+            .to_string();
 
         let report = super::execute_javascript_reporter(config, source).await.unwrap();
         let json = serde_json::to_string(&report).unwrap();

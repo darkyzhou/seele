@@ -1,9 +1,11 @@
-use crate::{conf, entities::SubmissionConfig, worker::WorkerQueueTx};
-use anyhow::{bail, Context};
 use std::sync::Arc;
+
+use anyhow::{bail, Context};
 use tokio::{fs, sync::mpsc};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, debug_span, error, instrument, Instrument};
+
+use crate::{conf, entities::SubmissionConfig, worker::WorkerQueueTx};
 
 mod execute;
 mod predicate;
@@ -46,21 +48,25 @@ async fn handle_submission(
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<()>,
 ) -> anyhow::Result<()> {
-    debug!("Resolving the submission");
-    let submission =
-        resolve::resolve_submission(submission).context("Failed to resolve the submission")?;
-
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
-        bail!("The submission's directory already exists, it may indicate a duplicate submission id: {}", submission_root.display())
+        bail!(
+            "The submission's directory already exists, it may indicate a duplicate submission \
+             id: {}",
+            submission_root.display()
+        )
     }
 
     fs::create_dir_all(&submission_root)
         .await
         .context("Error creating the submission directory")?;
 
+    debug!("Resolving the submission");
+    let submission = resolve::resolve_submission(submission, submission_root)
+        .context("Failed to resolve the submission")?;
+
     debug!("Executing the submission");
-    execute::execute_submission(submission_root, submission, worker_queue_tx, status_tx)
+    execute::execute_submission(submission, worker_queue_tx, status_tx)
         .await
         .context("Error executing the submission")?;
 

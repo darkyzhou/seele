@@ -1,13 +1,14 @@
-use chrono::{DateTime, Utc};
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    path::PathBuf,
+    sync::{Arc, Mutex, RwLock},
 };
 
 pub use action::*;
+use chrono::{DateTime, Utc};
+use indexmap::IndexMap;
 pub use report::*;
+use serde::{Deserialize, Serialize};
 
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
@@ -15,6 +16,8 @@ pub type UtcTimestamp = DateTime<Utc>;
 
 mod action;
 mod report;
+
+pub type SubmissionReport = IndexMap<String, serde_yaml::Value>;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SubmissionConfig {
@@ -32,7 +35,7 @@ pub struct SubmissionConfig {
     pub reporter: SubmissionReporter,
 
     #[serde(skip_deserializing, default)]
-    pub report: RwLock<Option<IndexMap<String, serde_yaml::Value>>>,
+    pub report: Mutex<Option<SubmissionReport>>,
 }
 
 #[inline]
@@ -49,10 +52,13 @@ fn random_submission_id() -> String {
 #[cfg_attr(test, derive(Serialize))]
 pub struct Submission {
     pub id: String,
+    pub root_directory: PathBuf,
+
     pub config: Arc<SubmissionConfig>,
-    pub root: Arc<RootTaskNode>,
+    pub root_node: Arc<RootTaskNode>,
+
     #[cfg_attr(test, serde(skip_serializing))]
-    pub id_to_node_map: HashMap<String, Arc<TaskNode>>,
+    pub nodes: HashMap<String, Arc<TaskNode>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

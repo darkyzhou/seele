@@ -1,4 +1,14 @@
-use super::{predicate, report::make_submission_report};
+use std::{path::PathBuf, sync::Arc};
+
+use async_recursion::async_recursion;
+use futures_util::{stream, StreamExt};
+use tokio::sync::oneshot;
+use tracing::{debug, instrument};
+
+use super::{
+    predicate,
+    report::{apply_report_config, make_submission_report},
+};
 use crate::{
     entities::{
         ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport, TaskNode,
@@ -6,42 +16,50 @@ use crate::{
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
-use async_recursion::async_recursion;
-use futures_util::{stream, StreamExt};
-use std::{path::PathBuf, sync::Arc};
-use tokio::sync::oneshot;
-use tracing::{debug, instrument};
 
 #[derive(Debug, Clone)]
 struct ExecutionContext {
-    submission_root: PathBuf,
     submission_id: String,
+    submission_root: PathBuf,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<()>,
 }
 
 #[instrument(skip_all, fields(id = submission.id))]
 pub async fn execute_submission(
-    submission_root: PathBuf,
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<()>,
 ) -> anyhow::Result<()> {
     let ctx = ExecutionContext {
-        submission_root,
-        submission_id: submission.id,
+        submission_id: submission.id.clone(),
+        submission_root: submission.root_directory.clone(),
         worker_queue_tx,
         status_tx,
     };
 
     futures_util::future::join_all(
-        submission.root.tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
+        submission
+            .root_node
+            .tasks
+            .iter()
+            .cloned()
+            .map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
 
-    let report_config =
-        make_submission_report(submission.config.clone(), &submission.config.reporter).await?;
-    *submission.config.report.write().unwrap() = Some(report_config.report);
+    {
+        let mut report_config =
+            make_submission_report(submission.config.clone(), &submission.config.reporter).await?;
+
+        let result = apply_report_config(&report_config, &submission).await?;
+
+        for (field, content) in result.embeds {
+            report_config.report.insert(field, content.into());
+        }
+
+        *submission.config.report.lock().unwrap() = Some(report_config.report);
+    }
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 
@@ -95,7 +113,9 @@ async fn track_action_execution(
         },
     };
     debug!(status = ?status, "Setting the status");
-    *node.config.status.write().unwrap() = status;
+    {
+        *node.config.status.write().unwrap() = status;
+    }
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 }
@@ -117,7 +137,9 @@ async fn track_schedule_execution(
         TaskConfigExt::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
     };
     debug!(status = ?status, "Setting the status");
-    *node.config.status.write().unwrap() = status;
+    {
+        *node.config.status.write().unwrap() = status;
+    }
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 }
@@ -144,7 +166,9 @@ fn resolve_parent_status(tasks: impl Iterator<Item = Arc<TaskConfig>>) -> TaskSt
 
 fn mark_children_as_skipped(task: &TaskNode) {
     for node in &task.children {
-        *node.config.status.write().unwrap() = TaskStatus::Skipped;
+        {
+            *node.config.status.write().unwrap() = TaskStatus::Skipped;
+        }
         mark_children_as_skipped(node);
     }
 }
@@ -169,14 +193,16 @@ async fn submit_task(
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, num::NonZeroUsize};
+
+    use chrono::Utc;
+    use insta::glob;
+
     use crate::{
         composer::resolve::resolve_submission,
         entities::{ActionExecutionReport, TaskReport, TaskSuccessReport},
         worker::{NoopExecutionReport, WorkerQueueItem},
     };
-    use chrono::Utc;
-    use insta::glob;
-    use std::{fs, num::NonZeroUsize};
 
     #[test]
     fn test_execute_submission() {

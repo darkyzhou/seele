@@ -1,3 +1,7 @@
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
+
+use anyhow::{bail, Context};
+
 use crate::{
     entities::{
         RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig, TaskConfigExt,
@@ -5,17 +9,24 @@ use crate::{
     },
     shared,
 };
-use anyhow::{bail, Context};
-use std::{collections::HashMap, sync::Arc};
 
-pub fn resolve_submission(config: Arc<SubmissionConfig>) -> anyhow::Result<Submission> {
-    let root_id = config.id.clone();
-    let root = Arc::new(RootTaskNode {
-        id: root_id.clone(),
-        tasks: vec![resolve_sequence(&config.tasks).context("Error resolving root sequence tasks")?],
+pub fn resolve_submission(
+    config: Arc<SubmissionConfig>,
+    root_directory: PathBuf,
+) -> anyhow::Result<Submission> {
+    let root_node = Arc::new(RootTaskNode {
+        id: config.id.clone(),
+        tasks: vec![
+            resolve_sequence(&config.tasks).context("Error resolving root sequence tasks")?,
+        ],
     });
-    let id_to_node_map = get_id_to_node_map(root.clone());
-    Ok(Submission { id: root_id, config, id_to_node_map, root })
+    Ok(Submission {
+        id: config.id,
+        root_directory,
+        config,
+        nodes: get_id_to_node_map(root_node.clone()),
+        root_node,
+    })
 }
 
 fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
@@ -134,8 +145,9 @@ fn get_id_to_node_map(root: Arc<RootTaskNode>) -> HashMap<String, Arc<TaskNode>>
 
 #[cfg(test)]
 mod tests {
-    use insta::glob;
     use std::fs;
+
+    use insta::glob;
 
     #[test]
     fn test_resolve_submission() {
