@@ -53,7 +53,7 @@ pub async fn compile(
             let target = ctx.submission_root.join(file);
             let metadata = fs::metadata(&source)
                 .await
-                .with_context(|| format!("The file `{}` to save does not exist", file))?;
+                .with_context(|| format!("The file `{file}` to save does not exist"))?;
 
             if metadata.is_file() {
                 fs::copy(source, target).await.context("Error copying the file")?;

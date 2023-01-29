@@ -122,10 +122,10 @@ async fn download_http_file(url: String) -> Result<Bytes, String> {
         .get(url)
         .send()
         .await
-        .map_err(|err| format!("Error sending the request: {:#}", err))?
+        .map_err(|err| format!("Error sending the request: {err:#}"))?
         .bytes()
         .await
-        .map_err(|err| format!("Error downloading the content: {:#}", err))
+        .map_err(|err| format!("Error downloading the content: {err:#}"))
 }
 
 #[cfg(test)]

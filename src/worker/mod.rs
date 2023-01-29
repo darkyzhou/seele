@@ -142,7 +142,7 @@ async fn worker_main_impl(
             Err(err) => TaskReport::Failed(TaskFailedReport::Action {
                 run_at: None,
                 time_elapsed_ms: None,
-                message: format!("Error handling the action: {:#}", err),
+                message: format!("Error handling the action: {err:#}"),
             }),
             Ok(report) => report,
         };
@@ -197,7 +197,7 @@ async fn handle_action(
             Err(err) => TaskReport::Failed(TaskFailedReport::Action {
                 run_at: Some(run_at),
                 time_elapsed_ms: Some(time_elapsed_ms),
-                message: format!("Error running the action: {:#}", err),
+                message: format!("Error running the action: {err:#}"),
             }),
             Ok(report) => {
                 TaskReport::Success(TaskSuccessReport::Action { run_at, time_elapsed_ms, report })

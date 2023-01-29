@@ -29,7 +29,7 @@ pub async fn run_http_exchange(
                             Ok(response) => response,
                             Err(err) => Response::builder()
                                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                                .body(Body::from(format!("Internal error: {:#}", err)))
+                                .body(Body::from(format!("Internal error: {err:#}")))
                                 .unwrap(),
                         },
                     )

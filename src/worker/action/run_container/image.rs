@@ -21,11 +21,10 @@ pub async fn prepare_image(image: &OciImage) -> anyhow::Result<String> {
 
 #[instrument]
 async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
-    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {:#}", err))?;
+    pull_image(&image).await.map_err(|err| format!("Error pulling the image: {err:#}"))?;
 
-    let path = unpack_image(&image)
-        .await
-        .map_err(|err| format!("Error unpacking the image: {:#}", err))?;
+    let path =
+        unpack_image(&image).await.map_err(|err| format!("Error unpacking the image: {err:#}"))?;
     Ok(path)
 }
 
@@ -59,7 +58,7 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
                 &format!("oci:{}:{}", temp_target_path.display(), image.tag),
                 "--command-timeout",
-                &format!("{}s", PULL_TIMEOUT_SECOND),
+                &format!("{PULL_TIMEOUT_SECOND}s"),
                 "--retry-times",
                 "3",
                 "--quiet",

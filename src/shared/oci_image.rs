@@ -94,7 +94,7 @@ mod tests {
         ];
 
         for (str, image) in cases {
-            assert_eq!(OciImage::from(str), image, "case {}", str);
+            assert_eq!(OciImage::from(str), image, "case {str}");
         }
     }
 }

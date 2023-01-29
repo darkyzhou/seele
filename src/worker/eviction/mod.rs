@@ -203,7 +203,7 @@ async fn do_evict(path: &Path) -> anyhow::Result<()> {
             .ok_or_else(|| anyhow!("Invalid file, expected file name"))?
             .to_str()
             .ok_or_else(|| anyhow!("Unexpected file name"))?;
-        format!("{}_{}", random, name)
+        format!("{random}_{name}")
     });
     fs::rename(path, target).await?;
 
