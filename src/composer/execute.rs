@@ -1,4 +1,4 @@
-use super::predicate;
+use super::{predicate, report::make_submission_report};
 use crate::{
     entities::{
         ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport, TaskNode,
@@ -38,6 +38,10 @@ pub async fn execute_submission(
         submission.root.tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
+
+    let report_config =
+        make_submission_report(submission.config.clone(), &submission.config.reporter).await?;
+    *submission.config.report.write().unwrap() = Some(report_config.report);
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 

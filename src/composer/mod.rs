@@ -7,6 +7,7 @@ use tracing::{debug, debug_span, error, instrument, Instrument};
 
 mod execute;
 mod predicate;
+mod report;
 mod resolve;
 
 pub type ComposerQueueItem = (Arc<SubmissionConfig>, ring_channel::RingSender<()>);

@@ -7,14 +7,16 @@ use std::{
 };
 
 pub use action::*;
+pub use report::*;
 
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 pub type UtcTimestamp = DateTime<Utc>;
 
 mod action;
+mod report;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SubmissionConfig {
     #[cfg_attr(test, serde(skip_serializing))]
     #[serde(skip_deserializing, default = "make_submitted_at")]
@@ -25,6 +27,12 @@ pub struct SubmissionConfig {
 
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
+
+    #[serde(skip_serializing)]
+    pub reporter: SubmissionReporter,
+
+    #[serde(skip_deserializing, default)]
+    pub report: RwLock<Option<IndexMap<String, serde_yaml::Value>>>,
 }
 
 #[inline]

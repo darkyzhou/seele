@@ -21,11 +21,17 @@ fn main() {
     .expect("Failed to initialize the logger");
 
     info!(root = %conf::PATHS.root.display(), "Creating necessary directories");
-    std::fs::create_dir_all(&conf::PATHS.images).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.submissions).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.evicted).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.states).unwrap();
-    std::fs::create_dir_all(&conf::PATHS.temp_mounts).unwrap();
+    {
+        for path in [
+            &conf::PATHS.images,
+            &conf::PATHS.submissions,
+            &conf::PATHS.evicted,
+            &conf::PATHS.states,
+            &conf::PATHS.temp_mounts,
+        ] {
+            std::fs::create_dir_all(path).unwrap();
+        }
+    }
 
     info!("Creating runtime");
     let runtime = runtime::Builder::new_multi_thread()
