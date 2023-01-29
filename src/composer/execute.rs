@@ -48,7 +48,7 @@ pub async fn execute_submission(
     )
     .await;
 
-    {
+    let report_result = async {
         let mut report_config =
             make_submission_report(submission.config.clone(), &submission.config.reporter).await?;
 
@@ -59,11 +59,20 @@ pub async fn execute_submission(
         }
 
         *submission.config.report.lock().unwrap() = Some(report_config.report);
+
+        anyhow::Ok(())
+    }
+    .await;
+
+    if let Err(err) = &report_result {
+        {
+            *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
+        }
     }
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 
-    Ok(())
+    report_result
 }
 
 #[async_recursion]

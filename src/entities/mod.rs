@@ -36,6 +36,9 @@ pub struct SubmissionConfig {
 
     #[serde(skip_deserializing, default)]
     pub report: Mutex<Option<SubmissionReport>>,
+
+    #[serde(skip_deserializing, default)]
+    pub report_error: Mutex<Option<String>>,
 }
 
 #[inline]
