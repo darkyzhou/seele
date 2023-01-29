@@ -11,6 +11,7 @@ pub enum SubmissionReporter {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SubmissionReportConfig {
     pub report: IndexMap<String, serde_yaml::Value>,
 
@@ -22,6 +23,7 @@ pub struct SubmissionReportConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SubmissionReportEmbedConfig {
     pub path: PathBuf,
     pub field: String,
@@ -29,6 +31,7 @@ pub struct SubmissionReportEmbedConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SubmissionReportUploadConfig {
     pub path: PathBuf,
     pub target: String,

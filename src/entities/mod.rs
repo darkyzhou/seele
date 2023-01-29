@@ -20,6 +20,7 @@ mod report;
 pub type SubmissionReport = IndexMap<String, serde_yaml::Value>;
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SubmissionConfig {
     #[cfg_attr(test, serde(skip_serializing))]
     #[serde(skip_deserializing, default = "make_submitted_at")]
@@ -65,6 +66,7 @@ pub struct Submission {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaskConfig {
     #[serde(skip_deserializing, default, flatten)]
     pub status: RwLock<TaskStatus>,
@@ -93,12 +95,14 @@ impl TaskConfigExt {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SequenceTaskConfig {
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ParallelTaskConfig {
     #[serde(rename = "parallel")]
     pub tasks: ParallelTasks,
