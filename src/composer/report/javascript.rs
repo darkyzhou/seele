@@ -10,13 +10,13 @@ pub async fn execute_javascript_reporter(
     config: String,
     source: String,
 ) -> anyhow::Result<SubmissionReportConfig> {
-    let result = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         fn run(config: String, source: String) -> anyhow::Result<SubmissionReportConfig> {
             let context = quick_js::Context::new()?;
             context.set_global("DATA", JsValue::String(config))?;
 
             let source = format!("( function(DATA){{{source}}} )( JSON.parse(DATA) )");
-            match context.eval(&source).context("Error executing the engine")? {
+            match context.eval(&source).context("Error executing the script")? {
                 JsValue::Object(report) => Ok({
                     serde_json::from_value(
                         QuickJsObject(report)
@@ -31,11 +31,7 @@ pub async fn execute_javascript_reporter(
 
         run(config, source)
     })
-    .await?;
-    match result {
-        Err(err) => bail!("Error running the script: {:#}", err),
-        Ok(report) => Ok(report),
-    }
+    .await?
 }
 
 struct QuickJsObject(HashMap<String, JsValue>);
