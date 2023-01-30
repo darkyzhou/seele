@@ -46,7 +46,7 @@ impl Error for ActionErrorWithReport {}
 
 impl Display for ActionErrorWithReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Action execution failed with report: {:?}", self.report)
+        write!(f, "Action execution failed with a report")
     }
 }
 
