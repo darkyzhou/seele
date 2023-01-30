@@ -1,11 +1,8 @@
-use self::eviction::EvictionManager;
-use crate::{
-    conf,
-    entities::{ActionTaskConfig, TaskFailedReport, TaskReport, TaskSuccessReport},
-};
+use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc, time::Duration};
+
+pub use action::*;
 use anyhow::Context;
 use chrono::Utc;
-use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{
     fs::{self, File},
     sync::oneshot,
@@ -14,9 +11,16 @@ use tokio::{
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info, instrument};
 
-pub use action::*;
+use self::eviction::EvictionManager;
+use crate::{
+    conf,
+    entities::{
+        ActionFailedReport, ActionFailedReportExt, ActionReport, ActionSuccessReport,
+        ActionTaskConfig,
+    },
+};
 
-mod action;
+pub mod action;
 mod eviction;
 
 #[derive(Debug)]
@@ -24,7 +28,26 @@ pub struct WorkerQueueItem {
     pub submission_id: String,
     pub submission_root: PathBuf,
     pub config: Arc<ActionTaskConfig>,
-    pub report_tx: oneshot::Sender<TaskReport>,
+    pub report_tx: oneshot::Sender<ActionReport>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ActionErrorWithReport {
+    report: ActionFailedReportExt,
+}
+
+impl ActionErrorWithReport {
+    pub fn new(report: ActionFailedReportExt) -> Self {
+        Self { report }
+    }
+}
+
+impl Error for ActionErrorWithReport {}
+
+impl Display for ActionErrorWithReport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Action execution failed with report: {:?}", self.report)
+    }
 }
 
 pub type WorkerQueueTx = async_channel::Sender<WorkerQueueItem>;
@@ -130,25 +153,17 @@ async fn worker_main_impl(
     image_eviction_manager: Arc<Option<EvictionManager>>,
 ) -> anyhow::Result<()> {
     while let Ok(Ok(item)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
-        let report = match handle_action(
-            item.submission_id,
+        let report = execute_action(
+            item.submission_id.clone(),
             item.submission_root,
             &item.config,
             submission_eviction_manager.clone(),
             image_eviction_manager.clone(),
         )
-        .await
-        {
-            Err(err) => TaskReport::Failed(TaskFailedReport::Action {
-                run_at: None,
-                time_elapsed_ms: None,
-                message: format!("Error handling the action: {err:#}"),
-            }),
-            Ok(report) => report,
-        };
+        .await;
 
         if item.report_tx.send(report).is_err() {
-            error!("Error sending the report");
+            error!(submission_id = item.submission_id, "Error sending the report");
         }
     }
 
@@ -156,13 +171,13 @@ async fn worker_main_impl(
 }
 
 #[instrument(skip(submission_eviction_manager, image_eviction_manager))]
-async fn handle_action(
+async fn execute_action(
     _submission_id: String,
     submission_root: PathBuf,
     task: &ActionTaskConfig,
     submission_eviction_manager: Arc<Option<EvictionManager>>,
     image_eviction_manager: Arc<Option<EvictionManager>>,
-) -> anyhow::Result<TaskReport> {
+) -> ActionReport {
     let ctx = Arc::new(ActionContext {
         submission_root,
         submission_eviction_manager,
@@ -173,42 +188,41 @@ async fn handle_action(
         manager.visit_enter(&ctx.submission_root).await;
     }
 
-    let manager = ctx.submission_eviction_manager.clone();
-    let root = ctx.submission_root.clone();
+    let now = Instant::now();
+    let run_at = Utc::now();
+    let result = match task {
+        ActionTaskConfig::Noop(config) => action::noop::execute(config).await,
+        ActionTaskConfig::AddFile(config) => action::add_file::execute(&ctx, config).await,
+        ActionTaskConfig::RunContainer(config) => {
+            action::run_container::execute(&ctx, config).await
+        }
+        ActionTaskConfig::RunJudgeCompile(config) => {
+            action::run_judge::compile::execute(&ctx, config).await
+        }
+        ActionTaskConfig::RunJudgeRun(config) => {
+            action::run_judge::run::execute(&ctx, config).await
+        }
+    };
+    let time_elapsed_ms = {
+        let new_now = Instant::now();
+        new_now.saturating_duration_since(now).as_millis().try_into().unwrap()
+    };
 
-    let result = async move {
-        let now = Instant::now();
-        let run_at = Utc::now();
-        let result = match task {
-            ActionTaskConfig::Noop(config) => action::noop(config).await,
-            ActionTaskConfig::AddFile(config) => action::add_file(&ctx, config).await,
-            ActionTaskConfig::RunContainer(config) => action::run_container(&ctx, config).await,
-            ActionTaskConfig::RunJudgeCompile(config) => {
-                action::run_judge::compile(&ctx, config).await
-            }
-            ActionTaskConfig::RunJudgeRun(config) => action::run_judge::run(&ctx, config).await,
-        };
-        let time_elapsed_ms = {
-            let new_now = Instant::now();
-            new_now.saturating_duration_since(now).as_millis().try_into()?
-        };
-
-        Ok(match result {
-            Err(err) => TaskReport::Failed(TaskFailedReport::Action {
-                run_at: Some(run_at),
-                time_elapsed_ms: Some(time_elapsed_ms),
-                message: format!("Error running the action: {err:#}"),
-            }),
-            Ok(report) => {
-                TaskReport::Success(TaskSuccessReport::Action { run_at, time_elapsed_ms, report })
-            }
-        })
-    }
-    .await;
-
-    if let Some(manager) = manager.as_ref() {
-        manager.visit_leave(&root).await;
+    if let Some(manager) = ctx.submission_eviction_manager.as_ref() {
+        manager.visit_leave(&ctx.submission_root).await;
     }
 
-    result
+    match result {
+        Err(err) => ActionFailedReport {
+            run_at: Some(run_at),
+            time_elapsed_ms: Some(time_elapsed_ms),
+            error: format!("Error executing the action: {err:#}"),
+            ext: err
+                .root_cause()
+                .downcast_ref::<ActionErrorWithReport>()
+                .map(|err| err.report.clone()),
+        }
+        .into(),
+        Ok(ext) => ActionSuccessReport { run_at, time_elapsed_ms, ext }.into(),
+    }
 }

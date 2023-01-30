@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -47,49 +48,67 @@ pub struct MountConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LimitsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    time: Option<TimeLimitsConfig>,
+    pub time: Option<TimeLimitsConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    cgroup: Option<CgroupConfig>,
+    pub cgroup: Option<CgroupConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    rlimit: Option<Vec<RlimitConfig>>,
+    pub rlimit: Option<Vec<RlimitConfig>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TimeLimitsConfig {
-    wall: u64,
-    kernel: u64,
-    user: u64,
+    pub wall: u64,
+    pub kernel: u64,
+    pub user: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CgroupConfig {
-    memory: i64,
-    memory_reservation: i64,
-    memory_swap: i64,
-    cpu_shares: u64,
-    cpu_quota: i64,
-    cpuset_cpus: i64,
-    cpuset_mems: i64,
-    pids_limit: i64,
+    pub memory: i64,
+    pub memory_reservation: i64,
+    pub memory_swap: i64,
+    pub cpu_shares: u64,
+    pub cpu_quota: i64,
+    pub cpuset_cpus: i64,
+    pub cpuset_mems: i64,
+    pub pids_limit: i64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RlimitConfig {
-    r#type: String,
-    hard: String,
-    soft: String,
+    pub r#type: String,
+    pub hard: String,
+    pub soft: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ContainerExecutionReport {
-    status: String,
-    exit_code: i64,
-    wall_time_ms: u64,
-    cpu_user_time_ms: u64,
-    cpu_kernel_time_ms: u64,
-    memory_usage_kib: u64,
-    is_oom: bool,
-    is_wall_tle: bool,
-    is_system_tle: bool,
-    is_user_tle: bool,
+    pub status: ContainerExecutionStatus,
+    pub exit_code: i64,
+    pub wall_time_ms: u64,
+    pub cpu_user_time_ms: u64,
+    pub cpu_kernel_time_ms: u64,
+    pub memory_usage_kib: u64,
+    pub is_oom: bool,
+    pub is_wall_tle: bool,
+    pub is_system_tle: bool,
+    pub is_user_tle: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ContainerExecutionStatus {
+    #[serde(rename = "NORMAL")]
+    Normal,
+    #[serde(rename = "RUNTIME_ERROR")]
+    RuntimeError,
+    #[serde(rename = "SIGNAL_TERMINATE")]
+    SignalTerminate,
+    #[serde(rename = "SIGNAL_STOP")]
+    SignalStop,
+    #[serde(rename = "TIME_LIMIT_EXCEEDED")]
+    TimeLimitExceeded,
+    #[serde(rename = "MEMORY_LIMIT_EXCEEDED")]
+    MemoryLimitExceeded,
+    #[serde(rename = "UNKNOWN")]
+    Unknown,
 }

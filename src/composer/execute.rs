@@ -11,8 +11,8 @@ use super::{
 };
 use crate::{
     entities::{
-        ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport, TaskNode,
-        TaskNodeExt, TaskReport, TaskStatus, TaskSuccessReport,
+        ActionReport, ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport,
+        TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -108,18 +108,13 @@ async fn track_action_execution(
     config: Arc<ActionTaskConfig>,
 ) {
     debug!("Submitting the action");
-    let result = submit_task(ctx.clone(), config.clone()).await;
+    let result = submit_action(ctx.clone(), config.clone()).await;
 
     let status = match result {
-        Err(err) => TaskStatus::Failed(TaskFailedReport::Action {
-            run_at: None,
-            time_elapsed_ms: None,
-            message: format!("Error submitting the task: {err:#}"),
-        }),
-        Ok(report) => match report {
-            TaskReport::Success(report) => TaskStatus::Success(report),
-            TaskReport::Failed(report) => TaskStatus::Failed(report),
-        },
+        Err(err) => TaskStatus::Failed(TaskFailedReport::Action(
+            format!("Error submitting the task: {err:#}").into(),
+        )),
+        Ok(report) => report.into(),
     };
     debug!(status = ?status, "Setting the status");
     {
@@ -182,10 +177,10 @@ fn mark_children_as_skipped(task: &TaskNode) {
     }
 }
 
-async fn submit_task(
+async fn submit_action(
     ctx: ExecutionContext,
     config: Arc<ActionTaskConfig>,
-) -> anyhow::Result<TaskReport> {
+) -> anyhow::Result<ActionReport> {
     let (tx, rx) = oneshot::channel();
     ctx.worker_queue_tx
         .send(WorkerQueueItem {
@@ -209,8 +204,8 @@ mod tests {
 
     use crate::{
         composer::resolve::resolve_submission,
-        entities::{ActionExecutionReport, TaskReport, TaskSuccessReport},
-        worker::{NoopExecutionReport, WorkerQueueItem},
+        entities::{ActionSuccessReportExt, TaskReport, TaskSuccessReport},
+        worker::{ExecutionReport, WorkerQueueItem},
     };
 
     #[test]
@@ -240,9 +235,7 @@ mod tests {
                             .send(TaskReport::Success(TaskSuccessReport::Action {
                                 run_at: Utc::now(),
                                 time_elapsed_ms: 0,
-                                report: ActionExecutionReport::Noop(NoopExecutionReport {
-                                    test: 0,
-                                }),
+                                report: ActionSuccessReportExt::Noop(ExecutionReport { test: 0 }),
                             }))
                             .unwrap();
                     }

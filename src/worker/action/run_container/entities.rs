@@ -1,11 +1,15 @@
-use super::runj;
-use crate::shared::oci_image::OciImage;
-use anyhow::bail;
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+use anyhow::bail;
+use serde::{Deserialize, Serialize};
+
+use super::runj;
+use crate::shared::oci_image::OciImage;
+
+pub type ExecutionReport = runj::ContainerExecutionReport;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionRunContainerConfig {
+pub struct Config {
     #[serde(with = "crate::shared::oci_image::serde_format")]
     pub image: OciImage,
 

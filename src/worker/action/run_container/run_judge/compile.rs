@@ -1,26 +1,54 @@
-use super::{config::ActionCompileConfig, MOUNT_DIRECTORY};
-use crate::{
-    conf,
-    entities::ActionExecutionReport,
-    worker::{run_container, runj, ActionContext, MountConfig},
-};
-use anyhow::{bail, Context};
 use std::{fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf};
+
+use anyhow::{bail, Context};
+use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tracing::{instrument, warn};
 
+use super::MOUNT_DIRECTORY;
+use crate::{
+    conf,
+    entities::ActionSuccessReportExt,
+    worker::{
+        run_container::{self, runj},
+        ActionContext, MountConfig,
+    },
+};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Config {
+    #[serde(flatten)]
+    pub run_container_config: run_container::Config,
+
+    #[serde(default)]
+    pub source: Vec<String>,
+
+    #[serde(default)]
+    pub save: Vec<String>,
+
+    #[serde(default)]
+    pub cache: Vec<CacheItem>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum CacheItem {
+    String(String),
+    File { file: String },
+}
+
 #[instrument]
-pub async fn compile(
+pub async fn execute(
     ctx: &ActionContext,
-    config: &ActionCompileConfig,
-) -> anyhow::Result<ActionExecutionReport> {
+    config: &Config,
+) -> anyhow::Result<ActionSuccessReportExt> {
     let mount_directory = conf::PATHS.temp_mounts.join(nano_id::base62::<8>());
     fs::create_dir(&mount_directory).await?;
+    // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
+    // bit is for rootful case.
+    fs::set_permissions(&mount_directory, Permissions::from_mode(0o777)).await?;
 
     let result = async {
-        // XXX: 0o777 is mandatory. The group bit is for rootless case and the others bit is for rootful case.
-        fs::set_permissions(&mount_directory, Permissions::from_mode(0o777)).await?;
-
         let run_container_config = {
             let mut run_container_config = config.run_container_config.clone();
             run_container_config.cwd = PathBuf::from(MOUNT_DIRECTORY);
@@ -46,27 +74,30 @@ pub async fn compile(
             run_container_config
         };
 
-        let report = run_container(ctx, &run_container_config).await?;
+        match run_container::execute(ctx, &run_container_config).await {
+            Err(err) => Err(err),
+            Ok(report) => {
+                for file in &config.save {
+                    let source = mount_directory.join(file);
+                    let target = ctx.submission_root.join(file);
+                    let metadata = fs::metadata(&source)
+                        .await
+                        .with_context(|| format!("The file `{file}` to save does not exist"))?;
 
-        for file in &config.save {
-            let source = mount_directory.join(file);
-            let target = ctx.submission_root.join(file);
-            let metadata = fs::metadata(&source)
-                .await
-                .with_context(|| format!("The file `{file}` to save does not exist"))?;
+                    if metadata.is_file() {
+                        fs::copy(source, target).await.context("Error copying the file")?;
+                        continue;
+                    } else if metadata.is_dir() {
+                        bail!("Saving a directory is currently unsupported: {}", file);
+                    } else if metadata.is_symlink() {
+                        bail!("Saving a symlink is currently unsupported: {}", file);
+                    }
+                    bail!("Unknown file type: {}", file);
+                }
 
-            if metadata.is_file() {
-                fs::copy(source, target).await.context("Error copying the file")?;
-                continue;
-            } else if metadata.is_dir() {
-                bail!("Saving a directory is currently unsupported: {}", file);
-            } else if metadata.is_symlink() {
-                bail!("Saving a symlink is currently unsupported: {}", file);
+                Ok(report)
             }
-            bail!("Unknown file type: {}", file);
         }
-
-        Ok(report)
     }
     .await;
 

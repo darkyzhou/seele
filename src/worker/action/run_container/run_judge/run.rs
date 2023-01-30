@@ -1,15 +1,29 @@
-use super::{config::ActionRunConfig, MOUNT_DIRECTORY};
-use crate::{
-    entities::ActionExecutionReport,
-    worker::{run_container, runj, ActionContext, MountConfig},
-};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use super::MOUNT_DIRECTORY;
+use crate::{
+    entities::ActionSuccessReportExt,
+    worker::{
+        run_container::{self, runj},
+        ActionContext, MountConfig,
+    },
+};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Config {
+    #[serde(flatten)]
+    pub run_container_config: run_container::Config,
+
+    #[serde(default)]
+    pub executable: Vec<String>,
+}
+
 #[instrument]
-pub async fn run(
+pub async fn execute(
     ctx: &ActionContext,
-    config: &ActionRunConfig,
-) -> anyhow::Result<ActionExecutionReport> {
+    config: &Config,
+) -> anyhow::Result<ActionSuccessReportExt> {
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
@@ -36,5 +50,5 @@ pub async fn run(
         run_container_config
     };
 
-    run_container(ctx, &run_container_config).await
+    run_container::execute(ctx, &run_container_config).await
 }

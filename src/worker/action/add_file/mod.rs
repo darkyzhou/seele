@@ -1,30 +1,33 @@
-use super::ActionContext;
-use crate::{
-    conf,
-    entities::ActionExecutionReport,
-    shared::{self, cond_group::CondGroup},
-};
-use anyhow::{anyhow, bail, Context};
-use bytes::Bytes;
-use futures_util::FutureExt;
-use once_cell::sync::Lazy;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+
+use anyhow::{anyhow, bail, Context};
+use bytes::Bytes;
+pub use entities::*;
+use futures_util::FutureExt;
+use once_cell::sync::Lazy;
 use tokio::io;
 use tracing::instrument;
 
-pub use self::config::*;
+use super::ActionContext;
+use crate::{
+    conf,
+    entities::{ActionFailedReportExt, ActionSuccessReportExt},
+    shared::{self, cond_group::CondGroup},
+    worker::ActionErrorWithReport,
+};
 
-mod config;
+mod entities;
 
 static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|| {
+    use std::time::Duration;
+
     use http_cache::MokaManager;
     use http_cache_reqwest::{Cache, CacheMode, HttpCache};
     use reqwest::Client;
     use reqwest_middleware::ClientBuilder;
-    use std::time::Duration;
 
     ClientBuilder::new(
         Client::builder()
@@ -36,7 +39,8 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
             .unwrap(),
     )
     .with(Cache(HttpCache {
-        // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline), the stale response will be returned.
+        // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline), the
+        // stale response will be returned.
         mode: CacheMode::Default,
         manager: MokaManager::new({
             use moka::future::Cache;
@@ -57,16 +61,14 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 });
 
 #[instrument]
-pub async fn add_file(
+pub async fn execute(
     ctx: &ActionContext,
-    config: &ActionAddFileConfig,
-) -> anyhow::Result<ActionExecutionReport> {
+    config: &Config,
+) -> anyhow::Result<ActionSuccessReportExt> {
     let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
         match item {
-            ActionAddFileFileItem::Inline { path, text } => {
-                handle_inline_file(ctx, path, text).await
-            }
-            ActionAddFileFileItem::Http { path, url } => handle_http_file(ctx, path, url).await,
+            FileItem::Inline { path, text } => handle_inline_file(ctx, path, text).await,
+            FileItem::Http { path, url } => handle_http_file(ctx, path, url).await,
         }
     }))
     .await;
@@ -79,10 +81,12 @@ pub async fn add_file(
         })
         .collect();
     if !failed_items.is_empty() {
-        bail!("Failed to handle some of the files:\n{}", failed_items.join("\n"));
+        bail!(ActionErrorWithReport::new(ActionFailedReportExt::AddFile(FailedReport {
+            files: failed_items
+        })));
     }
 
-    Ok(ActionExecutionReport::AddFile)
+    Ok(ActionSuccessReportExt::AddFile)
 }
 
 async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> anyhow::Result<()> {
@@ -130,9 +134,11 @@ async fn download_http_file(url: String) -> Result<Bytes, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::worker::action::ActionContext;
     use std::{iter, path::PathBuf, sync::Arc};
+
     use tokio::fs;
+
+    use crate::worker::action::ActionContext;
 
     #[tokio::test]
     async fn test_handle_inline_file() {

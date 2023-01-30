@@ -1,19 +1,20 @@
-use serde::{Deserialize, Serialize};
 use std::{fmt::Display, path::PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionAddFileConfig {
-    pub files: Vec<ActionAddFileFileItem>,
+pub struct Config {
+    pub files: Vec<FileItem>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum ActionAddFileFileItem {
+pub enum FileItem {
     Http { path: PathBuf, url: String },
     Inline { path: PathBuf, text: String },
 }
 
-impl Display for ActionAddFileFileItem {
+impl Display for FileItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use ellipse::Ellipse;
 
@@ -24,4 +25,9 @@ impl Display for ActionAddFileFileItem {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FailedReport {
+    pub files: Vec<String>,
 }

@@ -1,32 +1,38 @@
-use crate::worker::{
-    run_judge, ActionAddFileConfig, ActionNoopConfig, ActionRunContainerConfig,
-    ContainerExecutionReport, NoopExecutionReport,
-};
 use serde::{Deserialize, Serialize};
+
+use crate::worker::action;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "action")]
 pub enum ActionTaskConfig {
     #[serde(rename = "seele/noop@1")]
-    Noop(ActionNoopConfig),
+    Noop(action::noop::Config),
 
     #[serde(rename = "seele/add-file@1")]
-    AddFile(ActionAddFileConfig),
+    AddFile(action::add_file::Config),
 
     #[serde(rename = "seele/run-container@1")]
-    RunContainer(ActionRunContainerConfig),
+    RunContainer(action::run_container::Config),
 
     #[serde(rename = "seele/run-judge/compile@1")]
-    RunJudgeCompile(run_judge::ActionCompileConfig),
+    RunJudgeCompile(action::run_judge::compile::Config),
 
     #[serde(rename = "seele/run-judge/run@1")]
-    RunJudgeRun(run_judge::ActionRunConfig),
+    RunJudgeRun(action::run_judge::run::Config),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum ActionExecutionReport {
-    Noop(NoopExecutionReport),
+pub enum ActionSuccessReportExt {
+    Noop(action::noop::ExecutionReport),
     AddFile,
-    RunContainer(ContainerExecutionReport),
+    RunContainer(action::run_container::ExecutionReport),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ActionFailedReportExt {
+    Noop(action::noop::ExecutionReport),
+    AddFile(action::add_file::FailedReport),
+    RunContainer(action::run_container::ExecutionReport),
 }

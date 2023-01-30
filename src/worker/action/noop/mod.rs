@@ -1,17 +1,18 @@
-use crate::entities::ActionExecutionReport;
 use serde::{Deserialize, Serialize};
 
-pub async fn noop(config: &ActionNoopConfig) -> anyhow::Result<ActionExecutionReport> {
-    Ok(ActionExecutionReport::Noop(NoopExecutionReport { test: config.test }))
+use crate::entities::ActionSuccessReportExt;
+
+pub async fn execute(config: &Config) -> anyhow::Result<ActionSuccessReportExt> {
+    Ok(ActionSuccessReportExt::Noop(ExecutionReport { test: config.test }))
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ActionNoopConfig {
+pub struct Config {
     #[serde(default)]
     pub test: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NoopExecutionReport {
+pub struct ExecutionReport {
     pub test: u64,
 }

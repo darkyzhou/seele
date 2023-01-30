@@ -1,22 +1,28 @@
-use self::utils::{check_and_create_directories, convert_to_runj_config};
-use super::ActionContext;
-use crate::conf;
-use crate::entities::ActionExecutionReport;
+use std::io::Read;
+
 use anyhow::{bail, Context};
 use duct::cmd;
 use once_cell::sync::Lazy;
-use std::io::Read;
 use threadpool::ThreadPool;
 use tokio::sync::{oneshot, Mutex};
-use tracing::{debug, error, instrument};
+use tracing::{error, instrument};
 
-pub use self::config::*;
-pub use self::runj::ContainerExecutionReport;
+pub use self::entities::*;
+use self::{
+    runj::ContainerExecutionStatus,
+    utils::{check_and_create_directories, convert_to_runj_config},
+};
+use super::ActionContext;
+use crate::{
+    conf,
+    entities::{ActionFailedReportExt, ActionSuccessReportExt},
+    worker::{run_container::runj::ContainerExecutionReport, ActionErrorWithReport},
+};
 
-mod config;
+mod entities;
 mod image;
 pub mod run_judge;
-pub mod runj;
+mod runj;
 mod utils;
 
 static RUNNER_POOL: Lazy<Mutex<ThreadPool>> = Lazy::new(|| {
@@ -24,11 +30,10 @@ static RUNNER_POOL: Lazy<Mutex<ThreadPool>> = Lazy::new(|| {
 });
 
 #[instrument]
-pub async fn run_container(
+pub async fn execute(
     ctx: &ActionContext,
-    config: &ActionRunContainerConfig,
-) -> anyhow::Result<ActionExecutionReport> {
-    debug!("Preparing the image");
+    config: &Config,
+) -> anyhow::Result<ActionSuccessReportExt> {
     let image_path = image::get_image_path(&config.image);
     if let Some(manager) = ctx.image_eviction_manager.as_ref() {
         manager.visit_enter(&image_path).await;
@@ -71,19 +76,24 @@ pub async fn run_container(
                 }
 
                 if tx.send(run(&config)).is_err() {
-                    error!("Error sending report to parent",);
+                    error!("Error sending the report to parent");
                 }
             });
         }
 
         rx.await?
     }
-    .await
-    .map(ActionExecutionReport::RunContainer);
+    .await;
 
     if let Some(manager) = ctx.image_eviction_manager.as_ref() {
         manager.visit_leave(&image_path).await;
     }
 
-    result
+    match result {
+        Err(err) => Err(err),
+        Ok(report) => match report.status {
+            ContainerExecutionStatus::Normal => Ok(ActionSuccessReportExt::RunContainer(report)),
+            _ => bail!(ActionErrorWithReport::new(ActionFailedReportExt::RunContainer(report))),
+        },
+    }
 }

@@ -1,10 +1,11 @@
-use super::{image, runj, ActionRunContainerConfig};
-use crate::{conf, shared, worker::ActionContext};
 use anyhow::Context;
+
+use super::{image, runj, Config};
+use crate::{conf, shared, worker::ActionContext};
 
 pub fn convert_to_runj_config(
     ctx: &ActionContext,
-    config: ActionRunContainerConfig,
+    config: Config,
 ) -> anyhow::Result<runj::RunjConfig> {
     let rootfs = image::get_unpacked_image_path(&config.image).join("rootfs");
     let command = config.command.try_into().context("Error parsing command")?;

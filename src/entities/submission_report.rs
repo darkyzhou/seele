@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+pub type SubmissionReport = IndexMap<String, serde_yaml::Value>;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum SubmissionReporter {
