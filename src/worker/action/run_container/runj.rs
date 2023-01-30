@@ -41,6 +41,7 @@ pub struct FdConfig {
 pub struct MountConfig {
     pub from: PathBuf,
     pub to: PathBuf,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<String>>,
 }
@@ -49,8 +50,10 @@ pub struct MountConfig {
 pub struct LimitsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<TimeLimitsConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cgroup: Option<CgroupConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rlimit: Option<Vec<RlimitConfig>>,
 }
@@ -76,9 +79,11 @@ pub struct CgroupConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RlimitConfig {
+    #[serde(rename = "type")]
     pub r#type: String,
-    pub hard: String,
-    pub soft: String,
+
+    pub hard: u64,
+    pub soft: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -109,6 +114,8 @@ pub enum ContainerExecutionStatus {
     TimeLimitExceeded,
     #[serde(rename = "MEMORY_LIMIT_EXCEEDED")]
     MemoryLimitExceeded,
+    #[serde(rename = "OUTPUT_LIMIT_EXCEEDED")]
+    OutputLimitExceeded,
     #[serde(rename = "UNKNOWN")]
     Unknown,
 }

@@ -5,7 +5,7 @@ use duct::cmd;
 use once_cell::sync::Lazy;
 use threadpool::ThreadPool;
 use tokio::sync::{oneshot, Mutex};
-use tracing::{error, instrument};
+use tracing::{error, instrument, warn};
 
 pub use self::entities::*;
 use self::{
@@ -93,7 +93,13 @@ pub async fn execute(
         Err(err) => Err(err),
         Ok(report) => match report.status {
             ContainerExecutionStatus::Normal => Ok(ActionSuccessReportExt::RunContainer(report)),
-            _ => bail!(ActionErrorWithReport::new(ActionFailedReportExt::RunContainer(report))),
+            _ => {
+                if matches!(report.status, ContainerExecutionStatus::Unknown) {
+                    warn!("Unknown container execution status");
+                }
+
+                bail!(ActionErrorWithReport::new(ActionFailedReportExt::RunContainer(report)))
+            }
         },
     }
 }

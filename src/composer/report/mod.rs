@@ -9,6 +9,7 @@ use tokio::{
 use crate::entities::{Submission, SubmissionConfig, SubmissionReportConfig, SubmissionReporter};
 
 mod javascript;
+mod utils;
 
 pub async fn make_submission_report(
     config: Arc<SubmissionConfig>,

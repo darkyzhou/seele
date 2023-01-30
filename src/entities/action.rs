@@ -15,10 +15,10 @@ pub enum ActionTaskConfig {
     RunContainer(action::run_container::Config),
 
     #[serde(rename = "seele/run-judge/compile@1")]
-    RunJudgeCompile(action::run_judge::compile::Config),
+    RunJudgeCompile(action::run_container::run_judge::compile::Config),
 
     #[serde(rename = "seele/run-judge/run@1")]
-    RunJudgeRun(action::run_judge::run::Config),
+    RunJudgeRun(action::run_container::run_judge::run::Config),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

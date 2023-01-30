@@ -4,7 +4,9 @@ use anyhow::{anyhow, bail, Context};
 use quick_js::JsValue;
 use serde_json::Value;
 
-use crate::entities::SubmissionReportConfig;
+use crate::{
+    composer::report::utils::get_oj_status, entities::SubmissionReportConfig, worker::run_container,
+};
 
 pub async fn execute_javascript_reporter(
     config: String,
@@ -12,9 +14,7 @@ pub async fn execute_javascript_reporter(
 ) -> anyhow::Result<SubmissionReportConfig> {
     tokio::task::spawn_blocking(move || {
         fn run(config: String, source: String) -> anyhow::Result<SubmissionReportConfig> {
-            let context = quick_js::Context::new()?;
-            context.set_global("DATA", JsValue::String(config))?;
-
+            let context = init_context(config).context("Error initializing the context")?;
             let source = format!("( function(DATA){{{source}}} )( JSON.parse(DATA) )");
             match context.eval(&source).context("Error executing the script")? {
                 JsValue::Object(report) => Ok({
@@ -32,6 +32,27 @@ pub async fn execute_javascript_reporter(
         run(config, source)
     })
     .await?
+}
+
+fn init_context(config: String) -> anyhow::Result<quick_js::Context> {
+    let context = quick_js::Context::new()?;
+    context.set_global("DATA", JsValue::String(config))?;
+    context.add_callback("getOJStatus", get_oj_status_wrapper)?;
+    Ok(context)
+}
+
+fn get_oj_status_wrapper(
+    run_report: HashMap<String, JsValue>,
+    compare_report: HashMap<String, JsValue>,
+) -> anyhow::Result<&'static str> {
+    use run_container::ExecutionReport;
+
+    let run_report: ExecutionReport =
+        serde_json::from_value(QuickJsObject(run_report).try_into()?)?;
+    let compare_report: ExecutionReport =
+        serde_json::from_value(QuickJsObject(compare_report).try_into()?)?;
+
+    Ok(get_oj_status(run_report, compare_report).into())
 }
 
 struct QuickJsObject(HashMap<String, JsValue>);

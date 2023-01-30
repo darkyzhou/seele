@@ -7,6 +7,7 @@ use super::runj;
 use crate::shared::oci_image::OciImage;
 
 pub type ExecutionReport = runj::ContainerExecutionReport;
+pub type ExecutionStatus = runj::ContainerExecutionStatus;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {

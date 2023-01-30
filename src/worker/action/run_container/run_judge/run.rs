@@ -5,8 +5,11 @@ use super::MOUNT_DIRECTORY;
 use crate::{
     entities::ActionSuccessReportExt,
     worker::{
-        run_container::{self, runj},
-        ActionContext, MountConfig,
+        run_container::{
+            self,
+            runj::{self},
+        },
+        ActionContext,
     },
 };
 
@@ -43,7 +46,7 @@ pub async fn execute(
                         to: [MOUNT_DIRECTORY, file].iter().collect(),
                         options: Some(vec!["exec".to_string()]),
                     })
-                    .map(MountConfig::Full),
+                    .map(run_container::MountConfig::Full),
             );
         }
 

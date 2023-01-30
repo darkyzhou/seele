@@ -197,10 +197,10 @@ async fn execute_action(
             action::run_container::execute(&ctx, config).await
         }
         ActionTaskConfig::RunJudgeCompile(config) => {
-            action::run_judge::compile::execute(&ctx, config).await
+            action::run_container::run_judge::compile::execute(&ctx, config).await
         }
         ActionTaskConfig::RunJudgeRun(config) => {
-            action::run_judge::run::execute(&ctx, config).await
+            action::run_container::run_judge::run::execute(&ctx, config).await
         }
     };
     let time_elapsed_ms = {

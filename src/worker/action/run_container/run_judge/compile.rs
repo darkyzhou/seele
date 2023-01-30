@@ -11,7 +11,7 @@ use crate::{
     entities::ActionSuccessReportExt,
     worker::{
         run_container::{self, runj},
-        ActionContext, MountConfig,
+        ActionContext,
     },
 };
 
@@ -53,7 +53,7 @@ pub async fn execute(
             let mut run_container_config = config.run_container_config.clone();
             run_container_config.cwd = PathBuf::from(MOUNT_DIRECTORY);
 
-            run_container_config.mounts.push(MountConfig::Full(runj::MountConfig {
+            run_container_config.mounts.push(run_container::MountConfig::Full(runj::MountConfig {
                 from: mount_directory.clone(),
                 to: PathBuf::from(MOUNT_DIRECTORY),
                 options: Some(vec!["rw".to_string()]),
@@ -68,7 +68,7 @@ pub async fn execute(
                         to: [MOUNT_DIRECTORY, file].iter().collect(),
                         options: None,
                     })
-                    .map(MountConfig::Full),
+                    .map(run_container::MountConfig::Full),
             );
 
             run_container_config
