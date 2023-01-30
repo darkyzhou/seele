@@ -57,18 +57,20 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 				exitStatus = STATUS_RUNTIME_ERROR
 			}
 		case status.Signaled():
-			s := status.Signal()
-			code = int(s) + 128
-			if s == unix.SIGXCPU {
+			sig := status.Signal()
+			code = int(sig) + 128
+
+			switch sig {
+			case unix.SIGXCPU:
 				exitStatus = STATUS_TIME_LIMIT_EXCEEDED
-			} else if s == unix.SIGXFSZ {
+			case unix.SIGXFSZ:
 				exitStatus = STATUS_OUTPUT_LIMIT_EXCEEDED
-			} else {
+			default:
 				exitStatus = STATUS_SIGNAL_TERMINATE
 			}
 		case status.Stopped():
-			s := status.StopSignal()
-			code = int(s) + 128
+			sig := status.StopSignal()
+			code = int(sig) + 128
 			exitStatus = STATUS_SIGNAL_STOP
 		default:
 			return nil, fmt.Errorf("Unknown status: %v", status)
