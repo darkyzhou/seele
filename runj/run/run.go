@@ -1,6 +1,7 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -125,13 +126,13 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	}
 	defer stdErrFile.Close()
 
-	var timeLimit uint64
+	var timeLimitMs uint64
 	if config.Limits != nil && config.Limits.Time != nil {
 		if config.Limits.Time.WallLimitMs != 0 {
-			timeLimit = config.Limits.Time.WallLimitMs
+			timeLimitMs = config.Limits.Time.WallLimitMs
 		} else {
 			if config.Limits.Time.KernelLimitMs != 0 || config.Limits.Time.UserLimitMs != 0 {
-				timeLimit = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
+				timeLimitMs = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
 			}
 		}
 	}
@@ -168,16 +169,20 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	}
 
 	processFinished := false
-	if timeLimit > 0 {
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeLimitMs*2)*time.Millisecond)
+	defer cancel()
+
+	if timeLimitMs > 0 {
 		go func(duration uint64) {
-			<-time.After(time.Duration(duration) * time.Millisecond)
+			<-ctx.Done()
 			if !processFinished {
 				if err := container.Signal(unix.SIGKILL, true); err != nil {
 					// TODO: Should we panic?
 					logrus.WithError(err).Warn("Error sending SIGKELL to the container processes")
 				}
 			}
-		}(timeLimit * 2)
+		}(timeLimitMs * 2)
 	}
 
 	wallTimeBegin := time.Now()
