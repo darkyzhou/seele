@@ -11,7 +11,9 @@ pub fn check_node_predicate(parent_node: &TaskNode, node: &TaskNode) -> bool {
 
     match predicate {
         TRUE => true,
-        PREVIOUS_OK => matches!(*parent_node.config.status.read().unwrap(), TaskStatus::Success(_)),
+        PREVIOUS_OK => {
+            matches!(*parent_node.config.status.read().unwrap(), TaskStatus::Success { .. })
+        }
         _ => false,
     }
 }

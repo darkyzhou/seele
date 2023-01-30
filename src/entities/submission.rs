@@ -64,7 +64,6 @@ pub struct Submission {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct TaskConfig {
     #[serde(skip_deserializing, default, flatten)]
     pub status: RwLock<TaskStatus>,
@@ -93,14 +92,12 @@ impl TaskConfigExt {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct SequenceTaskConfig {
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct ParallelTaskConfig {
     #[serde(rename = "parallel")]
     pub tasks: ParallelTasks,
@@ -114,9 +111,9 @@ pub enum TaskStatus {
     #[serde(rename = "skipped")]
     Skipped,
     #[serde(rename = "failed")]
-    Failed(TaskFailedReport),
+    Failed { report: TaskFailedReport },
     #[serde(rename = "success")]
-    Success(TaskSuccessReport),
+    Success { report: TaskSuccessReport },
 }
 
 impl Default for TaskStatus {
@@ -159,8 +156,12 @@ impl From<ActionFailedReport> for ActionReport {
 impl From<ActionReport> for TaskStatus {
     fn from(value: ActionReport) -> Self {
         match value {
-            ActionReport::Success(report) => TaskStatus::Success(TaskSuccessReport::Action(report)),
-            ActionReport::Failed(report) => TaskStatus::Failed(TaskFailedReport::Action(report)),
+            ActionReport::Success(report) => {
+                TaskStatus::Success { report: TaskSuccessReport::Action(report) }
+            }
+            ActionReport::Failed(report) => {
+                TaskStatus::Failed { report: TaskFailedReport::Action(report) }
+            }
         }
     }
 }

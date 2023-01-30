@@ -111,9 +111,9 @@ async fn track_action_execution(
     let result = submit_action(ctx.clone(), config.clone()).await;
 
     let status = match result {
-        Err(err) => TaskStatus::Failed(TaskFailedReport::Action(
-            format!("Error submitting the task: {err:#}").into(),
-        )),
+        Err(err) => TaskStatus::Failed {
+            report: TaskFailedReport::Action(format!("Error submitting the task: {err:#}").into()),
+        },
         Ok(report) => report.into(),
     };
     debug!(status = ?status, "Setting the status");
@@ -149,14 +149,14 @@ async fn track_schedule_execution(
 }
 
 fn resolve_parent_status(tasks: impl Iterator<Item = Arc<TaskConfig>>) -> TaskStatus {
-    let mut status = TaskStatus::Success(TaskSuccessReport::Schedule);
+    let mut status = TaskStatus::Success { report: TaskSuccessReport::Schedule };
     for task in tasks {
         match *task.status.read().unwrap() {
             TaskStatus::Pending => {
                 status = TaskStatus::Pending;
             }
-            TaskStatus::Failed(_) => {
-                status = TaskStatus::Failed(TaskFailedReport::Schedule);
+            TaskStatus::Failed { .. } => {
+                status = TaskStatus::Failed { report: TaskFailedReport::Schedule };
                 break;
             }
             TaskStatus::Skipped => {
