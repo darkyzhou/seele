@@ -66,9 +66,9 @@ pub async fn execute(
     config: &Config,
 ) -> anyhow::Result<ActionSuccessReportExt> {
     let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
-        match item {
-            FileItem::Inline { path, text } => handle_inline_file(ctx, path, text).await,
-            FileItem::Http { path, url } => handle_http_file(ctx, path, url).await,
+        match &item.ext {
+            FileItemExt::Inline { content } => handle_inline_file(ctx, &item.path, content).await,
+            FileItemExt::Http { url } => handle_http_file(ctx, &item.path, url).await,
         }
     }))
     .await;

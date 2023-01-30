@@ -8,22 +8,35 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FileItem {
+    pub path: PathBuf,
+
+    #[serde(flatten)]
+    pub ext: FileItemExt,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum FileItem {
-    Http { path: PathBuf, url: String },
-    Inline { path: PathBuf, text: String },
+pub enum FileItemExt {
+    Http { url: String },
+    Inline { content: String },
 }
 
 impl Display for FileItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use either::Either;
         use ellipse::Ellipse;
 
-        match self {
-            Self::Http { path, url } => write!(f, "{}({})", path.display(), url),
-            Self::Inline { path, text } => {
-                write!(f, "{}({}...)", path.display(), text.as_str().truncate_ellipse(20))
+        write!(
+            f,
+            "{}({})",
+            self.path.display(),
+            match &self.ext {
+                FileItemExt::Http { url } => Either::Left(url),
+                FileItemExt::Inline { content } =>
+                    Either::Right(format!("{}...", content.as_str().truncate_ellipse(30))),
             }
-        }
+        )
     }
 }
 
