@@ -19,6 +19,7 @@ const (
 	STATUS_SIGNAL_STOP           = "SIGNAL_STOP"
 	STATUS_TIME_LIMIT_EXCEEDED   = "TIME_LIMIT_EXCEEDED"
 	STATUS_MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED"
+	STATUS_OUTPUT_LIMIT_EXCEEDED = "OUTPUT_LIMIT_EXCEEDED"
 	STATUS_UNKNOWN               = "UNKNOWN"
 )
 
@@ -60,6 +61,8 @@ func resolveExecutionReport(config *spec.RunjConfig, isOOM bool, state *os.Proce
 			code = int(s) + 128
 			if s == unix.SIGXCPU {
 				exitStatus = STATUS_TIME_LIMIT_EXCEEDED
+			} else if s == unix.SIGXFSZ {
+				exitStatus = STATUS_OUTPUT_LIMIT_EXCEEDED
 			} else {
 				exitStatus = STATUS_SIGNAL_TERMINATE
 			}
