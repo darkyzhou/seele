@@ -41,7 +41,6 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 		cpuKernelMs    uint64
 		cpuUserMs      uint64
 		exitStatus     = STATUS_UNKNOWN
-		code           = -1
 		isWallTLE      bool
 		isSystemTLE    bool
 		isUserTLE      bool
@@ -59,15 +58,13 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 		status := props.state.Sys().(syscall.WaitStatus)
 		switch true {
 		case status.Exited():
-			code = status.ExitStatus()
-			if code == 0 {
+			if status.ExitStatus() == 0 {
 				exitStatus = STATUS_NORMAL
 			} else {
 				exitStatus = STATUS_RUNTIME_ERROR
 			}
 		case status.Signaled():
 			sig := status.Signal()
-			code = int(sig) + 128
 
 			switch sig {
 			case unix.SIGXCPU:
@@ -78,8 +75,6 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 				exitStatus = STATUS_SIGNAL_TERMINATE
 			}
 		case status.Stopped():
-			sig := status.StopSignal()
-			code = int(sig) + 128
 			exitStatus = STATUS_SIGNAL_STOP
 		default:
 			return nil, fmt.Errorf("Unknown status: %v", status)
@@ -144,7 +139,6 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 
 	return &spec.ExecutionReport{
 		Status:          exitStatus,
-		ExitCode:        code,
 		WallTimeMs:      uint64(props.wallTime.Milliseconds()),
 		CpuUserTimeMs:   cpuUserMs,
 		CpuKernelTimeMs: cpuKernelMs,
