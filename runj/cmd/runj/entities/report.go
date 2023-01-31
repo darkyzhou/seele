@@ -1,4 +1,4 @@
-package spec
+package entities
 
 type ExecutionReport struct {
 	Status          string `json:"status"`

@@ -1,4 +1,4 @@
-package run
+package execute
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -26,7 +26,7 @@ var (
 	gidMappings []specs.LinuxIDMapping
 )
 
-func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
+func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	if err := prepareContainerFactory(); err != nil {
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}

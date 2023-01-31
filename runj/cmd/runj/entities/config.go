@@ -1,4 +1,4 @@
-package spec
+package entities
 
 type RunjConfig struct {
 	Rootless bool           `mapstructure:"rootless"`

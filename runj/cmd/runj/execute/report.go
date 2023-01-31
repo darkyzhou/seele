@@ -1,4 +1,4 @@
-package run
+package execute
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/samber/lo"
 	"golang.org/x/sys/unix"
@@ -24,7 +24,7 @@ const (
 )
 
 type ExecutionReportProps struct {
-	config         *spec.RunjConfig
+	config         *entities.RunjConfig
 	state          *os.ProcessState
 	stats          *libcontainer.Stats
 	wallTime       time.Duration
@@ -34,7 +34,7 @@ type ExecutionReportProps struct {
 	rlimitFsize    uint64
 }
 
-func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, error) {
+func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport, error) {
 	var (
 		memoryUsageKib uint64
 		cpuTotalMs     uint64
@@ -145,7 +145,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 		exitStatus = STATUS_MEMORY_LIMIT_EXCEEDED
 	}
 
-	return &spec.ExecutionReport{
+	return &entities.ExecutionReport{
 		Status:          exitStatus,
 		ExitCode:        code,
 		Signal:          signal,

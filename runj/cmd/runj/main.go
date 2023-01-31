@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/darkyzhou/seele/runj/cmd/runj/run"
-	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
+	"github.com/darkyzhou/seele/runj/cmd/runj/execute"
 	"github.com/go-playground/validator/v10"
 	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/runc/libcontainer"
@@ -67,7 +67,7 @@ func main() {
 		logrus.WithError(err).Fatal("Error unmarshalling the input")
 	}
 
-	var config spec.RunjConfig
+	var config entities.RunjConfig
 	if err := mapstructure.Decode(payload, &config); err != nil {
 		logrus.WithError(err).Fatal("Error unmarshalling the input")
 	}
@@ -77,9 +77,9 @@ func main() {
 		logrus.WithError(err).Fatal("Invalid config")
 	}
 
-	report, err := run.RunContainer(&config)
+	report, err := execute.Execute(&config)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error running the container")
+		logrus.WithError(err).Fatal("Error executing the container")
 	}
 
 	output, err := json.Marshal(report)

@@ -1,11 +1,11 @@
-package run
+package execute
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -94,7 +94,7 @@ var rlimitTypeMap = map[string]int{
 var defaultMemoryLimitBytes = int64(512 * 1024 * 1024) // 512 MiB
 var defaultPidsLimit = 64
 
-func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
+func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 	var (
 		cgroupCpuRules = &specs.LinuxCPU{}
 		cgroupMemRules = &specs.LinuxMemory{
