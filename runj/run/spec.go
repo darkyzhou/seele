@@ -98,7 +98,8 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 	var (
 		cgroupCpuRules = &specs.LinuxCPU{}
 		cgroupMemRules = &specs.LinuxMemory{
-			Swap: &defaultMemoryLimitBytes,
+			Limit: &defaultMemoryLimitBytes,
+			Swap:  &defaultMemoryLimitBytes,
 		}
 		cgroupPidRules = &specs.LinuxPids{
 			Limit: int64(defaultPidsLimit),
