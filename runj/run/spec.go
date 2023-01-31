@@ -7,7 +7,6 @@ import (
 
 	"github.com/darkyzhou/seele/runj/spec"
 	"github.com/darkyzhou/seele/runj/utils"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/samber/lo"
 	"golang.org/x/sys/unix"
@@ -53,19 +52,7 @@ var defaultMountPoints = []specs.Mount{
 		Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 	},
 }
-var defaultRlimitRules = []configs.Rlimit{
-	{
-		Type: unix.RLIMIT_NOFILE,
-		Hard: uint64(1025),
-		Soft: uint64(1025),
-	},
-	{
-		// disable core dumps
-		Type: unix.RLIMIT_CORE,
-		Hard: uint64(0),
-		Soft: uint64(0),
-	},
-}
+
 var rlimitTypeMap = map[string]int{
 	"RLIMIT_AS":         unix.RLIMIT_AS,
 	"RLIMIT_CORE":       unix.RLIMIT_CORE,
@@ -121,9 +108,6 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 		}
 		if config.Limits.Cgroup.PidsLimit != 0 {
 			cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
-		} else {
-			// By default we set it to 64
-			cgroupPidRules.Limit = 64
 		}
 	}
 

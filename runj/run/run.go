@@ -137,7 +137,7 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		}
 	}
 
-	rlimits := defaultRlimitRules[:]
+	var rlimits []configs.Rlimit
 	if config.Limits != nil && config.Limits.Rlimit != nil {
 		for _, rule := range config.Limits.Rlimit {
 			rlimitType, ok := rlimitTypeMap[rule.Type]
