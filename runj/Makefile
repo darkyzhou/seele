@@ -3,7 +3,7 @@ BIN_DIR := ./bin
 
 BIN_NAME := runj
 BIN_PATH := "$(BIN_DIR)/$(BIN_NAME)"
-MAIN_ENTRYPOINT := main.go
+MAIN_ENTRYPOINT := cmd/runj/main.go
 
 GO_VERSION := $(shell go version | cut -d ' ' -f 3)
 GO_LDFLAGS += -X "$(PKG)/seele.Version=$(shell git describe --tags --dirty --always)"

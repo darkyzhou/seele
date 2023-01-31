@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/darkyzhou/seele/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/configs"

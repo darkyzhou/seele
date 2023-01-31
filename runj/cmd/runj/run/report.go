@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/darkyzhou/seele/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/samber/lo"
 	"golang.org/x/sys/unix"

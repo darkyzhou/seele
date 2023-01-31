@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/darkyzhou/seele/runj/spec"
-	"github.com/darkyzhou/seele/runj/utils"
+	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/samber/lo"

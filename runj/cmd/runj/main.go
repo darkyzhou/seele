@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/darkyzhou/seele/runj/run"
-	"github.com/darkyzhou/seele/runj/spec"
+	"github.com/darkyzhou/seele/runj/cmd/runj/run"
+	"github.com/darkyzhou/seele/runj/cmd/runj/spec"
 	"github.com/go-playground/validator/v10"
 	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/runc/libcontainer"

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/darkyzhou/seele/runj/cgroup"
+	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
