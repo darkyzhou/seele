@@ -76,98 +76,109 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	}()
 
 	var (
-		stdInFile  *os.File
-		stdOutFile *os.File
-		stdErrFile *os.File
+		stdInFile      *os.File
+		stdOutFile     *os.File
+		stdErrFile     *os.File
+		stdOutFilePath string
+		stdErrFilePath string
 	)
-
-	stdInFilePath := lo.TernaryF(
-		config.Fd == nil || config.Fd.StdIn == "",
-		func() string {
-			return "/dev/null"
-		},
-		func() string {
-			return config.Fd.StdIn
-		},
-	)
-	stdInFile, err = os.Open(stdInFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening the stdin file %s: %w", stdInFilePath, err)
-	}
-	defer stdInFile.Close()
-
-	stdOutFilePath := lo.TernaryF(
-		config.Fd == nil || config.Fd.StdOut == "",
-		func() string {
-			return "/dev/null"
-		},
-		func() string {
-			return config.Fd.StdOut
-		},
-	)
-	stdOutFile, err = prepareOutFile(stdOutFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Error preparing the stdout file %s: %w", stdOutFilePath, err)
-	}
-	defer stdOutFile.Close()
-
-	stdErrFilePath := lo.TernaryF(
-		config.Fd == nil || config.Fd.StdErr == "",
-		func() string {
-			return "/dev/null"
-		},
-		func() string {
-			return config.Fd.StdErr
-		},
-	)
-	stdErrFile, err = prepareOutFile(stdErrFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("Error preparing the stderr file %s: %w", stdErrFilePath, err)
-	}
-	defer stdErrFile.Close()
-
-	var timeLimitMs uint64
-	if config.Limits != nil && config.Limits.Time != nil {
-		if config.Limits.Time.WallLimitMs != 0 {
-			timeLimitMs = config.Limits.Time.WallLimitMs
-		} else {
-			if config.Limits.Time.KernelLimitMs != 0 || config.Limits.Time.UserLimitMs != 0 {
-				timeLimitMs = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
-			}
+	{
+		stdInFilePath := lo.TernaryF(
+			config.Fd == nil || config.Fd.StdIn == "",
+			func() string {
+				return "/dev/null"
+			},
+			func() string {
+				return config.Fd.StdIn
+			},
+		)
+		stdInFile, err = os.Open(stdInFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("Error opening the stdin file %s: %w", stdInFilePath, err)
 		}
+		defer stdInFile.Close()
+
+		stdOutFilePath = lo.TernaryF(
+			config.Fd == nil || config.Fd.StdOut == "",
+			func() string {
+				return "/dev/null"
+			},
+			func() string {
+				return config.Fd.StdOut
+			},
+		)
+		stdOutFile, err = prepareOutFile(stdOutFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("Error preparing the stdout file %s: %w", stdOutFilePath, err)
+		}
+		defer stdOutFile.Close()
+
+		stdErrFilePath = lo.TernaryF(
+			config.Fd == nil || config.Fd.StdErr == "",
+			func() string {
+				return "/dev/null"
+			},
+			func() string {
+				return config.Fd.StdErr
+			},
+		)
+		stdErrFile, err = prepareOutFile(stdErrFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("Error preparing the stderr file %s: %w", stdErrFilePath, err)
+		}
+		defer stdErrFile.Close()
 	}
 
-	var rlimits []configs.Rlimit
-	var rlimitFsize uint64
-	if config.Limits != nil && config.Limits.Rlimit != nil {
-		for _, rule := range config.Limits.Rlimit {
-			rlimitType, ok := rlimitTypeMap[rule.Type]
-			if !ok {
-				return nil, fmt.Errorf("Invalid rlimit type: %s", rule.Type)
-			}
-
-			if rlimitType == unix.RLIMIT_FSIZE {
-				rlimits = append(rlimits, configs.Rlimit{
-					Type: rlimitType,
-					Soft: rule.Soft + 1,
-					Hard: rule.Hard + 1,
-				})
-				rlimitFsize = rule.Hard
+	var (
+		timeLimitMs uint64
+	)
+	{
+		if config.Limits != nil && config.Limits.Time != nil {
+			if config.Limits.Time.WallLimitMs != 0 {
+				timeLimitMs = config.Limits.Time.WallLimitMs
 			} else {
-				rlimits = append(rlimits, configs.Rlimit{
-					Type: rlimitType,
-					Soft: rule.Soft,
-					Hard: rule.Hard,
-				})
+				if config.Limits.Time.KernelLimitMs != 0 || config.Limits.Time.UserLimitMs != 0 {
+					timeLimitMs = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
+				}
 			}
 		}
 	}
 
-	for _, defaultRule := range defaultRlimitRules {
-		if lo.NoneBy(rlimits, func(rule configs.Rlimit) bool {
-			return defaultRule.Type == rule.Type
-		}) {
-			rlimits = append(rlimits, defaultRule)
+	var (
+		rlimits     []configs.Rlimit
+		rlimitFsize uint64
+	)
+	{
+		if config.Limits != nil && config.Limits.Rlimit != nil {
+			for _, rule := range config.Limits.Rlimit {
+				rlimitType, ok := rlimitTypeMap[rule.Type]
+				if !ok {
+					return nil, fmt.Errorf("Invalid rlimit type: %s", rule.Type)
+				}
+
+				if rlimitType == unix.RLIMIT_FSIZE {
+					rlimits = append(rlimits, configs.Rlimit{
+						Type: rlimitType,
+						Soft: rule.Soft + 1,
+						Hard: rule.Hard + 1,
+					})
+					rlimitFsize = rule.Hard
+				} else {
+					rlimits = append(rlimits, configs.Rlimit{
+						Type: rlimitType,
+						Soft: rule.Soft,
+						Hard: rule.Hard,
+					})
+				}
+			}
+		}
+
+		for _, defaultRule := range defaultRlimitRules {
+			if lo.NoneBy(rlimits, func(rule configs.Rlimit) bool {
+				return defaultRule.Type == rule.Type
+			}) {
+				rlimits = append(rlimits, defaultRule)
+			}
 		}
 	}
 
@@ -193,15 +204,14 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	defer cancel()
 
 	if timeLimitMs > 0 {
-		go func(duration uint64) {
+		go func() {
 			<-ctx.Done()
 			if !processFinished {
 				if err := container.Signal(unix.SIGKILL, true); err != nil {
-					// TODO: Should we panic?
-					logrus.WithError(err).Warn("Error sending SIGKELL to the container processes")
+					logrus.WithError(err).Fatal("Error sending SIGKILL to the container processes")
 				}
 			}
-		}(timeLimitMs * 2)
+		}()
 	}
 
 	wallTimeBegin := time.Now()
