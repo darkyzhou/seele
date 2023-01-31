@@ -24,14 +24,14 @@ const (
 )
 
 type ExecutionReportProps struct {
-	config      *spec.RunjConfig
-	state       *os.ProcessState
-	stats       *libcontainer.Stats
-	wallTime    time.Duration
-	cgroupPath  string
-	stdOutFile  *os.File
-	stdErrFile  *os.File
-	rlimitFsize uint64
+	config         *spec.RunjConfig
+	state          *os.ProcessState
+	stats          *libcontainer.Stats
+	wallTime       time.Duration
+	cgroupPath     string
+	stdOutFilePath string
+	stdErrFilePath string
+	rlimitFsize    uint64
 }
 
 func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, error) {
@@ -113,7 +113,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 	// the output files' length additionally to determine whether it is actually an OLE status.
 	if props.rlimitFsize > 0 {
 		if props.config.Fd != nil && props.config.Fd.StdOut != "" {
-			info, err := props.stdOutFile.Stat()
+			info, err := os.Stat(props.stdOutFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("Error checking the stdout file length: %w", err)
 			}
@@ -124,7 +124,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*spec.ExecutionReport, er
 		}
 
 		if props.config.Fd != nil && props.config.Fd.StdErr != "" {
-			info, err := props.stdErrFile.Stat()
+			info, err := os.Stat(props.stdErrFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("Error checking the stderr file length: %w", err)
 			}

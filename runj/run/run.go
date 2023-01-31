@@ -211,6 +211,10 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	state, _ := process.Wait()
 	wallTimeEnd := time.Now()
 
+	_ = stdInFile.Close()
+	_ = stdOutFile.Close()
+	_ = stdErrFile.Close()
+
 	processFinished = true
 
 	containerStats, err := container.Stats()
@@ -221,14 +225,14 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	wallTime := wallTimeEnd.Sub(wallTimeBegin)
 
 	report, err := makeExecutionReport(&ExecutionReportProps{
-		config:      config,
-		state:       state,
-		stats:       containerStats,
-		wallTime:    wallTime,
-		cgroupPath:  fullCgroupPath,
-		stdOutFile:  stdOutFile,
-		stdErrFile:  stdErrFile,
-		rlimitFsize: rlimitFsize,
+		config:         config,
+		state:          state,
+		stats:          containerStats,
+		wallTime:       wallTime,
+		cgroupPath:     fullCgroupPath,
+		stdOutFilePath: stdOutFilePath,
+		stdErrFilePath: stdErrFilePath,
+		rlimitFsize:    rlimitFsize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Error resolving execution report: %w", err)
