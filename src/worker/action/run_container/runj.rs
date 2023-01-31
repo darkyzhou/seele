@@ -89,6 +89,7 @@ pub struct RlimitConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ContainerExecutionReport {
     pub status: ContainerExecutionStatus,
+    pub exit_code: i64,
     pub wall_time_ms: u64,
     pub cpu_user_time_ms: u64,
     pub cpu_kernel_time_ms: u64,
