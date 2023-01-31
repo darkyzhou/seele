@@ -163,6 +163,14 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 		}
 	}
 
+	for _, defaultRule := range defaultRlimitRules {
+		if lo.NoneBy(rlimits, func(rule configs.Rlimit) bool {
+			return defaultRule.Type == rule.Type
+		}) {
+			rlimits = append(rlimits, defaultRule)
+		}
+	}
+
 	noNewPrivileges := true
 
 	path := "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" + lo.Ternary(len(config.Paths) <= 0, "", ":"+strings.Join(config.Paths, ":"))

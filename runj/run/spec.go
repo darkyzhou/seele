@@ -7,6 +7,7 @@ import (
 
 	"github.com/darkyzhou/seele/runj/spec"
 	"github.com/darkyzhou/seele/runj/utils"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/samber/lo"
 	"golang.org/x/sys/unix"
@@ -53,6 +54,24 @@ var defaultMountPoints = []specs.Mount{
 	},
 }
 
+var defaultRlimitRules = []configs.Rlimit{
+	{
+		Type: unix.RLIMIT_FSIZE,
+		Hard: 256 * 1024 * 1024, // 256 MiB
+		Soft: 256 * 1024 * 1024,
+	},
+	{
+		Type: unix.RLIMIT_NOFILE,
+		Hard: 256,
+		Soft: 256,
+	},
+	{
+		Type: unix.RLIMIT_CORE,
+		Hard: 0,
+		Soft: 0,
+	},
+}
+
 var rlimitTypeMap = map[string]int{
 	"RLIMIT_AS":         unix.RLIMIT_AS,
 	"RLIMIT_CORE":       unix.RLIMIT_CORE,
@@ -72,12 +91,19 @@ var rlimitTypeMap = map[string]int{
 	"RLIMIT_STACK":      unix.RLIMIT_STACK,
 }
 
+var defaultMemoryLimitBytes = int64(512 * 1024 * 1024) // 512 MiB
+var defaultPidsLimit = 64
+
 func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 	var (
-		cgroupCpuRules        = &specs.LinuxCPU{}
-		cgroupMemRules        = &specs.LinuxMemory{}
-		cgroupPidRules        = &specs.LinuxPids{}
-		swappiness     uint64 = 0
+		cgroupCpuRules = &specs.LinuxCPU{}
+		cgroupMemRules = &specs.LinuxMemory{
+			Swap: &defaultMemoryLimitBytes,
+		}
+		cgroupPidRules = &specs.LinuxPids{
+			Limit: int64(defaultPidsLimit),
+		}
+		swappiness uint64 = 0
 	)
 
 	// By default, a container should not use swap
@@ -88,24 +114,31 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 		if config.Limits.Cgroup.CpuQuota != 0 {
 			cgroupCpuRules.Quota = &config.Limits.Cgroup.CpuQuota
 		}
+
 		if config.Limits.Cgroup.CpuShares != 0 {
 			cgroupCpuRules.Shares = &config.Limits.Cgroup.CpuShares
 		}
+
 		if config.Limits.Cgroup.CpusetCpus != "" {
 			cgroupCpuRules.Cpus = config.Limits.Cgroup.CpusetCpus
 		}
+
 		if config.Limits.Cgroup.CpusetMems != "" {
 			cgroupCpuRules.Mems = config.Limits.Cgroup.CpusetMems
 		}
+
 		if config.Limits.Cgroup.Memory != 0 {
 			cgroupMemRules.Limit = &config.Limits.Cgroup.Memory
 		}
+
 		if config.Limits.Cgroup.MemoryReservation != 0 {
 			cgroupMemRules.Reservation = &config.Limits.Cgroup.MemoryReservation
 		}
+
 		if config.Limits.Cgroup.MemorySwap != 0 {
 			cgroupMemRules.Swap = &config.Limits.Cgroup.MemorySwap
 		}
+
 		if config.Limits.Cgroup.PidsLimit != 0 {
 			cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
 		}
