@@ -138,17 +138,28 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 	}
 
 	var rlimits []configs.Rlimit
+	var rlimitFsize uint64
 	if config.Limits != nil && config.Limits.Rlimit != nil {
 		for _, rule := range config.Limits.Rlimit {
 			rlimitType, ok := rlimitTypeMap[rule.Type]
 			if !ok {
 				return nil, fmt.Errorf("Invalid rlimit type: %s", rule.Type)
 			}
-			rlimits = append(rlimits, configs.Rlimit{
-				Type: rlimitType,
-				Soft: rule.Soft,
-				Hard: rule.Hard,
-			})
+
+			if rlimitType == unix.RLIMIT_FSIZE {
+				rlimits = append(rlimits, configs.Rlimit{
+					Type: rlimitType,
+					Soft: rule.Soft + 1,
+					Hard: rule.Hard + 1,
+				})
+				rlimitFsize = rule.Hard
+			} else {
+				rlimits = append(rlimits, configs.Rlimit{
+					Type: rlimitType,
+					Soft: rule.Soft,
+					Hard: rule.Hard,
+				})
+			}
 		}
 	}
 
@@ -194,11 +205,6 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 
 	processFinished = true
 
-	isOOM, err := checkIsOOM(fullCgroupPath)
-	if err != nil {
-		return nil, fmt.Errorf("Error checking if container ran out of memory: %w", err)
-	}
-
 	containerStats, err := container.Stats()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container stats: %w", err)
@@ -206,7 +212,16 @@ func RunContainer(config *spec.RunjConfig) (*spec.ExecutionReport, error) {
 
 	wallTime := wallTimeEnd.Sub(wallTimeBegin)
 
-	report, err := resolveExecutionReport(config, isOOM, state, containerStats, wallTime)
+	report, err := makeExecutionReport(&ExecutionReportProps{
+		config:      config,
+		state:       state,
+		stats:       containerStats,
+		wallTime:    wallTime,
+		cgroupPath:  fullCgroupPath,
+		stdOutFile:  stdOutFile,
+		stdErrFile:  stdErrFile,
+		rlimitFsize: rlimitFsize,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("Error resolving execution report: %w", err)
 	}

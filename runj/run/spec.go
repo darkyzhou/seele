@@ -121,6 +121,7 @@ func makeContainerSpec(config *spec.RunjConfig) (*specs.Spec, error) {
 		if utils.FileExists(fromPath) {
 			options := append([]string{"bind", "ro", "private"}, mount.Options...)
 			if lo.Contains(options, "exec") {
+				// FIXME: Runj should not do this
 				mask := unix.Umask(0)
 				err := os.Chmod(fromPath, 0777)
 				unix.Umask(mask)
