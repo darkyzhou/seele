@@ -92,7 +92,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
         .partition(|child_node| predicate::check_node_predicate(&node, child_node));
 
     for node in skipped_nodes {
-        mark_children_as_skipped(node);
+        skip_task_node(node);
     }
 
     futures_util::future::join_all(
@@ -220,12 +220,14 @@ fn resolve_sequence_status(
     status
 }
 
-fn mark_children_as_skipped(task: &TaskNode) {
-    for node in &task.children {
+fn skip_task_node(node: &TaskNode) {
+    *node.config.status.write().unwrap() = TaskStatus::Skipped;
+
+    for node in &node.children {
         {
             *node.config.status.write().unwrap() = TaskStatus::Skipped;
         }
-        mark_children_as_skipped(node);
+        skip_task_node(node);
     }
 }
 
