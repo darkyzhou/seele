@@ -12,9 +12,15 @@ mod predicate;
 mod report;
 mod resolve;
 
-pub type ComposerQueueItem = (Arc<SubmissionConfig>, ring_channel::RingSender<()>);
 pub type ComposerQueueTx = mpsc::Sender<ComposerQueueItem>;
 pub type ComposerQueueRx = mpsc::Receiver<ComposerQueueItem>;
+pub type ComposerQueueItem =
+    (Arc<SubmissionConfig>, ring_channel::RingSender<SubmissionUpdateSignal>);
+
+pub enum SubmissionUpdateSignal {
+    Progress,
+    Finished,
+}
 
 pub async fn composer_main(
     handle: SubsystemHandle,
@@ -46,7 +52,7 @@ pub async fn composer_main(
 async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<()>,
+    status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
 ) -> anyhow::Result<()> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {

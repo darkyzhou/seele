@@ -1,13 +1,13 @@
 use std::{path::PathBuf, sync::Arc};
 
 use async_recursion::async_recursion;
-use futures_util::{stream, StreamExt};
 use tokio::{sync::oneshot, time::Instant};
 use tracing::{debug, instrument};
 
 use super::{
     predicate,
     report::{apply_report_config, make_submission_report},
+    SubmissionUpdateSignal,
 };
 use crate::{
     entities::{
@@ -23,16 +23,16 @@ struct ExecutionContext {
     submission_id: String,
     submission_root: PathBuf,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<()>,
+    status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
 }
 
 #[instrument(skip_all, fields(id = submission.id))]
 pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<()>,
+    status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
 ) -> anyhow::Result<()> {
-    let ctx = ExecutionContext {
+    let mut ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
         worker_queue_tx,
@@ -70,7 +70,7 @@ pub async fn execute_submission(
         *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
     }
 
-    let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
+    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
 
     report_result
 }
@@ -103,7 +103,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
 
 #[instrument(skip(ctx, node))]
 async fn track_action_execution(
-    ctx: ExecutionContext,
+    mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) {
@@ -121,12 +121,12 @@ async fn track_action_execution(
         *node.config.status.write().unwrap() = status;
     }
 
-    let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
+    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
 }
 
 #[instrument(skip(ctx, node))]
 async fn track_schedule_execution(
-    ctx: ExecutionContext,
+    mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) {
@@ -155,7 +155,7 @@ async fn track_schedule_execution(
         *node.config.status.write().unwrap() = status;
     }
 
-    let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
+    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
 }
 
 fn resolve_parallel_status(time_elapsed_ms: u64, tasks: Vec<Arc<TaskConfig>>) -> TaskStatus {
