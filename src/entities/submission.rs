@@ -122,17 +122,22 @@ impl Default for TaskStatus {
     }
 }
 
-#[derive(Debug)]
-pub enum TaskReport {
-    Success(TaskSuccessReport),
-    Failed(TaskFailedReport),
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum TaskSuccessReport {
-    Schedule,
+    Sequence(SequenceSuccessReport),
+    Parallel(ParallelSuccessReport),
     Action(ActionSuccessReport),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SequenceSuccessReport {
+    pub time_elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParallelSuccessReport {
+    pub time_elapsed_ms: u64,
 }
 
 #[derive(Debug)]
@@ -178,8 +183,21 @@ pub struct ActionSuccessReport {
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum TaskFailedReport {
-    Schedule,
+    Sequence(SequenceFailedReport),
+    Parallel(ParallelFailedReport),
     Action(ActionFailedReport),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SequenceFailedReport {
+    pub time_elapsed_ms: u64,
+    pub failed_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ParallelFailedReport {
+    pub time_elapsed_ms: u64,
+    pub failed_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]

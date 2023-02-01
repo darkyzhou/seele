@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use async_recursion::async_recursion;
 use futures_util::{stream, StreamExt};
-use tokio::sync::oneshot;
+use tokio::{sync::oneshot, time::Instant};
 use tracing::{debug, instrument};
 
 use super::{
@@ -11,8 +11,9 @@ use super::{
 };
 use crate::{
     entities::{
-        ActionReport, ActionTaskConfig, Submission, TaskConfig, TaskConfigExt, TaskFailedReport,
-        TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
+        ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
+        SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig, TaskConfigExt,
+        TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -129,15 +130,25 @@ async fn track_schedule_execution(
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) {
+    let begin = Instant::now();
     futures_util::future::join_all(
         tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
+    let time_elapsed_ms = {
+        let end = Instant::now();
+        end.duration_since(begin).as_millis().try_into().unwrap()
+    };
 
     let status = match &node.config.ext {
         TaskConfigExt::Action(_) => panic!("Unexpected schedule task"),
-        TaskConfigExt::Parallel(config) => resolve_parent_status(config.tasks.iter().cloned()),
-        TaskConfigExt::Sequence(config) => resolve_parent_status(config.tasks.values().cloned()),
+        TaskConfigExt::Parallel(config) => {
+            resolve_parallel_status(time_elapsed_ms, config.tasks.iter().cloned().collect())
+        }
+        TaskConfigExt::Sequence(config) => resolve_sequence_status(
+            time_elapsed_ms,
+            config.tasks.iter().map(|(key, value)| (key.to_string(), value.to_owned())),
+        ),
     };
     debug!(status = ?status, "Setting the status");
     {
@@ -147,15 +158,57 @@ async fn track_schedule_execution(
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
 }
 
-fn resolve_parent_status(tasks: impl Iterator<Item = Arc<TaskConfig>>) -> TaskStatus {
-    let mut status = TaskStatus::Success { report: TaskSuccessReport::Schedule };
-    for task in tasks {
+fn resolve_parallel_status(time_elapsed_ms: u64, tasks: Vec<Arc<TaskConfig>>) -> TaskStatus {
+    let mut status = TaskStatus::Success {
+        report: TaskSuccessReport::Parallel(ParallelSuccessReport { time_elapsed_ms }),
+    };
+    for task in tasks.iter() {
         match *task.status.read().unwrap() {
             TaskStatus::Pending => {
                 status = TaskStatus::Pending;
             }
             TaskStatus::Failed { .. } => {
-                status = TaskStatus::Failed { report: TaskFailedReport::Schedule };
+                status = TaskStatus::Failed {
+                    report: TaskFailedReport::Parallel(ParallelFailedReport {
+                        time_elapsed_ms,
+                        failed_count: tasks
+                            .iter()
+                            .filter(|task| {
+                                matches!(*task.status.read().unwrap(), TaskStatus::Failed { .. })
+                            })
+                            .count(),
+                    }),
+                };
+                break;
+            }
+            TaskStatus::Skipped => {
+                panic!("Unexpected child status: Skipped")
+            }
+            _ => {}
+        }
+    }
+    status
+}
+
+fn resolve_sequence_status(
+    time_elapsed_ms: u64,
+    values: impl Iterator<Item = (String, Arc<TaskConfig>)>,
+) -> TaskStatus {
+    let mut status = TaskStatus::Success {
+        report: TaskSuccessReport::Sequence(SequenceSuccessReport { time_elapsed_ms }),
+    };
+    for (name, task) in values {
+        match *task.status.read().unwrap() {
+            TaskStatus::Pending => {
+                status = TaskStatus::Pending;
+            }
+            TaskStatus::Failed { .. } => {
+                status = TaskStatus::Failed {
+                    report: TaskFailedReport::Sequence(SequenceFailedReport {
+                        time_elapsed_ms,
+                        failed_at: name,
+                    }),
+                };
                 break;
             }
             TaskStatus::Skipped => {
