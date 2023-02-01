@@ -1,7 +1,3 @@
-use crate::conf;
-use anyhow::anyhow;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap, HashSet},
@@ -9,6 +5,10 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
+
+use anyhow::{anyhow, bail};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
@@ -16,6 +16,8 @@ use tokio::{
     time::sleep,
 };
 use tracing::{debug, error, info, instrument};
+
+use crate::conf;
 
 pub struct EvictionManager {
     name: String,
@@ -73,12 +75,12 @@ impl EvictionManager {
     #[instrument]
     pub async fn run_loop(&self) {
         loop {
-            sleep(self.interval).await;
-
             info!("Start doing cleaning");
             if let Err(err) = self.clean().await {
                 error!("Error doing cleaning: {:#}", err);
             }
+
+            sleep(self.interval).await;
         }
     }
 
@@ -109,6 +111,7 @@ impl EvictionManager {
         let mut state = self.state.lock().await;
         state.items = recovered.items;
         state.preserve_data = recovered.preserve_data;
+        state.time_to_data_map = recovered.time_to_data_map;
         Ok(state.items.len())
     }
 
@@ -155,19 +158,22 @@ impl EvictionManager {
                             break;
                         }
 
-                        if let Some(vec) = state.time_to_data_map.remove(&time) {
-                            let (preserved, eviected): (Vec<_>, Vec<_>) = vec
-                                .into_iter()
-                                .partition(|item| state.preserve_data.contains(item));
-                            eviected_items.extend(eviected);
+                        match state.time_to_data_map.remove(&time) {
+                            None => bail!("Missing time_to_data record for {:?}", time),
+                            Some(data) => {
+                                let (preserved, eviected): (Vec<_>, Vec<_>) = data
+                                    .into_iter()
+                                    .partition(|item| state.preserve_data.contains(item));
+                                eviected_items.extend(eviected);
 
-                            if !preserved.is_empty() {
-                                debug!("Preserving items: {:?}", preserved);
-                                state.time_to_data_map.insert(time, preserved);
-                                preserved_times.push(time);
+                                if !preserved.is_empty() {
+                                    debug!("Preserving items: {:?}", preserved);
+                                    state.time_to_data_map.insert(time, preserved);
+                                    preserved_times.push(time);
+                                }
+
+                                let _ = state.items.pop();
                             }
-
-                            let _ = state.items.pop();
                         }
                     }
                 }
@@ -219,6 +225,7 @@ async fn do_evict(path: &Path) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use std::{path::PathBuf, sync::Arc, time::Duration};
+
     use tokio::time::sleep;
 
     #[tokio::test]
