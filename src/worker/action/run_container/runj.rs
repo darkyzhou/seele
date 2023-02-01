@@ -108,18 +108,25 @@ pub struct ContainerExecutionReport {
 pub enum ContainerExecutionStatus {
     #[serde(rename = "NORMAL")]
     Normal,
+
     #[serde(rename = "RUNTIME_ERROR")]
     RuntimeError,
+
     #[serde(rename = "SIGNAL_TERMINATE")]
     SignalTerminate,
+
     #[serde(rename = "SIGNAL_STOP")]
     SignalStop,
+
     #[serde(rename = "TIME_LIMIT_EXCEEDED")]
     TimeLimitExceeded,
+
     #[serde(rename = "MEMORY_LIMIT_EXCEEDED")]
     MemoryLimitExceeded,
+
     #[serde(rename = "OUTPUT_LIMIT_EXCEEDED")]
     OutputLimitExceeded,
+
     #[serde(rename = "UNKNOWN")]
     Unknown,
 }
