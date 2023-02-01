@@ -188,7 +188,7 @@ async fn execute_action(
         manager.visit_enter(&ctx.submission_root).await;
     }
 
-    let now = Instant::now();
+    let begin = Instant::now();
     let run_at = Utc::now();
     let result = match task {
         ActionTaskConfig::Noop(config) => action::noop::execute(config).await,
@@ -204,8 +204,8 @@ async fn execute_action(
         }
     };
     let time_elapsed_ms = {
-        let new_now = Instant::now();
-        new_now.saturating_duration_since(now).as_millis().try_into().unwrap()
+        let end = Instant::now();
+        end.duration_since(begin).as_millis().try_into().unwrap()
     };
 
     if let Some(manager) = ctx.submission_eviction_manager.as_ref() {
