@@ -90,6 +90,10 @@ pub struct RlimitConfig {
 pub struct ContainerExecutionReport {
     pub status: ContainerExecutionStatus,
     pub exit_code: i64,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal: Option<String>,
+
     pub wall_time_ms: u64,
     pub cpu_user_time_ms: u64,
     pub cpu_kernel_time_ms: u64,
