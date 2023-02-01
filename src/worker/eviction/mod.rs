@@ -41,7 +41,8 @@ impl Debug for EvictionManager {
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct EvictionState {
     items: BinaryHeap<Reverse<DateTime<Utc>>>,
-    time_to_data_map: HashMap<DateTime<Utc>, Vec<PathBuf>>,
+    time_to_data_map: HashMap<DateTime<Utc>, HashSet<PathBuf>>,
+    data_to_time_map: HashMap<PathBuf, DateTime<Utc>>,
 
     #[serde(skip_serializing, skip_deserializing)]
     preserve_data: HashSet<PathBuf>,
@@ -108,10 +109,13 @@ impl EvictionManager {
 
     pub async fn load_states(&self, data: &[u8]) -> anyhow::Result<usize> {
         let recovered: EvictionState = ciborium::de::from_reader(data)?;
-        let mut state = self.state.lock().await;
-        state.items = recovered.items;
-        state.preserve_data = recovered.preserve_data;
-        state.time_to_data_map = recovered.time_to_data_map;
+        let state = {
+            let mut state = self.state.lock().await;
+            state.items = recovered.items;
+            state.time_to_data_map = recovered.time_to_data_map;
+            state.data_to_time_map = recovered.data_to_time_map;
+            state
+        };
         Ok(state.items.len())
     }
 
@@ -124,13 +128,14 @@ impl EvictionManager {
         let now = Utc::now();
 
         state.items.push(Reverse(now));
+        state.data_to_time_map.insert(data.into(), now);
 
         match state.time_to_data_map.get_mut(&now) {
             None => {
-                state.time_to_data_map.insert(now, vec![data.into()]);
+                state.time_to_data_map.insert(now, HashSet::from([data.into()]));
             }
-            Some(vec) => {
-                vec.push(data.into());
+            Some(set) => {
+                set.insert(data.into());
             }
         }
     }
@@ -161,10 +166,16 @@ impl EvictionManager {
                         match state.time_to_data_map.remove(&time) {
                             None => bail!("Missing time_to_data record for {:?}", time),
                             Some(data) => {
-                                let (preserved, eviected): (Vec<_>, Vec<_>) = data
+                                let (preserved, eviected): (HashSet<_>, HashSet<_>) = data
                                     .into_iter()
                                     .partition(|item| state.preserve_data.contains(item));
-                                eviected_items.extend(eviected);
+
+                                eviected_items.extend(eviected.into_iter().filter(|item| {
+                                    match state.data_to_time_map.get(item) {
+                                        None => true,
+                                        Some(time) => time <= &now.0,
+                                    }
+                                }));
 
                                 if !preserved.is_empty() {
                                     debug!("Preserving items: {:?}", preserved);
@@ -187,7 +198,7 @@ impl EvictionManager {
         };
 
         debug!("Evicting files: {:?}", evicted_items);
-        futures_util::future::join_all(
+        let errors = futures_util::future::join_all(
             evicted_items
                 .into_iter()
                 .map(|path| conf::CONFIG.root_path.join(path))
@@ -195,7 +206,15 @@ impl EvictionManager {
         )
         .await
         .into_iter()
-        .collect()
+        .filter_map(|result| result.err())
+        .map(|err| format!("{err:#}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+        if errors.is_empty() {
+            return Ok(());
+        }
+
+        bail!("Error doing cleaning for following paths:\n{}", errors);
     }
 }
 
@@ -224,9 +243,46 @@ async fn do_evict(path: &Path) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Arc, time::Duration};
+    use std::{collections::HashSet, path::PathBuf, sync::Arc, time::Duration};
 
     use tokio::time::sleep;
+
+    #[tokio::test]
+    async fn test_eviction_critical() {
+        let manager = Arc::new(
+            super::EvictionManager::new(
+                "test".to_string(),
+                Duration::from_millis(1000),
+                Duration::from_millis(200),
+                10,
+                None,
+            )
+            .await
+            .unwrap(),
+        );
+
+        manager.visit_once(&PathBuf::from("1")).await;
+
+        sleep(Duration::from_millis(150)).await;
+
+        manager.visit_once(&PathBuf::from("1")).await;
+
+        sleep(Duration::from_millis(100)).await;
+
+        tokio::spawn({
+            let manager = manager.clone();
+            async move {
+                manager.run_loop().await;
+            }
+        });
+
+        sleep(Duration::from_millis(200)).await;
+
+        let state = manager.state.lock().await;
+        assert_eq!(state.items.len(), 1);
+        assert_eq!(state.time_to_data_map.len(), 1);
+        assert_eq!(state.data_to_time_map.len(), 1);
+    }
 
     #[tokio::test]
     async fn test_eviction_capacity() {
@@ -260,9 +316,9 @@ mod tests {
         assert_eq!(state.time_to_data_map.len(), 2);
 
         let top = &state.items.pop().unwrap().0;
-        assert_eq!(state.time_to_data_map.remove(top), Some(vec![PathBuf::from("2")]));
+        assert_eq!(state.time_to_data_map.remove(top), Some(HashSet::from([PathBuf::from("2")])));
         let top = &state.items.pop().unwrap().0;
-        assert_eq!(state.time_to_data_map.remove(top), Some(vec![PathBuf::from("3")]));
+        assert_eq!(state.time_to_data_map.remove(top), Some(HashSet::from([PathBuf::from("3")])));
     }
 
     #[tokio::test]
@@ -330,10 +386,10 @@ mod tests {
         assert_eq!(state.time_to_data_map.len(), 3);
 
         let top = &state.items.pop().unwrap().0;
-        assert_eq!(state.time_to_data_map.remove(top), Some(vec![PathBuf::from("1")]));
+        assert_eq!(state.time_to_data_map.remove(top), Some(HashSet::from([PathBuf::from("1")])));
         let top = &state.items.pop().unwrap().0;
-        assert_eq!(state.time_to_data_map.remove(top), Some(vec![PathBuf::from("2")]));
+        assert_eq!(state.time_to_data_map.remove(top), Some(HashSet::from([PathBuf::from("2")])));
         let top = &state.items.pop().unwrap().0;
-        assert_eq!(state.time_to_data_map.remove(top), Some(vec![PathBuf::from("3")]));
+        assert_eq!(state.time_to_data_map.remove(top), Some(HashSet::from([PathBuf::from("3")])));
     }
 }
