@@ -49,25 +49,24 @@ pub async fn execute_submission(
     .await;
 
     let report_result = async {
-        let mut report_config =
-            make_submission_report(submission.config.clone(), &submission.config.reporter).await?;
+        if let Some(reporter) = &submission.config.reporter {
+            let mut report_config =
+                make_submission_report(submission.config.clone(), reporter).await?;
 
-        let result = apply_report_config(&report_config, &submission).await?;
+            let result = apply_report_config(&report_config, &submission).await?;
 
-        for (field, content) in result.embeds {
-            report_config.report.insert(field, content.into());
+            for (field, content) in result.embeds {
+                report_config.report.insert(field, content.into());
+            }
+
+            *submission.config.report.lock().unwrap() = Some(report_config.report);
         }
-
-        *submission.config.report.lock().unwrap() = Some(report_config.report);
 
         anyhow::Ok(())
     }
     .await;
-
     if let Err(err) = &report_result {
-        {
-            *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
-        }
+        *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
     }
 
     let _ = stream::once(async { Ok(()) }).forward(ctx.status_tx).await;
@@ -204,8 +203,8 @@ mod tests {
 
     use crate::{
         composer::resolve::resolve_submission,
-        entities::{ActionSuccessReportExt, TaskReport, TaskSuccessReport},
-        worker::{ExecutionReport, WorkerQueueItem},
+        entities::{ActionReport, ActionSuccessReport, ActionSuccessReportExt},
+        worker::{action, WorkerQueueItem},
     };
 
     #[test]
@@ -215,15 +214,14 @@ mod tests {
                 async {
                     let submission = resolve_submission(
                         serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+                        "test".into(),
                     )
                     .expect("Error resolving the submission");
 
                     let (worker_tx, worker_rx) = async_channel::unbounded();
                     let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
                     let handle = tokio::spawn(async move {
-                        super::execute_submission("test".into(), submission, worker_tx, tx)
-                            .await
-                            .unwrap();
+                        super::execute_submission(submission, worker_tx, tx).await.unwrap();
                     });
 
                     let mut results = vec![];
@@ -232,10 +230,12 @@ mod tests {
                         results.push(config);
 
                         report_tx
-                            .send(TaskReport::Success(TaskSuccessReport::Action {
+                            .send(ActionReport::Success(ActionSuccessReport {
                                 run_at: Utc::now(),
                                 time_elapsed_ms: 0,
-                                report: ActionSuccessReportExt::Noop(ExecutionReport { test: 0 }),
+                                ext: ActionSuccessReportExt::Noop(action::noop::ExecutionReport {
+                                    test: 0,
+                                }),
                             }))
                             .unwrap();
                     }

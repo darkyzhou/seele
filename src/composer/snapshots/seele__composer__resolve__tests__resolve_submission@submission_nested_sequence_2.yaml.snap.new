@@ -1,0 +1,171 @@
+---
+source: src/composer/resolve.rs
+assertion_line: 160
+expression: submission
+input_file: src/composer/stubs/submission_nested_sequence_2.yaml
+---
+Submission(
+  id: "[id]",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "[id]",
+    steps: {
+      "one": {
+        "status": "PENDING",
+      },
+      "two": {
+        "status": "PENDING",
+        "steps": {
+          "two-one": {
+            "status": "PENDING",
+          },
+          "two-two": {
+            "status": "PENDING",
+          },
+        },
+      },
+      "three": {
+        "status": "PENDING",
+      },
+      "four": {
+        "status": "PENDING",
+        "steps": {
+          "four-one": {
+            "status": "PENDING",
+          },
+          "four-two": {
+            "status": "PENDING",
+            "parallel": [
+              {
+                "status": "PENDING",
+              },
+              {
+                "status": "PENDING",
+              },
+              {
+                "status": "PENDING",
+              },
+            ],
+          },
+          "four-three": {
+            "status": "PENDING",
+            "steps": {
+              "four-three-one": {
+                "status": "PENDING",
+              },
+            },
+          },
+        },
+      },
+    },
+    report: None,
+    report_error: None,
+  ),
+  root_node: RootTaskNode(
+    id: "[id]",
+    tasks: [
+      TaskNode(
+        id: "[id]",
+        children: [
+          TaskNode(
+            id: "[id]",
+            children: [
+              TaskNode(
+                id: "[id]",
+                children: [
+                  TaskNode(
+                    id: "[id]",
+                    children: [],
+                    ext: [
+                      TaskNode(
+                        id: "[id]",
+                        children: [
+                          TaskNode(
+                            id: "[id]",
+                            children: [
+                              TaskNode(
+                                id: "[id]",
+                                children: [],
+                                ext: [
+                                  TaskNode(
+                                    id: "[id]",
+                                    children: [],
+                                    ext: Config(
+                                      action: "seele/noop@1",
+                                      test: 431,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            ext: [
+                              TaskNode(
+                                id: "[id]",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 421,
+                                ),
+                              ),
+                              TaskNode(
+                                id: "[id]",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 422,
+                                ),
+                              ),
+                              TaskNode(
+                                id: "[id]",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 423,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        ext: Config(
+                          action: "seele/noop@1",
+                          test: 41,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 3,
+                ),
+              ),
+            ],
+            ext: [
+              TaskNode(
+                id: "[id]",
+                children: [
+                  TaskNode(
+                    id: "[id]",
+                    children: [],
+                    ext: Config(
+                      action: "seele/noop@1",
+                      test: 22,
+                    ),
+                  ),
+                ],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 21,
+                ),
+              ),
+            ],
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

@@ -1,0 +1,80 @@
+---
+source: src/composer/resolve.rs
+assertion_line: 160
+expression: submission
+input_file: src/composer/stubs/submission_nested_sequence_1.yaml
+---
+Submission(
+  id: "[id]",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "[id]",
+    steps: {
+      "one": {
+        "status": "PENDING",
+      },
+      "two": {
+        "status": "PENDING",
+        "steps": {
+          "two-one": {
+            "status": "PENDING",
+          },
+          "two-two": {
+            "status": "PENDING",
+          },
+        },
+      },
+      "three": {
+        "status": "PENDING",
+      },
+    },
+    report: None,
+    report_error: None,
+  ),
+  root_node: RootTaskNode(
+    id: "[id]",
+    tasks: [
+      TaskNode(
+        id: "[id]",
+        children: [
+          TaskNode(
+            id: "[id]",
+            children: [
+              TaskNode(
+                id: "[id]",
+                children: [],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 3,
+                ),
+              ),
+            ],
+            ext: [
+              TaskNode(
+                id: "[id]",
+                children: [
+                  TaskNode(
+                    id: "[id]",
+                    children: [],
+                    ext: Config(
+                      action: "seele/noop@1",
+                      test: 22,
+                    ),
+                  ),
+                ],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 21,
+                ),
+              ),
+            ],
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

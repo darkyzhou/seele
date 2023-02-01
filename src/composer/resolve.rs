@@ -154,6 +154,7 @@ mod tests {
         glob!("stubs/*.yaml", |path| {
             let submission = super::resolve_submission(
                 serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+                "test".into(),
             )
             .expect("Error resolving the submission");
             insta::assert_ron_snapshot!(submission, {

@@ -31,7 +31,7 @@ pub struct SubmissionConfig {
     pub tasks: SequenceTasks,
 
     #[serde(skip_serializing)]
-    pub reporter: SubmissionReporter,
+    pub reporter: Option<SubmissionReporter>,
 
     #[serde(skip_deserializing, default)]
     pub report: Mutex<Option<SubmissionReport>>,

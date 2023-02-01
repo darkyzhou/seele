@@ -1,0 +1,32 @@
+---
+source: src/composer/execute.rs
+assertion_line: 245
+expression: results
+input_file: src/composer/stubs/submission_complex_1.yaml
+---
+[
+  Config(
+    action: "seele/noop@1",
+    test: 1,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 201,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 202,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 301,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 302,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 303,
+  ),
+]
