@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/darkyzhou/seele/runj/cmd/runj/execute"
@@ -26,15 +29,15 @@ func init() {
 			os.Exit(1)
 		}
 
-		panic("libcontainer Failed to init")
+		panic("Libcontainer failed to init")
 	} else {
 		if os.Getenv("RUNJ_DEBUG") != "" {
 			logrus.SetLevel(logrus.DebugLevel)
+			logrus.SetOutput(os.Stdout)
 		} else {
 			logrus.SetLevel(logrus.FatalLevel)
+			logrus.SetOutput(os.Stderr)
 		}
-
-		logrus.SetOutput(os.Stderr)
 	}
 }
 
@@ -77,7 +80,17 @@ func main() {
 		logrus.WithError(err).Fatal("Invalid config")
 	}
 
-	report, err := execute.Execute(&config)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		cancel()
+	}()
+
+	report, err := execute.Execute(ctx, &config)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error executing the container")
 	}

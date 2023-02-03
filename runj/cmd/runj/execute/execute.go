@@ -10,6 +10,7 @@ import (
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -26,7 +27,7 @@ var (
 	gidMappings []specs.LinuxIDMapping
 )
 
-func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
+func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	if err := prepareContainerFactory(); err != nil {
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}
@@ -52,6 +53,9 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	if err := os.Mkdir(fullCgroupPath, 0770); err != nil {
 		return nil, fmt.Errorf("Error creating cgroup directory: %w", err)
 	}
+	defer func() {
+		_ = cgroups.RemovePath(fullCgroupPath)
+	}()
 
 	cfg, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
@@ -198,15 +202,19 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 		Rlimits:         rlimits,
 	}
 
-	processFinished := false
+	timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), time.Duration(timeLimitMs*2)*time.Millisecond)
+	defer timeLimitCtxCancel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeLimitMs*2)*time.Millisecond)
-	defer cancel()
+	processFinishedCtx, processFinishedCtxCancel := context.WithCancel(context.Background())
+	defer processFinishedCtxCancel()
 
 	if timeLimitMs > 0 {
 		go func() {
-			<-ctx.Done()
-			if !processFinished {
+			select {
+			case <-ctx.Done():
+			case <-processFinishedCtx.Done():
+				return
+			case <-timeLimitCtx.Done():
 				if err := container.Signal(unix.SIGKILL, true); err != nil {
 					logrus.WithError(err).Fatal("Error sending SIGKILL to the container processes")
 				}
@@ -214,18 +222,27 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 		}()
 	}
 
+	go func() {
+		select {
+		case <-processFinishedCtx.Done():
+			return
+		case <-ctx.Done():
+			logrus.Warn("Sending SIGKILL to the running container due to runj shutting down")
+			_ = container.Signal(unix.SIGKILL, true)
+		}
+	}()
+
 	wallTimeBegin := time.Now()
 	if err := container.Run(process); err != nil {
 		return nil, fmt.Errorf("Error initializing the container process: %w", err)
 	}
 	state, _ := process.Wait()
 	wallTimeEnd := time.Now()
+	processFinishedCtxCancel()
 
-	_ = stdInFile.Close()
-	_ = stdOutFile.Close()
-	_ = stdErrFile.Close()
-
-	processFinished = true
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("Cancelled")
+	}
 
 	containerStats, err := container.Stats()
 	if err != nil {
@@ -233,6 +250,10 @@ func Execute(config *entities.RunjConfig) (*entities.ExecutionReport, error) {
 	}
 
 	wallTime := wallTimeEnd.Sub(wallTimeBegin)
+
+	_ = stdInFile.Close()
+	_ = stdOutFile.Close()
+	_ = stdErrFile.Close()
 
 	report, err := makeExecutionReport(&ExecutionReportProps{
 		config:         config,
