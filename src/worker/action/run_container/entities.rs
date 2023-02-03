@@ -29,7 +29,7 @@ pub struct Config {
     pub mounts: Vec<MountConfig>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limits: Option<runj::LimitsConfig>,
+    pub limits: Option<LimitsConfig>,
 }
 
 #[inline]
@@ -83,12 +83,46 @@ impl MountConfig {
                         to: ["/", to].iter().collect(),
                         options: Some(options.split(',').map(|s| s.to_string()).collect()),
                     },
-                    _ => {
-                        bail!("Unknown mount value: {}", config)
-                    }
+                    _ => bail!("Unknown mount value: {}", config),
                 }
             }
             Self::Full(config) => config,
         })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LimitsConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<runj::TimeLimitsConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_kib: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pids_count: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fsize_kib: Option<u64>,
+}
+
+impl Into<runj::LimitsConfig> for LimitsConfig {
+    fn into(self) -> runj::LimitsConfig {
+        runj::LimitsConfig {
+            time: self.time,
+            cgroup: Some(runj::CgroupConfig {
+                memory: self.memory_kib.map(|memory_kib| memory_kib * 1024),
+                memory_swap: self.memory_kib.map(|memory_kib| memory_kib * 1024),
+                pids_limit: self.pids_count,
+                ..Default::default()
+            }),
+            rlimit: self.fsize_kib.map(|fsize_kib| {
+                vec![runj::RlimitConfig {
+                    r#type: runj::RlimitType::Fsize,
+                    hard: fsize_kib,
+                    soft: fsize_kib,
+                }]
+            }),
+        }
     }
 }

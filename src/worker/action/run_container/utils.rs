@@ -29,7 +29,7 @@ pub fn convert_to_runj_config(
         paths: config.paths,
         fd,
         mounts,
-        limits: config.limits,
+        limits: config.limits.map(|limits| limits.into()),
     })
 }
 

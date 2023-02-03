@@ -65,25 +65,91 @@ pub struct TimeLimitsConfig {
     pub user: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct CgroupConfig {
-    pub memory: i64,
-    pub memory_reservation: i64,
-    pub memory_swap: i64,
-    pub cpu_shares: u64,
-    pub cpu_quota: i64,
-    pub cpuset_cpus: i64,
-    pub cpuset_mems: i64,
-    pub pids_limit: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_reservation: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_swap: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_shares: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_quota: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_cpus: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpuset_mems: Option<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pids_limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RlimitConfig {
     #[serde(rename = "type")]
-    pub r#type: String,
+    pub r#type: RlimitType,
 
     pub hard: u64,
     pub soft: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RlimitType {
+    #[serde(rename = "RLIMIT_AS")]
+    As,
+
+    #[serde(rename = "RLIMIT_CORE")]
+    Core,
+
+    #[serde(rename = "RLIMIT_CPU")]
+    Cpu,
+
+    #[serde(rename = "RLIMIT_DATA")]
+    Data,
+
+    #[serde(rename = "RLIMIT_FSIZE")]
+    Fsize,
+
+    #[serde(rename = "RLIMIT_LOCKS")]
+    Locks,
+
+    #[serde(rename = "RLIMIT_MEMLOCK")]
+    MemLock,
+
+    #[serde(rename = "RLIMIT_MSGQUEUE")]
+    MsgQueue,
+
+    #[serde(rename = "RLIMIT_NICE")]
+    Nice,
+
+    #[serde(rename = "RLIMIT_NOFILE")]
+    NoFile,
+
+    #[serde(rename = "RLIMIT_NPROC")]
+    Nproc,
+
+    #[serde(rename = "RLIMIT_RSS")]
+    Rss,
+
+    #[serde(rename = "RLIMIT_RTPRIO")]
+    RtPrio,
+
+    #[serde(rename = "RLIMIT_RTTIME")]
+    RtTime,
+
+    #[serde(rename = "RLIMIT_SIGPENDING")]
+    SigPending,
+
+    #[serde(rename = "RLIMIT_STACK")]
+    Stack,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
