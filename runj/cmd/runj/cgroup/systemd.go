@@ -17,7 +17,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var id = gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
+const RUNJ_SLICE = "runj.slice"
+
+var RUNJ_SCOPE = fmt.Sprintf("runj-%s.scope", gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 6))
 
 // Initialize a new cgroup v2 directory using systemd.
 // Mainly used for bare-metal environments.
@@ -28,15 +30,15 @@ func InitSystemdCgroup() (string, error) {
 		return "", fmt.Errorf("Failed to check supported controllers: %w", err)
 	}
 
-	if err := initSlice("seele.slice", dbus); err != nil {
+	if err := initSlice(RUNJ_SLICE, dbus); err != nil {
 		return "", fmt.Errorf("Failed to create systemd slice: %w", err)
 	}
 
-	if err := initScope(fmt.Sprintf("seele-%s.scope", id), dbus); err != nil {
+	if err := initScope(RUNJ_SCOPE, dbus); err != nil {
 		return "", fmt.Errorf("Failed to create systemd scope: %w", err)
 	}
 
-	slicePath, err := getPath("seele.slice", dbus)
+	slicePath, err := getPath(RUNJ_SLICE, dbus)
 	if err != nil {
 		return "", fmt.Errorf("Failed to find sub-cgroup path: %w", err)
 	}
@@ -55,14 +57,15 @@ func initSlice(unitName string, dbus *dbusConnManager) error {
 
 	// There is no need to worry about creating duplicate units
 	// because `startUnit` already handles that case.
-	properties = append(properties, systemdDbus.PropDescription("Seele runj containers"))
-	properties = append(properties, newProp("MemoryAccounting", true), newProp("CPUAccounting", true), newProp("IOAccounting", true), newProp("TasksAccounting", true))
+	properties = append(properties, systemdDbus.PropDescription("A container run by runj"))
 	properties = append(properties, newProp("DefaultDependencies", false))
+	for _, config := range mandatoryAccountingConfigs {
+		properties = append(properties, newProp(config, true))
+	}
 
 	if err := startUnit(dbus, unitName, properties); err != nil {
 		return fmt.Errorf("Failed to start unit %q (properties %+v): %w", unitName, properties, err)
 	}
-
 	return nil
 }
 
@@ -71,8 +74,7 @@ func initScope(unitName string, dbus *dbusConnManager) error {
 
 	// There is no need to worry about creating duplicate units
 	// because `startUnit` already handles that case.
-	properties = append(properties, systemdDbus.PropDescription(fmt.Sprintf("Seele runj instance %s", id)))
-	properties = append(properties, systemdDbus.PropSlice("user.slice"))
+	properties = append(properties, systemdDbus.PropDescription("Runj, a powerful container runtime for online judge. Seele is my girl!"))
 	properties = append(properties, newProp("Delegate", true))
 	properties = append(properties, newProp("PIDs", []uint32{uint32(os.Getpid())}))
 	properties = append(properties, newProp("DefaultDependencies", false))
@@ -80,7 +82,6 @@ func initScope(unitName string, dbus *dbusConnManager) error {
 	if err := startUnit(dbus, unitName, properties); err != nil {
 		return fmt.Errorf("Failed to start unit %q (properties %+v): %w", unitName, properties, err)
 	}
-
 	return nil
 }
 

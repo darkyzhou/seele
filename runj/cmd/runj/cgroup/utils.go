@@ -10,6 +10,7 @@ import (
 )
 
 var mandatoryControllers = []string{"cpu", "cpuset", "memory"}
+var mandatoryAccountingConfigs = []string{"CPUAccounting", "TasksAccounting", "MemoryAccounting"}
 
 func checkSupportedControllers() error {
 	controllers, err := cgroups.ReadFile(fs2.UnifiedMountpoint, "/cgroup.controllers")

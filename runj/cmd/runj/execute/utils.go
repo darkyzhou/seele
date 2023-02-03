@@ -144,8 +144,8 @@ func prepareOutFile(path string) (*os.File, error) {
 }
 
 func makeContainerId() string {
-	id := gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 12)
-	return fmt.Sprintf("seele-%s", id)
+	id := gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
+	return fmt.Sprintf("runj-container-%s", id)
 }
 
 func checkIsOOM(cgroupPath string) (bool, error) {
