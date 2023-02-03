@@ -91,26 +91,23 @@ var rlimitTypeMap = map[string]int{
 	"RLIMIT_STACK":      unix.RLIMIT_STACK,
 }
 
-var defaultMemoryLimitBytes = int64(512 * 1024 * 1024) // 512 MiB
-var defaultPidsLimit = 64
+var defaultMemoryLimitBytes int64 = 512 * 1024 * 1024 // 512 MiB
+var defaultSwappiness uint64 = 0
+var defaultPidsLimit int64 = 64
 
 func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 	var (
 		cgroupCpuRules = &specs.LinuxCPU{}
 		cgroupMemRules = &specs.LinuxMemory{
-			Limit: &defaultMemoryLimitBytes,
-			Swap:  &defaultMemoryLimitBytes,
+			Limit:      &defaultMemoryLimitBytes,
+			Swap:       &defaultMemoryLimitBytes,
+			Swappiness: &defaultSwappiness,
 		}
 		cgroupPidRules = &specs.LinuxPids{
-			Limit: int64(defaultPidsLimit),
+			Limit: defaultPidsLimit,
 		}
-		swappiness uint64 = 0
 	)
 
-	// By default, a container should not use swap
-	cgroupMemRules.Swappiness = &swappiness
-
-	// Apply the cgroup configurations
 	if config.Limits != nil && config.Limits.Cgroup != nil {
 		if config.Limits.Cgroup.CpuQuota != 0 {
 			cgroupCpuRules.Quota = &config.Limits.Cgroup.CpuQuota
