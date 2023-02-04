@@ -26,8 +26,17 @@ mod runj;
 mod utils;
 
 static RUNNER_POOL: Lazy<Mutex<ThreadPool>> = Lazy::new(|| {
-    Mutex::new(ThreadPool::new(conf::CONFIG.worker.action.run_container.container_concurrency))
+    Mutex::new(
+        threadpool::Builder::new()
+            .thread_name("run-container-runner".to_string())
+            .num_threads(conf::CONFIG.worker.action.run_container.container_concurrency)
+            .build(),
+    )
 });
+
+pub async fn init_runner_pool() {
+    _ = RUNNER_POOL.lock().await;
+}
 
 #[instrument]
 pub async fn execute(
