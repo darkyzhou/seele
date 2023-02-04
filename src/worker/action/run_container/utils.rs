@@ -22,7 +22,7 @@ pub fn convert_to_runj_config(
         .context("Error parsing mount")?;
 
     Ok(runj::RunjConfig {
-        rootless: conf::CONFIG.rootless,
+        rootless: conf::CONFIG.work_mode.is_rootless(),
         rootfs,
         cwd: config.cwd,
         command,

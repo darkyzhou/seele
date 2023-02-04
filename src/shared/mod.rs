@@ -1,5 +1,6 @@
-use either::Either;
 use std::{iter, process::Output};
+
+use either::Either;
 
 pub mod cond_group;
 pub mod file_utils;
@@ -12,11 +13,7 @@ pub fn random_task_id() -> String {
 
 macro_rules! skip_if_empty {
     ($source:expr, $iter:expr) => {
-        if $source.is_empty() {
-            Either::Left(iter::empty())
-        } else {
-            Either::Right($iter)
-        }
+        if $source.is_empty() { Either::Left(iter::empty()) } else { Either::Right($iter) }
     };
 }
 

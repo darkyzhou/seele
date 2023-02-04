@@ -1,12 +1,13 @@
-use self::worker::WorkerConfig;
-use once_cell::sync::Lazy;
-use serde::Deserialize;
 use std::path::PathBuf;
 
 pub use action::*;
 pub use exchange::*;
+use once_cell::sync::Lazy;
 pub use path::*;
+use serde::Deserialize;
 pub use worker::*;
+
+use self::worker::WorkerConfig;
 
 mod action;
 mod exchange;
@@ -15,8 +16,14 @@ mod worker;
 
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
-    #[serde(default = "default_rootless")]
-    pub rootless: bool,
+    #[serde(default = "default_work_mode")]
+    pub work_mode: SeeleWorkMode,
+
+    #[serde(default = "default_worker_thread_count")]
+    pub worker_thread_count: usize,
+
+    #[serde(default = "default_blocking_thread_count")]
+    pub blocking_thread_count: usize,
 
     #[serde(default = "default_root_path")]
     pub root_path: PathBuf,
@@ -37,9 +44,34 @@ pub struct SeeleConfig {
     pub worker: WorkerConfig,
 }
 
+// TODO: move to cli argument
+#[derive(Debug, Deserialize)]
+pub enum SeeleWorkMode {
+    RootlessBare,
+    RootlessSystemd,
+    Privileged,
+}
+
+impl SeeleWorkMode {
+    #[inline]
+    pub fn is_rootless(&self) -> bool {
+        matches!(self, SeeleWorkMode::RootlessBare | SeeleWorkMode::RootlessSystemd)
+    }
+}
+
 #[inline]
-fn default_rootless() -> bool {
-    !nix::unistd::geteuid().is_root()
+fn default_work_mode() -> SeeleWorkMode {
+    SeeleWorkMode::RootlessBare
+}
+
+#[inline]
+fn default_worker_thread_count() -> usize {
+    2
+}
+
+#[inline]
+fn default_blocking_thread_count() -> usize {
+    2
 }
 
 #[inline]
