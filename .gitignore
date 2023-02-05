@@ -12,3 +12,5 @@ Cargo.lock
 config.toml
 
 /.vscode
+
+/root
