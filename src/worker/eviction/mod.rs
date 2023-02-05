@@ -183,10 +183,10 @@ impl EvictionManager {
                                     state.time_to_data_map.insert(time, preserved);
                                     preserved_times.insert(time);
                                 }
-
-                                let _ = state.items.pop();
                             }
                         }
+
+                        let _ = state.items.pop();
                     }
                 }
             }
