@@ -4,9 +4,6 @@ use serde::Deserialize;
 pub struct ActionConfig {
     #[serde(default)]
     pub add_file: ActionAddFileConfig,
-
-    #[serde(default)]
-    pub run_container: ActionRunContainerConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,22 +29,4 @@ fn default_cache_size_mib() -> u64 {
 #[inline]
 fn default_cache_ttl_hour() -> u64 {
     24 * 3
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ActionRunContainerConfig {
-    #[serde(default = "default_container_concurrency")]
-    pub container_concurrency: usize,
-}
-
-impl Default for ActionRunContainerConfig {
-    fn default() -> Self {
-        Self { container_concurrency: default_container_concurrency() }
-    }
-}
-
-#[inline]
-fn default_container_concurrency() -> usize {
-    // TODO: infer from cpu core numbers
-    4
 }

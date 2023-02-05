@@ -137,7 +137,7 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> an
             });
         }
 
-        for i in 0..conf::CONFIG.worker.action.run_container.container_concurrency {
+        for i in 0..conf::CONFIG.thread_counts.worker {
             let queue_rx = queue_rx.clone();
             let submission_eviction_manager = submission_eviction_manager.clone();
             let image_eviction_manager = image_eviction_manager.clone();

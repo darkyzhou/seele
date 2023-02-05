@@ -7,7 +7,7 @@ use std::{
 
 use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub mod cgroup;
 mod composer;
@@ -26,6 +26,20 @@ fn main() {
             .finish(),
     )
     .expect("Failed to initialize the logger");
+
+    info!("Checking cpu counts");
+    {
+        let logical_cpu_count = num_cpus::get();
+        let physical_cpu_count = num_cpus::get_physical();
+        if physical_cpu_count < logical_cpu_count {
+            // TODO: Add link to document
+            warn!(
+                "Seele does not recommand enabling the cpu's SMT technology, current logical cpu \
+                 count: {}, physical cpu count: {}",
+                logical_cpu_count, physical_cpu_count
+            )
+        }
+    }
 
     info!("Checking cgroup setup");
     cgroup::check_cgroup_setup().expect("Error checking cgroup setup");
@@ -50,11 +64,9 @@ fn main() {
     let pid = process::id();
 
     info!("Initializing the runtime");
-    let blocking_thread_count = conf::CONFIG.blocking_thread_count
-        + conf::CONFIG.worker.action.run_container.container_concurrency;
     let runtime = runtime::Builder::new_multi_thread()
-        .worker_threads(conf::CONFIG.worker_thread_count)
-        .max_blocking_threads(blocking_thread_count)
+        .worker_threads(conf::CONFIG.thread_counts.runtime)
+        .max_blocking_threads(conf::CONFIG.thread_counts.worker)
         .thread_keep_alive(Duration::from_secs(u64::MAX))
         .enable_all()
         .build()
@@ -62,9 +74,11 @@ fn main() {
     runtime
         .block_on(async move {
             {
-                let begin_barrier = Arc::new(Barrier::new(blocking_thread_count));
-                let end_barrier = Arc::new(Barrier::new(blocking_thread_count));
-                for _ in 0..(blocking_thread_count - 1) {
+                let worker_count = conf::CONFIG.thread_counts.worker;
+                let begin_barrier = Arc::new(Barrier::new(worker_count));
+                let end_barrier = Arc::new(Barrier::new(worker_count));
+
+                for _ in 0..(worker_count - 1) {
                     let begin_barrier = begin_barrier.clone();
                     let end_barrier = end_barrier.clone();
                     spawn_blocking(move || {
@@ -75,13 +89,13 @@ fn main() {
 
                 spawn_blocking(move || {
                     begin_barrier.wait();
-                    let result = cgroup::bind_app_threads(pid);
+                    let result = cgroup::bind_application_threads(pid);
                     end_barrier.wait();
                     result
                 })
                 .await
                 .unwrap()
-                .expect("Error binding app threads");
+                .expect("Error binding application threads");
             }
 
             let (composer_queue_tx, composer_queue_rx) =
@@ -106,10 +120,10 @@ fn main() {
                             error!("Subsystem '{}' failed: {:?}", name, err);
                         }
                         SubsystemError::Cancelled(name) => {
-                            error!("Subsystem '{}' was cancelled", name)
+                            error!("Subsystem '{}' was cancelled", name);
                         }
                         SubsystemError::Panicked(name) => {
-                            error!("Subsystem '{}' panicked", name)
+                            error!("Subsystem '{}' panicked", name);
                         }
                     }
                 }

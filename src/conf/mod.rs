@@ -19,11 +19,8 @@ pub struct SeeleConfig {
     #[serde(default = "default_work_mode")]
     pub work_mode: SeeleWorkMode,
 
-    #[serde(default = "default_worker_thread_count")]
-    pub worker_thread_count: usize,
-
-    #[serde(default = "default_blocking_thread_count")]
-    pub blocking_thread_count: usize,
+    #[serde(default)]
+    pub thread_counts: ThreadCounts,
 
     #[serde(default = "default_root_path")]
     pub root_path: PathBuf,
@@ -59,19 +56,21 @@ impl SeeleWorkMode {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ThreadCounts {
+    pub runtime: usize,
+    pub worker: usize,
+}
+
+impl Default for ThreadCounts {
+    fn default() -> Self {
+        Self { runtime: 2, worker: num_cpus::get() - 2 }
+    }
+}
+
 #[inline]
 fn default_work_mode() -> SeeleWorkMode {
     SeeleWorkMode::RootlessBare
-}
-
-#[inline]
-fn default_worker_thread_count() -> usize {
-    2
-}
-
-#[inline]
-fn default_blocking_thread_count() -> usize {
-    2
 }
 
 #[inline]

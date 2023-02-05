@@ -38,7 +38,7 @@ pub fn initialize_cgroup_subtrees() -> anyhow::Result<()> {
     write_cgroup_file_str(CGROUP_PATH.join("cgroup.subtree_control"), "+cpuset")
 }
 
-pub fn bind_app_threads(skip_id: u32) -> anyhow::Result<()> {
+pub fn bind_application_threads(skip_id: u32) -> anyhow::Result<()> {
     let available_cpus = {
         let mut cpus: Vec<u32> = vec![];
         let content = read_cgroup_file(CGROUP_PATH.join("cpuset.cpus.effective"))?;
