@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use chrono::{DateTime, Utc};
+use futures_util::future;
 use serde::{Deserialize, Serialize};
 use tokio::{
     fs::File,
@@ -145,8 +146,8 @@ impl EvictionManager {
         let mut state = self.state.lock().await;
 
         let evicted_items = {
-            let mut eviected_items = vec![];
-            let mut preserved_times = vec![];
+            let mut eviected_items = HashSet::new();
+            let mut preserved_times = HashSet::new();
 
             loop {
                 match state.items.peek() {
@@ -180,7 +181,7 @@ impl EvictionManager {
                                 if !preserved.is_empty() {
                                     debug!("Preserving items: {:?}", preserved);
                                     state.time_to_data_map.insert(time, preserved);
-                                    preserved_times.push(time);
+                                    preserved_times.insert(time);
                                 }
 
                                 let _ = state.items.pop();
@@ -198,18 +199,21 @@ impl EvictionManager {
         };
 
         debug!("Evicting files: {:?}", evicted_items);
-        let errors = futures_util::future::join_all(
-            evicted_items
-                .into_iter()
-                .map(|path| conf::CONFIG.root_path.join(path))
-                .map(|path| async move { do_evict(&path).await }),
+        let errors = future::join_all(
+            evicted_items.into_iter().map(|path| conf::CONFIG.root_path.join(path)).map(
+                |path| async move {
+                    let result = do_evict(&path).await;
+                    (path, result)
+                },
+            ),
         )
         .await
         .into_iter()
-        .filter_map(|result| result.err())
-        .map(|err| format!("{err:#}"))
+        .filter_map(|(path, result)| result.err().map(|err| (path, err)))
+        .map(|(path, err)| format!("{}: {err:#}", path.display()))
         .collect::<Vec<_>>()
         .join("\n");
+
         if errors.is_empty() {
             return Ok(());
         }
