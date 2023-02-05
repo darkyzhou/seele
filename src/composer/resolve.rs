@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 
 use crate::{
     entities::{
@@ -13,7 +13,7 @@ use crate::{
 pub fn resolve_submission(
     config: Arc<SubmissionConfig>,
     root_directory: PathBuf,
-) -> anyhow::Result<Submission> {
+) -> Result<Submission> {
     let root_node = Arc::new(RootTaskNode {
         id: config.id.clone(),
         tasks: vec![
@@ -29,7 +29,7 @@ pub fn resolve_submission(
     })
 }
 
-fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
+fn resolve_sequence(tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
     if tasks.is_empty() {
         bail!("Empty steps provided");
     }
@@ -76,7 +76,7 @@ fn resolve_sequence(tasks: &SequenceTasks) -> anyhow::Result<Arc<TaskNode>> {
     Ok(Arc::new(append_children(&id_to_node_map, &id_to_children_map, root_node)))
 }
 
-fn resolve_task(config: Arc<TaskConfig>) -> anyhow::Result<TaskNode> {
+fn resolve_task(config: Arc<TaskConfig>) -> Result<TaskNode> {
     let id = shared::random_task_id();
     Ok(match &config.ext {
         TaskConfigExt::Sequence(ext) => {
@@ -90,7 +90,7 @@ fn resolve_task(config: Arc<TaskConfig>) -> anyhow::Result<TaskNode> {
                 ext.tasks
                     .iter()
                     .map(|task| resolve_task(task.clone()).map(Arc::new))
-                    .collect::<anyhow::Result<_>>()
+                    .collect::<Result<_>>()
                     .context("Error resolving parallel tasks")?,
             );
             TaskNode { config, id, children: vec![], ext }

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::bail;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use super::runj;
@@ -63,7 +63,7 @@ pub enum MountConfig {
 }
 
 impl MountConfig {
-    pub fn into_runj_mount(self, parent_path_absolute: &Path) -> anyhow::Result<runj::MountConfig> {
+    pub fn into_runj_mount(self, parent_path_absolute: &Path) -> Result<runj::MountConfig> {
         Ok(match self {
             Self::Simple(config) => {
                 let parts: Vec<_> = config.split(':').collect();

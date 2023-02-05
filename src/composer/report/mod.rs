@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use tokio::{
     fs::{self, File},
     io::{AsyncReadExt, BufReader},
@@ -14,7 +14,7 @@ mod utils;
 pub async fn make_submission_report(
     config: Arc<SubmissionConfig>,
     reporter: &SubmissionReporter,
-) -> anyhow::Result<SubmissionReportConfig> {
+) -> Result<SubmissionReportConfig> {
     match reporter {
         SubmissionReporter::JavaScript { source } => {
             javascript::execute_javascript_reporter(
@@ -33,7 +33,7 @@ pub struct ApplyReportConfigResult {
 pub async fn apply_report_config(
     config: &SubmissionReportConfig,
     submission: &Submission,
-) -> anyhow::Result<ApplyReportConfigResult> {
+) -> Result<ApplyReportConfigResult> {
     if !config.uploads.is_empty() {
         bail!("`uploads` is not implemented");
     }

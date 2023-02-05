@@ -1,21 +1,20 @@
+use std::{path::PathBuf, time::Duration};
+
+use anyhow::{anyhow, bail, Context, Result};
+use futures_util::FutureExt;
+use once_cell::sync::Lazy;
+use tokio::{fs, process::Command, time::timeout};
+use tracing::{debug, instrument, warn};
+
 use crate::{
     conf,
     shared::{self, cond_group::CondGroup, oci_image::OciImage},
 };
-use anyhow::{anyhow, bail, Context};
-use futures_util::FutureExt;
-use once_cell::sync::Lazy;
-use std::path::PathBuf;
-use std::time::Duration;
-use tokio::fs;
-use tokio::process::Command;
-use tokio::time::timeout;
-use tracing::{debug, instrument, warn};
 
 static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<String, String>>> =
     Lazy::new(|| CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed()));
 
-pub async fn prepare_image(image: &OciImage) -> anyhow::Result<String> {
+pub async fn prepare_image(image: &OciImage) -> Result<String> {
     PREPARATION_TASKS.run(image).await.map_err(|err| anyhow!(err))
 }
 
@@ -29,7 +28,7 @@ async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
 }
 
 #[instrument]
-async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
+async fn pull_image(image: &OciImage) -> Result<()> {
     const PULL_TIMEOUT_SECOND: u64 = 180;
 
     let target_path = get_oci_image_path(image);
@@ -84,7 +83,7 @@ async fn pull_image(image: &OciImage) -> anyhow::Result<()> {
 }
 
 #[instrument]
-async fn unpack_image(image: &OciImage) -> anyhow::Result<String> {
+async fn unpack_image(image: &OciImage) -> Result<String> {
     const UNPACK_TIMEOUT_SECOND: u64 = 120;
 
     let image_path = get_oci_image_path(image);

@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail, Context, Result};
 use bytes::Bytes;
 pub use entities::*;
 use futures_util::FutureExt;
@@ -61,10 +61,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 });
 
 #[instrument]
-pub async fn execute(
-    ctx: &ActionContext,
-    config: &Config,
-) -> anyhow::Result<ActionSuccessReportExt> {
+pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
         match &item.ext {
             FileItemExt::Inline { content } => handle_inline_file(ctx, &item.path, content).await,
@@ -89,7 +86,7 @@ pub async fn execute(
     Ok(ActionSuccessReportExt::AddFile)
 }
 
-async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> anyhow::Result<()> {
+async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> Result<()> {
     let mut file = {
         let path: PathBuf = ctx.submission_root.join(path);
         shared::file_utils::create_file(&path).await.context("Error creating the file")?
@@ -105,7 +102,7 @@ static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
 #[instrument]
-async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> anyhow::Result<()> {
+async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> Result<()> {
     let mut file = {
         let target_path: PathBuf = ctx.submission_root.join(path);
         shared::file_utils::create_file(&target_path).await.context("Error creating the file")?

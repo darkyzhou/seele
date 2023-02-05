@@ -1,6 +1,6 @@
 use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, sync::Arc};
 
-use anyhow::bail;
+use anyhow::{bail, Result};
 use bytes::Buf;
 use futures_util::StreamExt;
 use http::{Request, Response, StatusCode};
@@ -22,7 +22,7 @@ pub async fn run_http_exchange(
     handle: SubsystemHandle,
     tx: ComposerQueueTx,
     config: &HttpExchangeConfig,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let service = make_service_fn(move |_| {
         let tx = tx.clone();
         let body_size_limit_bytes = config.max_body_size_bytes;
@@ -59,7 +59,7 @@ async fn handle_submission_request(
     request: Request<Body>,
     tx: ComposerQueueTx,
     body_size_limit_bytes: u64,
-) -> anyhow::Result<Response<Body>> {
+) -> Result<Response<Body>> {
     {
         let body_size = request.body().size_hint().upper().unwrap_or(body_size_limit_bytes + 1);
         if body_size > body_size_limit_bytes {

@@ -1,8 +1,9 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::entities::ActionSuccessReportExt;
 
-pub async fn execute(config: &Config) -> anyhow::Result<ActionSuccessReportExt> {
+pub async fn execute(config: &Config) -> Result<ActionSuccessReportExt> {
     Ok(ActionSuccessReportExt::Noop(ExecutionReport { test: config.test }))
 }
 

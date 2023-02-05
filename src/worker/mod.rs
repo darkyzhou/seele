@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use chrono::Utc;
 use tokio::{
     fs::{self, File},
@@ -82,7 +82,7 @@ macro_rules! save_states {
     };
 }
 
-pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> anyhow::Result<()> {
+pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
     {
         let submission_eviction_file = conf::PATHS.states.join("submission_eviction");
         let image_eviction_file = conf::PATHS.states.join("image_eviction");
@@ -161,7 +161,7 @@ async fn worker_main_impl(
     queue_rx: WorkerQueueRx,
     submission_eviction_manager: Arc<Option<EvictionManager>>,
     image_eviction_manager: Arc<Option<EvictionManager>>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     while let Ok(Ok(item)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
         let report = execute_action(
             item.submission_id.clone(),

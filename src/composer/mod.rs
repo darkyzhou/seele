@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use tokio::{fs, sync::mpsc};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, debug_span, error, instrument, Instrument};
@@ -26,7 +26,7 @@ pub async fn composer_main(
     handle: SubsystemHandle,
     mut composer_queue_rx: ComposerQueueRx,
     worker_queue_tx: WorkerQueueTx,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     debug!("Composer ready to accept submissions");
     while let Ok(Some((submission, status_tx))) =
         composer_queue_rx.recv().cancel_on_shutdown(&handle).await
@@ -53,7 +53,7 @@ async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
         bail!(

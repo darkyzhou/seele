@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, bail, Context, Result};
 use quick_js::JsValue;
 use serde_json::Value;
 
@@ -11,9 +11,9 @@ use crate::{
 pub async fn execute_javascript_reporter(
     config: String,
     source: String,
-) -> anyhow::Result<SubmissionReportConfig> {
+) -> Result<SubmissionReportConfig> {
     tokio::task::spawn_blocking(move || {
-        fn run(config: String, source: String) -> anyhow::Result<SubmissionReportConfig> {
+        fn run(config: String, source: String) -> Result<SubmissionReportConfig> {
             let context = init_context(config).context("Error initializing the context")?;
             let source = format!("( function(DATA){{{source}}} )( JSON.parse(DATA) )");
             match context.eval(&source).context("Error executing the script")? {
@@ -34,7 +34,7 @@ pub async fn execute_javascript_reporter(
     .await?
 }
 
-fn init_context(config: String) -> anyhow::Result<quick_js::Context> {
+fn init_context(config: String) -> Result<quick_js::Context> {
     let context = quick_js::Context::new()?;
     context.set_global("DATA", JsValue::String(config))?;
     context.add_callback("getOJStatus", get_oj_status_wrapper)?;
@@ -44,7 +44,7 @@ fn init_context(config: String) -> anyhow::Result<quick_js::Context> {
 fn get_oj_status_wrapper(
     run_report: HashMap<String, JsValue>,
     compare_report: HashMap<String, JsValue>,
-) -> anyhow::Result<&'static str> {
+) -> Result<&'static str> {
     use run_container::ExecutionReport;
 
     let run_report: ExecutionReport =
@@ -60,12 +60,12 @@ struct QuickJsObject(HashMap<String, JsValue>);
 impl TryInto<Value> for QuickJsObject {
     type Error = anyhow::Error;
 
-    fn try_into(self) -> anyhow::Result<Value> {
+    fn try_into(self) -> Result<Value> {
         do_convert(JsValue::Object(self.0))
     }
 }
 
-fn do_convert(value: JsValue) -> anyhow::Result<Value> {
+fn do_convert(value: JsValue) -> Result<Value> {
     use serde_json::Number;
 
     Ok(match value {
@@ -78,13 +78,13 @@ fn do_convert(value: JsValue) -> anyhow::Result<Value> {
         }
         JsValue::String(value) => Value::String(value),
         JsValue::Array(values) => {
-            Value::Array(values.into_iter().map(do_convert).collect::<anyhow::Result<_>>()?)
+            Value::Array(values.into_iter().map(do_convert).collect::<Result<_>>()?)
         }
         JsValue::Object(values) => Value::Object(
             values
                 .into_iter()
                 .map(|(key, value)| do_convert(value).map(|value| (key, value)))
-                .collect::<anyhow::Result<_>>()?,
+                .collect::<Result<_>>()?,
         ),
         _ => bail!("Unknown value detected"),
     })

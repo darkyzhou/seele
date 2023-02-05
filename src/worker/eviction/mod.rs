@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -55,7 +55,7 @@ impl EvictionManager {
         ttl: Duration,
         capacity: usize,
         state_file: Option<File>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         let manager = Self {
             name,
             interval,
@@ -107,7 +107,7 @@ impl EvictionManager {
         state.preserve_data.remove(data);
     }
 
-    pub async fn load_states(&self, data: &[u8]) -> anyhow::Result<usize> {
+    pub async fn load_states(&self, data: &[u8]) -> Result<usize> {
         let recovered: EvictionState = ciborium::de::from_reader(data)?;
         let state = {
             let mut state = self.state.lock().await;
@@ -119,7 +119,7 @@ impl EvictionManager {
         Ok(state.items.len())
     }
 
-    pub async fn save_states(&self, writer: &mut Vec<u8>) -> anyhow::Result<()> {
+    pub async fn save_states(&self, writer: &mut Vec<u8>) -> Result<()> {
         let state = self.state.lock().await;
         Ok(ciborium::ser::into_writer(&*state, writer)?)
     }
@@ -140,7 +140,7 @@ impl EvictionManager {
         }
     }
 
-    async fn clean(&self) -> anyhow::Result<()> {
+    async fn clean(&self) -> Result<()> {
         let now = Reverse(Utc::now());
         let mut state = self.state.lock().await;
 
@@ -218,7 +218,7 @@ impl EvictionManager {
     }
 }
 
-async fn do_evict(path: &Path) -> anyhow::Result<()> {
+async fn do_evict(path: &Path) -> Result<()> {
     use tokio::fs;
 
     let target = &conf::PATHS.evicted.join({

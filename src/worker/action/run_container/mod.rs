@@ -1,6 +1,6 @@
 use std::{io::Read, sync::Arc};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use duct::cmd;
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
@@ -31,10 +31,7 @@ mod utils;
 static RUNNER_THREAD_LOCAL: Lazy<Arc<ThreadLocal<i64>>> = Lazy::new(|| Arc::default());
 
 #[instrument]
-pub async fn execute(
-    ctx: &ActionContext,
-    config: &Config,
-) -> anyhow::Result<ActionSuccessReportExt> {
+pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let image_path = image::get_image_path(&config.image);
     if let Some(manager) = ctx.image_eviction_manager.as_ref() {
         manager.visit_enter(&image_path).await;
@@ -54,7 +51,7 @@ pub async fn execute(
                 fn run(
                     local: &ThreadLocal<i64>,
                     mut config: RunjConfig,
-                ) -> anyhow::Result<ContainerExecutionReport> {
+                ) -> Result<ContainerExecutionReport> {
                     {
                         let cpu = match local.get() {
                             Some(cpu) => *cpu,

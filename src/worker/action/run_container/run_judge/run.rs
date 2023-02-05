@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -23,10 +24,7 @@ pub struct Config {
 }
 
 #[instrument]
-pub async fn execute(
-    ctx: &ActionContext,
-    config: &Config,
-) -> anyhow::Result<ActionSuccessReportExt> {
+pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 

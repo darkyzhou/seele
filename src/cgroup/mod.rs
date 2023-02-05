@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::bail;
+use anyhow::{bail, Result};
 use libcgroups::common::{get_cgroup_setup, read_cgroup_file, write_cgroup_file_str, CgroupSetup};
 use once_cell::sync::Lazy;
 use tracing::debug;
@@ -26,7 +26,7 @@ static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
 });
 
 #[inline]
-pub fn check_cgroup_setup() -> anyhow::Result<()> {
+pub fn check_cgroup_setup() -> Result<()> {
     if !matches!(get_cgroup_setup().unwrap(), CgroupSetup::Unified) {
         bail!("Seele only supports cgroup v2");
     }
@@ -34,11 +34,11 @@ pub fn check_cgroup_setup() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn initialize_cgroup_subtrees() -> anyhow::Result<()> {
+pub fn initialize_cgroup_subtrees() -> Result<()> {
     write_cgroup_file_str(CGROUP_PATH.join("cgroup.subtree_control"), "+cpuset")
 }
 
-pub fn bind_application_threads(skip_id: u32) -> anyhow::Result<()> {
+pub fn bind_application_threads(skip_id: u32) -> Result<()> {
     let available_cpus = {
         let mut cpus: Vec<u32> = vec![];
         let content = read_cgroup_file(CGROUP_PATH.join("cpuset.cpus.effective"))?;

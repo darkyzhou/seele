@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use anyhow::Result;
 use async_recursion::async_recursion;
 use tokio::{sync::oneshot, time::Instant};
 use tracing::{debug, instrument};
@@ -31,7 +32,7 @@ pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let mut ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
@@ -234,7 +235,7 @@ fn skip_task_node(node: &TaskNode) {
 async fn submit_action(
     ctx: ExecutionContext,
     config: Arc<ActionTaskConfig>,
-) -> anyhow::Result<ActionReport> {
+) -> Result<ActionReport> {
     let (tx, rx) = oneshot::channel();
     ctx.worker_queue_tx
         .send(WorkerQueueItem {

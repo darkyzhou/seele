@@ -1,9 +1,9 @@
 use std::{fs, path::PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use libcgroups::common::{read_cgroup_file, DEFAULT_CGROUP_ROOT};
 
-pub fn check_and_get_self_cgroup() -> anyhow::Result<PathBuf> {
+pub fn check_and_get_self_cgroup() -> Result<PathBuf> {
     let content = fs::read_to_string("/proc/thread-self/cgroup")?;
     let content = content.trim();
 
@@ -24,7 +24,7 @@ pub fn check_and_get_self_cgroup() -> anyhow::Result<PathBuf> {
     Ok([DEFAULT_CGROUP_ROOT, cgroup_path].into_iter().collect())
 }
 
-pub fn get_self_cpuset_cpu() -> anyhow::Result<i64> {
+pub fn get_self_cpuset_cpu() -> Result<i64> {
     let path = check_and_get_self_cgroup()?;
     let content = read_cgroup_file(path.join("cpuset.cpus"))?;
     content.trim().parse().with_context(|| format!("Unexpected cpuset.cpus content: {}", content))

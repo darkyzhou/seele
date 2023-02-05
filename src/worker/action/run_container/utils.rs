@@ -1,12 +1,9 @@
-use anyhow::Context;
+use anyhow::{Context, Result};
 
 use super::{image, runj, Config};
 use crate::{conf, shared, worker::ActionContext};
 
-pub fn convert_to_runj_config(
-    ctx: &ActionContext,
-    config: Config,
-) -> anyhow::Result<runj::RunjConfig> {
+pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<runj::RunjConfig> {
     let rootfs = image::get_unpacked_image_path(&config.image).join("rootfs");
     let command = config.command.try_into().context("Error parsing command")?;
     let fd = config.fd.map(|fd| runj::FdConfig {
@@ -33,7 +30,7 @@ pub fn convert_to_runj_config(
     })
 }
 
-pub async fn check_and_create_directories(config: &runj::RunjConfig) -> anyhow::Result<()> {
+pub async fn check_and_create_directories(config: &runj::RunjConfig) -> Result<()> {
     if let Some(config) = &config.fd {
         if let Some(path) = &config.stdin {
             shared::file_utils::create_parent_directories(path).await?;

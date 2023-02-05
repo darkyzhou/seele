@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process, time::Duration};
 
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Result};
 use dbus::{
     arg::{RefArg, Variant},
     blocking::{Connection, Proxy},
@@ -12,7 +12,7 @@ use super::systemd_api::OrgFreedesktopSystemd1Manager;
 const PARENT_SLICE: &str = "user.slice";
 const SEELE_SCOPE: &str = "seele.scope";
 
-pub fn create_and_enter_cgroup() -> anyhow::Result<PathBuf> {
+pub fn create_and_enter_cgroup() -> Result<PathBuf> {
     let connection = Connection::new_session().context("Error connecting systemd session bus")?;
     let proxy = create_proxy(&connection);
 
@@ -37,7 +37,7 @@ fn create_proxy(connection: &Connection) -> Proxy<&Connection> {
     )
 }
 
-fn start_transient_unit(proxy: &Proxy<&Connection>) -> anyhow::Result<()> {
+fn start_transient_unit(proxy: &Proxy<&Connection>) -> Result<()> {
     let properties: Vec<(&str, Variant<Box<dyn RefArg>>)> = vec![
         (
             "Description",
@@ -56,7 +56,7 @@ fn start_transient_unit(proxy: &Proxy<&Connection>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn systemd_version(proxy: &Proxy<&Connection>) -> anyhow::Result<u32> {
+fn systemd_version(proxy: &Proxy<&Connection>) -> Result<u32> {
     Ok(proxy
         .version()
         .context("Error requesting systemd dbus")?
