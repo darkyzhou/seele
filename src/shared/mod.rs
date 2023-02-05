@@ -1,6 +1,9 @@
-use std::{iter, process::Output};
+use std::io::SeekFrom;
 
-use either::Either;
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncSeekExt, BufReader},
+};
 
 pub mod cond_group;
 pub mod file_utils;
@@ -11,40 +14,11 @@ pub fn random_task_id() -> String {
     nano_id::base62::<8>()
 }
 
-macro_rules! skip_if_empty {
-    ($source:expr, $iter:expr) => {
-        if $source.is_empty() { Either::Left(iter::empty()) } else { Either::Right($iter) }
-    };
-}
+pub async fn tail(file: File, count: i64) -> anyhow::Result<Vec<u8>> {
+    let mut reader = BufReader::new(file);
+    reader.seek(SeekFrom::End(-count)).await?;
 
-macro_rules! ellipse_command_output {
-    ($source:expr, $max_len:expr) => {
-        if $source.len() <= $max_len {
-            either::Either::Left($source.iter())
-        } else {
-            either::Either::Right(
-                $source
-                    .iter()
-                    .take($max_len / 2)
-                    .chain(b"...".iter())
-                    .chain($source.iter().skip($max_len / 2)),
-            )
-        }
-    };
-}
-
-pub fn collect_output(output: &Output) -> String {
-    const MAX_LEN: usize = 400;
-
-    let output = skip_if_empty!(
-        output.stdout,
-        b"\n--- stdout ---\n".iter().chain(ellipse_command_output!(output.stdout, MAX_LEN))
-    )
-    .chain(skip_if_empty!(
-        output.stderr,
-        b"\n--- stderr ---\n".iter().chain(ellipse_command_output!(output.stderr, MAX_LEN))
-    ))
-    .copied()
-    .collect::<Vec<_>>();
-    String::from_utf8_lossy(&output[..]).into_owned()
+    let mut buffer = vec![];
+    reader.read_to_end(&mut buffer).await?;
+    Ok(buffer)
 }

@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use duct::cmd;
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
-use tokio::{sync::oneshot, task::spawn_blocking};
+use tokio::task::spawn_blocking;
 use tracing::{debug, error, instrument, warn};
 
 pub use self::entities::*;
@@ -44,62 +44,57 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
 
         check_and_create_directories(&config).await?;
 
-        let (tx, rx) = oneshot::channel();
-        {
-            let local = RUNNER_THREAD_LOCAL.clone();
-            spawn_blocking(move || {
-                fn run(
-                    local: &ThreadLocal<i64>,
-                    mut config: RunjConfig,
-                ) -> Result<ContainerExecutionReport> {
-                    {
-                        let cpu = match local.get() {
-                            Some(cpu) => *cpu,
-                            None => {
-                                let cpu = cgroup::get_self_cpuset_cpu()
-                                    .context("Error getting self cpuset cpu")?;
-                                _ = local.get_or(|| cpu);
-                                cpu
-                            }
-                        };
-
-                        debug!("Bound the runj container to cpu {}", cpu);
-                        config.limits.cgroup.cpuset_cpus = Some(format!("{}", cpu));
-                    }
-
-                    let mut reader = {
-                        let config = serde_json::to_string(&config)
-                            .context("Error serializing the converted config")?;
-
-                        cmd!(&conf::CONFIG.runj_path)
-                            .stdin_bytes(config.as_bytes())
-                            .stderr_to_stdout()
-                            .reader()
-                            .context("Error running the runj process")?
+        let local = RUNNER_THREAD_LOCAL.clone();
+        Ok(spawn_blocking(move || {
+            fn run(
+                local: &ThreadLocal<i64>,
+                mut config: RunjConfig,
+            ) -> Result<ContainerExecutionReport> {
+                {
+                    let cpu = match local.get() {
+                        Some(cpu) => *cpu,
+                        None => {
+                            let cpu = cgroup::get_self_cpuset_cpu()
+                                .context("Error getting self cpuset cpu")?;
+                            _ = local.get_or(|| cpu);
+                            cpu
+                        }
                     };
 
-                    let mut output = vec![];
-                    match reader.read_to_end(&mut output) {
-                        Err(_) => {
-                            let texts = {
-                                let output = output.into_iter().take(400).collect::<Vec<_>>();
-                                String::from_utf8_lossy(&output[..]).to_string()
-                            };
-                            error!(texts = %texts, "The runj process failed");
-                            bail!("The runj process failed: {}", texts)
-                        }
-                        Ok(_) => serde_json::from_slice(&output[..])
-                            .context("Error deserializing the report"),
+                    // FIXME: parent span
+                    debug!("Bound the runj container to cpu {}", cpu);
+                    config.limits.cgroup.cpuset_cpus = Some(format!("{}", cpu));
+                }
+
+                let mut reader = {
+                    let config = serde_json::to_string(&config)
+                        .context("Error serializing the converted config")?;
+
+                    cmd!(&conf::CONFIG.runj_path)
+                        .stdin_bytes(config.as_bytes())
+                        .stderr_to_stdout()
+                        .reader()
+                        .context("Error running the runj process")?
+                };
+
+                let mut output = vec![];
+                match reader.read_to_end(&mut output) {
+                    Err(_) => {
+                        let texts = {
+                            let output = output.into_iter().take(400).collect::<Vec<_>>();
+                            String::from_utf8_lossy(&output[..]).to_string()
+                        };
+                        error!(texts = %texts, "The runj process failed");
+                        bail!("The runj process failed: {}", texts)
                     }
+                    Ok(_) => serde_json::from_slice(&output[..])
+                        .context("Error deserializing the report"),
                 }
+            }
 
-                if tx.send(run(&local, config)).is_err() {
-                    error!("Error sending the report to parent");
-                }
-            });
-        }
-
-        rx.await?
+            run(&local, config)
+        })
+        .await??)
     }
     .await;
 

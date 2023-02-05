@@ -1,9 +1,13 @@
-use std::{path::PathBuf, time::Duration};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
+use duct::cmd;
 use futures_util::FutureExt;
 use once_cell::sync::Lazy;
-use tokio::{fs, process::Command, time::timeout};
+use tokio::{
+    fs::{self, create_dir_all, metadata, remove_dir_all},
+    task::spawn_blocking,
+};
 use tracing::{debug, instrument, warn};
 
 use crate::{
@@ -11,20 +15,19 @@ use crate::{
     shared::{self, cond_group::CondGroup, oci_image::OciImage},
 };
 
-static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<String, String>>> =
+static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =
     Lazy::new(|| CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed()));
 
-pub async fn prepare_image(image: &OciImage) -> Result<String> {
-    PREPARATION_TASKS.run(image).await.map_err(|err| anyhow!(err))
+pub async fn prepare_image(image: &OciImage) -> Result<()> {
+    PREPARATION_TASKS.run(image).await.map_err(|err| anyhow!(err))?;
+    Ok(())
 }
 
 #[instrument]
-async fn prepare_image_impl(image: OciImage) -> Result<String, String> {
+async fn prepare_image_impl(image: OciImage) -> Result<(), String> {
     pull_image(&image).await.map_err(|err| format!("Error pulling the image: {err:#}"))?;
-
-    let path =
-        unpack_image(&image).await.map_err(|err| format!("Error unpacking the image: {err:#}"))?;
-    Ok(path)
+    unpack_image(&image).await.map_err(|err| format!("Error unpacking the image: {err:#}"))?;
+    Ok(())
 }
 
 #[instrument]
@@ -32,27 +35,36 @@ async fn pull_image(image: &OciImage) -> Result<()> {
     const PULL_TIMEOUT_SECOND: u64 = 180;
 
     let target_path = get_oci_image_path(image);
-    if fs::metadata(&target_path).await.is_ok() {
+    if metadata(&target_path).await.is_ok() {
         debug!(path = %target_path.display(), "The image directory already presents, skip pulling");
         return Ok(());
     }
 
     let temp_target_path = get_temp_oci_image_path(image);
-    if fs::metadata(&temp_target_path).await.is_ok() {
-        warn!(path = %temp_target_path.display(),"The temp image directory already exists");
-        fs::remove_dir_all(&temp_target_path)
+    {
+        if metadata(&temp_target_path).await.is_ok() {
+            warn!(path = %temp_target_path.display(),"The temp image directory already exists");
+            remove_dir_all(&temp_target_path)
+                .await
+                .context("Error deleting the existing temp image directory")?;
+        }
+        create_dir_all(&temp_target_path)
             .await
-            .context("Error deleting the existing temp image directory")?;
+            .context("Error creating the temp image directory")?;
     }
-    fs::create_dir_all(&temp_target_path)
-        .await
-        .context("Error creating the temp image directory")?;
+
+    // TODO: Should be placed inside submission root
+    let skopeo_log_file_path =
+        conf::PATHS.temp.join(&format!("skopeo-{}.log", nano_id::base62::<12>()));
 
     debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.skopeo_path, "Pulling the image using skopeo");
-    let output = timeout(
-        Duration::from_secs(PULL_TIMEOUT_SECOND + 3),
-        Command::new(&conf::CONFIG.skopeo_path)
-            .args([
+    let output = spawn_blocking({
+        let image = image.clone();
+        let temp_target_path = temp_target_path.clone();
+        let skopeo_log_file_path = skopeo_log_file_path.clone();
+        move || {
+            cmd!(
+                &conf::CONFIG.skopeo_path,
                 "copy",
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
                 &format!("oci:{}:{}", temp_target_path.display(), image.tag),
@@ -60,22 +72,33 @@ async fn pull_image(image: &OciImage) -> Result<()> {
                 &format!("{PULL_TIMEOUT_SECOND}s"),
                 "--retry-times",
                 "3",
-                "--quiet",
-            ])
-            .output(),
-    )
-    .await
-    .context("Error executing the skopeo process")?
-    .context("The skopeo process took too long to finish")?;
+                "--quiet"
+            )
+            .env("GOMAXPROCS", "1")
+            .stdout_path(skopeo_log_file_path)
+            .stderr_to_stdout()
+            .unchecked()
+            .run()
+        }
+    })
+    .await?
+    .context("Error running skopeo")?;
 
     if !output.status.success() {
+        let content = shared::tail(
+            fs::File::open(&skopeo_log_file_path).await.context("Error opening log file")?,
+            1024,
+        )
+        .await
+        .context("Error reading log file")?;
         bail!(
-            "The skopeo process failed with the following output: {}",
-            shared::collect_output(&output)
+            "The skopeo process failed, output file {}: {}",
+            skopeo_log_file_path.display(),
+            String::from_utf8_lossy(&content[..])
         );
     }
 
-    fs::rename(temp_target_path, target_path)
+    fs::rename(&temp_target_path, target_path)
         .await
         .context("Error moving the image from temp directory")?;
 
@@ -83,59 +106,78 @@ async fn pull_image(image: &OciImage) -> Result<()> {
 }
 
 #[instrument]
-async fn unpack_image(image: &OciImage) -> Result<String> {
+async fn unpack_image(image: &OciImage) -> Result<()> {
     const UNPACK_TIMEOUT_SECOND: u64 = 120;
 
-    let image_path = get_oci_image_path(image);
     let unpacked_path = get_unpacked_image_path(image);
-    if fs::metadata(&unpacked_path).await.is_err() {
-        let temp_unpacked_path = get_temp_unpacked_image_path(image);
-        if fs::metadata(&temp_unpacked_path).await.is_ok() {
-            warn!(path = %temp_unpacked_path.display(),"The temp unpacked directory already exists");
-            fs::remove_dir_all(&temp_unpacked_path)
+    if metadata(&unpacked_path).await.is_ok() {
+        debug!(path = %unpacked_path.display(), "The image directory already presents, skip ");
+        return Ok(());
+    }
+
+    let temp_unpacked_path = get_temp_unpacked_image_path(image);
+    {
+        if metadata(&temp_unpacked_path).await.is_ok() {
+            warn!(path = %temp_unpacked_path.display(), "The temp unpacked directory already exists");
+            remove_dir_all(&temp_unpacked_path)
                 .await
                 .context("Error deleting the existing temp unpacked directory")?;
         }
-        fs::create_dir_all(&temp_unpacked_path)
+        create_dir_all(&temp_unpacked_path)
             .await
             .context("Error creating the temp unpacked directory")?;
-
-        debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.umoci_path, "Unpacking the image using umoci");
-        let output = timeout(
-            Duration::from_secs(UNPACK_TIMEOUT_SECOND),
-            Command::new(&conf::CONFIG.umoci_path)
-                .args([
-                    "--log",
-                    "error",
-                    "unpack",
-                    "--rootless",
-                    "--image",
-                    &format!("{}:{}", image_path.display(), image.tag),
-                    &format!("{}", temp_unpacked_path.display()),
-                ])
-                .output(),
-        )
-        .await
-        .context("Error executing the umoci process")?
-        .context("The umoci process took too long to finish")?;
-
-        if !output.status.success() {
-            bail!(
-                "The umoci process failed with the following output: {}",
-                shared::collect_output(&output)
-            );
-        }
-
-        fs::rename(temp_unpacked_path, &unpacked_path)
-            .await
-            .context("Error moving unpacked image from temp directory")?;
     }
 
-    unpacked_path
-        .join("rootfs")
-        .into_os_string()
-        .into_string()
-        .map_err(|_| anyhow!("Error resolving the rootfs path"))
+    // TODO: Should be placed inside submission root
+    let umoci_log_file_path =
+        conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
+
+    debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.umoci_path, "Unpacking the image using umoci");
+    let output = spawn_blocking({
+        let image = image.clone();
+        let image_path = get_oci_image_path(&image);
+        let temp_unpacked_path = temp_unpacked_path.clone();
+        let umoci_log_file_path = umoci_log_file_path.clone();
+        move || {
+            cmd!(
+                &conf::CONFIG.umoci_path,
+                "--log",
+                "error",
+                "unpack",
+                "--rootless",
+                "--image",
+                &format!("{}:{}", image_path.display(), image.tag),
+                &format!("{}", temp_unpacked_path.display()),
+            )
+            .env("GOMAXPROCS", "1")
+            .stdout_path(umoci_log_file_path)
+            .stderr_to_stdout()
+            .unchecked()
+            .run()
+        }
+    })
+    .await?
+    .context("Error running umoci")?;
+
+    if !output.status.success() {
+        let content = shared::tail(
+            fs::File::open(&umoci_log_file_path).await.context("Error opening log file")?,
+            1024,
+        )
+        .await
+        .context("Error reading log file")?;
+        bail!(
+            "The umoci process failed, output file {}: {}",
+            umoci_log_file_path.display(),
+            String::from_utf8_lossy(&content[..])
+        );
+    }
+
+    fs::rename(temp_unpacked_path, &unpacked_path)
+        .await
+        .context("Error moving unpacked image from temp directory")?;
+
+    Ok(())
 }
 
 #[inline]
