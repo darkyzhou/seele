@@ -13,13 +13,15 @@ use crate::conf::{self, SeeleWorkMode};
 
 mod systemd;
 mod systemd_api;
+mod utils;
 
 static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
     SeeleWorkMode::RootlessBare => {
         systemd::create_and_enter_cgroup().expect("Error entering cgroup scope cgroup")
     }
-    SeeleWorkMode::RootlessSystemd => todo!(),
-    SeeleWorkMode::Privileged => todo!(),
+    SeeleWorkMode::RootlessSystemd | SeeleWorkMode::Privileged => {
+        utils::check_and_get_process_cgroup().expect("Error getting process' cgroup path")
+    }
 });
 
 #[inline]
@@ -32,7 +34,7 @@ pub fn check_cgroup_setup() -> anyhow::Result<()> {
 }
 
 pub fn initialize_cgroup_subtrees() -> anyhow::Result<()> {
-    write_cgroup_file_str(CGROUP_PATH.join("cgroup.subtree_control"), "+cpu +cpuset")
+    write_cgroup_file_str(CGROUP_PATH.join("cgroup.subtree_control"), "+cpuset")
 }
 
 pub fn bind_app_threads(skip_id: u32) -> anyhow::Result<()> {
