@@ -54,7 +54,7 @@ fn main() {
             &conf::PATHS.submissions,
             &conf::PATHS.evicted,
             &conf::PATHS.states,
-            &conf::PATHS.temp_mounts,
+            &conf::PATHS.temp,
         ] {
             create_dir_all(path)
                 .expect(&format!("Error creating the directory: {}", path.display()));
