@@ -74,6 +74,8 @@ async fn pull_image(image: &OciImage) -> Result<()> {
                 "3",
                 "--quiet"
             )
+            // Although this seems not working, cgroup cpuset can
+            // guarantee that `skopeo` can only leverage only one cpu core.
             .env("GOMAXPROCS", "1")
             .stdout_path(skopeo_log_file_path)
             .stderr_to_stdout()
