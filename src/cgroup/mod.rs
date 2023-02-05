@@ -9,6 +9,7 @@ use libcgroups::common::{get_cgroup_setup, read_cgroup_file, write_cgroup_file_s
 use once_cell::sync::Lazy;
 use tracing::debug;
 
+pub use self::utils::*;
 use crate::conf::{self, SeeleWorkMode};
 
 mod systemd;
@@ -20,7 +21,7 @@ static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
         systemd::create_and_enter_cgroup().expect("Error entering cgroup scope cgroup")
     }
     SeeleWorkMode::RootlessSystemd | SeeleWorkMode::Privileged => {
-        utils::check_and_get_process_cgroup().expect("Error getting process' cgroup path")
+        utils::check_and_get_self_cgroup().expect("Error getting process' cgroup path")
     }
 });
 

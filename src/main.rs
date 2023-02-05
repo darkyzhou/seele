@@ -5,13 +5,11 @@ use std::{
     time::Duration,
 };
 
-use tokio::{runtime, sync::mpsc, task::spawn_blocking, time};
+use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info};
 
-use crate::worker::run_container;
-
-mod cgroup;
+pub mod cgroup;
 mod composer;
 mod conf;
 mod entities;
@@ -52,9 +50,11 @@ fn main() {
     let pid = process::id();
 
     info!("Initializing the runtime");
+    let blocking_thread_count = conf::CONFIG.blocking_thread_count
+        + conf::CONFIG.worker.action.run_container.container_concurrency;
     let runtime = runtime::Builder::new_multi_thread()
         .worker_threads(conf::CONFIG.worker_thread_count)
-        .max_blocking_threads(conf::CONFIG.blocking_thread_count)
+        .max_blocking_threads(blocking_thread_count)
         .thread_keep_alive(Duration::from_secs(u64::MAX))
         .enable_all()
         .build()
@@ -62,12 +62,9 @@ fn main() {
     runtime
         .block_on(async move {
             {
-                run_container::init_runner_pool().await;
-                time::sleep(Duration::from_millis(300)).await;
-
-                let begin_barrier = Arc::new(Barrier::new(conf::CONFIG.blocking_thread_count));
-                let end_barrier = Arc::new(Barrier::new(conf::CONFIG.blocking_thread_count));
-                for _ in 0..(conf::CONFIG.blocking_thread_count - 1) {
+                let begin_barrier = Arc::new(Barrier::new(blocking_thread_count));
+                let end_barrier = Arc::new(Barrier::new(blocking_thread_count));
+                for _ in 0..(blocking_thread_count - 1) {
                     let begin_barrier = begin_barrier.clone();
                     let end_barrier = end_barrier.clone();
                     spawn_blocking(move || {

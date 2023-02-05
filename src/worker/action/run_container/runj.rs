@@ -21,8 +21,7 @@ pub struct RunjConfig {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub mounts: Vec<MountConfig>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limits: Option<LimitsConfig>,
+    pub limits: LimitsConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -51,8 +50,8 @@ pub struct LimitsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<TimeLimitsConfig>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cgroup: Option<CgroupConfig>,
+    #[serde(default)]
+    pub cgroup: CgroupConfig,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rlimit: Option<Vec<RlimitConfig>>,
@@ -83,10 +82,10 @@ pub struct CgroupConfig {
     pub cpu_quota: Option<i64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpuset_cpus: Option<i64>,
+    pub cpuset_cpus: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpuset_mems: Option<i64>,
+    pub cpuset_mems: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pids_limit: Option<i64>,
