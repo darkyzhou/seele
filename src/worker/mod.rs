@@ -1,6 +1,5 @@
 use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc, time::Duration};
 
-pub use action::*;
 use anyhow::Context;
 use chrono::Utc;
 use tokio::{
@@ -11,6 +10,7 @@ use tokio::{
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info, instrument};
 
+pub use self::action::*;
 use self::eviction::EvictionManager;
 use crate::{
     conf,
@@ -137,9 +137,19 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> an
             });
         }
 
-        handle.start("worker", |handle| {
-            worker_main_impl(handle, queue_rx, submission_eviction_manager, image_eviction_manager)
-        });
+        for i in 0..conf::CONFIG.worker.action.run_container.container_concurrency {
+            let queue_rx = queue_rx.clone();
+            let submission_eviction_manager = submission_eviction_manager.clone();
+            let image_eviction_manager = image_eviction_manager.clone();
+            handle.start(&format!("worker-{}", i), |handle| {
+                worker_main_impl(
+                    handle,
+                    queue_rx,
+                    submission_eviction_manager,
+                    image_eviction_manager,
+                )
+            });
+        }
     }
 
     handle.on_shutdown_requested().await;
