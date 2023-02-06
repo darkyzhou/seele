@@ -189,22 +189,25 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	processFinishedCtx, processFinishedCtxCancel := context.WithCancel(context.Background())
 	defer processFinishedCtxCancel()
 
-	if config.Limits.TimeMs > 0 {
-		timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), time.Duration(config.Limits.TimeMs*3)*time.Millisecond)
-		defer timeLimitCtxCancel()
+	timeLimit := lo.TernaryF(config.Limits != nil && config.Limits.TimeMs > 0, func() time.Duration {
+		return time.Duration(config.Limits.TimeMs*3) * time.Millisecond
+	}, func() time.Duration {
+		return time.Duration(10) * time.Minute
+	})
+	timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), timeLimit)
+	defer timeLimitCtxCancel()
 
-		go func() {
-			select {
-			case <-ctx.Done():
-			case <-processFinishedCtx.Done():
-				return
-			case <-timeLimitCtx.Done():
-				if err := container.Signal(unix.SIGKILL, true); err != nil {
-					logrus.WithError(err).Fatal("Error sending SIGKILL to the container processes")
-				}
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-processFinishedCtx.Done():
+			return
+		case <-timeLimitCtx.Done():
+			if err := container.Signal(unix.SIGKILL, true); err != nil {
+				logrus.WithError(err).Fatal("Error sending SIGKILL to the container processes")
 			}
-		}()
-	}
+		}
+	}()
 
 	go func() {
 		select {
@@ -222,13 +225,17 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	}
 	state, _ := process.Wait()
 	wallTimeEnd := time.Now()
+
+	wallTimeLimitExceeded := timeLimitCtx.Err() != nil
+
 	processFinishedCtxCancel()
+	timeLimitCtxCancel()
 
 	if ctx.Err() != nil {
 		return nil, fmt.Errorf("Cancelled")
 	}
 
-	containerStats, err := container.Stats()
+	stats, err := container.Stats()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting container stats: %w", err)
 	}
@@ -240,14 +247,15 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	_ = stdErrFile.Close()
 
 	report, err := makeExecutionReport(&ExecutionReportProps{
-		config:         config,
-		state:          state,
-		stats:          containerStats,
-		wallTime:       wallTime,
-		cgroupPath:     cgroupPath,
-		stdOutFilePath: stdOutFilePath,
-		stdErrFilePath: stdErrFilePath,
-		rlimitFsize:    rlimitFsize,
+		config,
+		state,
+		stats,
+		wallTime,
+		wallTimeLimitExceeded,
+		cgroupPath,
+		stdOutFilePath,
+		stdErrFilePath,
+		rlimitFsize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Error resolving execution report: %w", err)

@@ -13,25 +13,27 @@ import (
 )
 
 const (
-	STATUS_NORMAL                = "NORMAL"
-	STATUS_RUNTIME_ERROR         = "RUNTIME_ERROR"
-	STATUS_SIGNAL_TERMINATE      = "SIGNAL_TERMINATE"
-	STATUS_SIGNAL_STOP           = "SIGNAL_STOP"
-	STATUS_TIME_LIMIT_EXCEEDED   = "TIME_LIMIT_EXCEEDED"
-	STATUS_MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED"
-	STATUS_OUTPUT_LIMIT_EXCEEDED = "OUTPUT_LIMIT_EXCEEDED"
-	STATUS_UNKNOWN               = "UNKNOWN"
+	STATUS_NORMAL                   = "NORMAL"
+	STATUS_RUNTIME_ERROR            = "RUNTIME_ERROR"
+	STATUS_SIGNAL_TERMINATE         = "SIGNAL_TERMINATE"
+	STATUS_SIGNAL_STOP              = "SIGNAL_STOP"
+	STATUS_USER_TIME_LIMIT_EXCEEDED = "USER_TIME_LIMIT_EXCEEDED"
+	STATUS_WALL_TIME_LIMIT_EXCEEDED = "WALL_TIME_LIMIT_EXCEEDED"
+	STATUS_MEMORY_LIMIT_EXCEEDED    = "MEMORY_LIMIT_EXCEEDED"
+	STATUS_OUTPUT_LIMIT_EXCEEDED    = "OUTPUT_LIMIT_EXCEEDED"
+	STATUS_UNKNOWN                  = "UNKNOWN"
 )
 
 type ExecutionReportProps struct {
-	config         *entities.RunjConfig
-	state          *os.ProcessState
-	stats          *libcontainer.Stats
-	wallTime       time.Duration
-	cgroupPath     string
-	stdOutFilePath string
-	stdErrFilePath string
-	rlimitFsize    uint64
+	config                *entities.RunjConfig
+	state                 *os.ProcessState
+	stats                 *libcontainer.Stats
+	wallTime              time.Duration
+	wallTimeLimitExceeded bool
+	cgroupPath            string
+	stdOutFilePath        string
+	stdErrFilePath        string
+	rlimitFsize           uint64
 }
 
 func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport, error) {
@@ -68,7 +70,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 
 			switch sig {
 			case unix.SIGXCPU:
-				exitStatus = STATUS_TIME_LIMIT_EXCEEDED
+				exitStatus = STATUS_USER_TIME_LIMIT_EXCEEDED
 			case unix.SIGXFSZ:
 				exitStatus = STATUS_OUTPUT_LIMIT_EXCEEDED
 			default:
@@ -88,8 +90,12 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 	// In addition, currently runj only uses a goroutine for time limiting which will send a SIGKILL if the process ran out of time.
 	// In order to determine if it's truly a TLE status, we manually check the config and compare them here.
 	if props.config.Limits != nil && props.config.Limits.TimeMs > 0 {
+		if props.wallTimeLimitExceeded {
+			exitStatus = STATUS_WALL_TIME_LIMIT_EXCEEDED
+		}
+
 		if props.config.Limits.TimeMs < cpuUserMs {
-			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
+			exitStatus = STATUS_USER_TIME_LIMIT_EXCEEDED
 		}
 	}
 
