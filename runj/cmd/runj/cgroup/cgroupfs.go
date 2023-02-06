@@ -6,6 +6,6 @@ import (
 
 // Initialize a new cgroup v2 directory via cgroupfs.
 // Mainly used for containerized environments with the help of sysbox.
-func InitFsCgroup() (string, error) {
+func GetCgroupPathViaFs() (string, error) {
 	return fs2.UnifiedMountpoint, nil
 }

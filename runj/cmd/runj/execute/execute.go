@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
+	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
@@ -21,21 +21,11 @@ import (
 )
 
 var (
-	factory     libcontainer.Factory
-	cgroupPath  = ""
 	uidMappings []specs.LinuxIDMapping
 	gidMappings []specs.LinuxIDMapping
 )
 
 func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.ExecutionReport, error) {
-	if err := prepareContainerFactory(); err != nil {
-		return nil, fmt.Errorf("Error preparing container factory: %w", err)
-	}
-
-	if err := prepareCgroupPath(config.Rootless); err != nil {
-		return nil, fmt.Errorf("Error preparing cgroup path: %w", err)
-	}
-
 	if config.Rootless {
 		if err := prepareIdMaps(); err != nil {
 			return nil, fmt.Errorf("Error preparing id maps: %w", err)
@@ -47,17 +37,24 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		return nil, fmt.Errorf("Error making container specification: %w", err)
 	}
 
-	containerId := makeContainerId()
+	factory, err := initContainerFactory()
+	if err != nil {
+		return nil, fmt.Errorf("Error preparing container factory: %w", err)
+	}
 
-	fullCgroupPath := filepath.Join(cgroupPath, containerId)
-	if err := os.Mkdir(fullCgroupPath, 0770); err != nil {
-		return nil, fmt.Errorf("Error creating cgroup directory: %w", err)
+	parentCgroupPath, cgroupPath, err := getCgroupPath(config.Rootless)
+	if err != nil {
+		return nil, fmt.Errorf("Error preparing cgroup path: %w", err)
 	}
 	defer func() {
-		_ = cgroups.RemovePath(fullCgroupPath)
+		_ = cgroups.RemovePath(cgroupPath)
+
+		if parentCgroupPath != "" {
+			_ = cgroups.RemovePath(parentCgroupPath)
+		}
 	}()
 
-	cfg, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
+	containerConfig, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		Spec:             spec,
 		RootlessEUID:     config.Rootless,
@@ -66,10 +63,12 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	if err != nil {
 		return nil, fmt.Errorf("Error creating libcontainer config: %w", err)
 	}
-	// This is mandatory for libcontainer to correctly handle cgroup path
-	cfg.Cgroups.Path = strings.Replace(fullCgroupPath, fs2.UnifiedMountpoint, "", 1)
 
-	container, err := factory.Create(containerId, cfg)
+	// This is mandatory for libcontainer to correctly handle cgroup path
+	containerConfig.Cgroups.Path = strings.Replace(cgroupPath, fs2.UnifiedMountpoint, "", 1)
+
+	containerId := fmt.Sprintf("runj-container-%s", utils.RunjInstanceId)
+	container, err := factory.Create(containerId, containerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating container instance: %w", err)
 	}
@@ -260,7 +259,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		state:          state,
 		stats:          containerStats,
 		wallTime:       wallTime,
-		cgroupPath:     fullCgroupPath,
+		cgroupPath:     cgroupPath,
 		stdOutFilePath: stdOutFilePath,
 		stdErrFilePath: stdErrFilePath,
 		rlimitFsize:    rlimitFsize,

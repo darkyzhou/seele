@@ -9,40 +9,39 @@ import (
 	"strings"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
 
-func prepareContainerFactory() error {
-	if factory != nil {
-		return nil
-	}
-
-	var err error
-	factory, err = libcontainer.New(
+func initContainerFactory() (libcontainer.Factory, error) {
+	return libcontainer.New(
 		".",
 		libcontainer.NewuidmapPath("/usr/bin/newuidmap"),
 		libcontainer.NewgidmapPath("/usr/bin/newgidmap"),
 		libcontainer.InitArgs(os.Args[0], "init"),
 	)
-	return err
 }
 
-func prepareCgroupPath(useSystemdCgroupDriver bool) error {
-	if cgroupPath != "" {
-		return nil
+func getCgroupPath(useSystemdCgroupDriver bool) (string, string, error) {
+	var (
+		parentPath string
+		cgroupPath string
+		err        error
+	)
+
+	if useSystemdCgroupDriver {
+		parentPath, cgroupPath, err = cgroup.GetCgroupPathViaSystemd()
+	} else {
+		cgroupPath, err = cgroup.GetCgroupPathViaFs()
 	}
 
-	var err error
-	if useSystemdCgroupDriver {
-		cgroupPath, err = cgroup.InitSystemdCgroup()
-	} else {
-		cgroupPath, err = cgroup.InitFsCgroup()
+	if err != nil {
+		return "", "", err
 	}
-	return err
+
+	return parentPath, cgroupPath, nil
 }
 
 func prepareIdMaps() error {
@@ -141,11 +140,6 @@ func prepareOutFile(path string) (*os.File, error) {
 		return nil, fmt.Errorf("Error opening the file: %w", err)
 	}
 	return file, nil
-}
-
-func makeContainerId() string {
-	id := gonanoid.MustGenerate("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
-	return fmt.Sprintf("runj-container-%s", id)
 }
 
 func checkIsOOM(cgroupPath string) (bool, error) {
