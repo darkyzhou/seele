@@ -19,9 +19,7 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 1000,
-      },
+      time_ms: 1000,
       rlimit: [
         {
           type: "RLIMIT_FSIZE",
@@ -36,6 +34,6 @@ export default {
     },
   },
   check: (report) => {
-    assert.strictEqual(report.status, "TIME_LIMIT_EXCEEDED");
+    assert.strictEqual(report.status, "USER_TIME_LIMIT_EXCEEDED");
   },
 };

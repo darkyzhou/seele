@@ -15,15 +15,13 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 3000,
-      },
+      time_ms: 2000,
       cgroup: {
         pids_limit: 8,
       },
     },
   },
   check: (report) => {
-    assert.strictEqual(report.status, "TIME_LIMIT_EXCEEDED");
+    assert.strictEqual(report.status, "WALL_TIME_LIMIT_EXCEEDED");
   },
 };

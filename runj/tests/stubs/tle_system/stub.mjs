@@ -15,12 +15,10 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 1000,
-      },
+      time_ms: 1000,
     },
   },
   check: (report) => {
-    assert.strictEqual(report.status, "TIME_LIMIT_EXCEEDED");
+    assert.strictEqual(report.status, "WALL_TIME_LIMIT_EXCEEDED");
   },
 };

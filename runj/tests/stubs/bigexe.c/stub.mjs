@@ -19,9 +19,7 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 10000,
-      },
+      time_ms: 10000,
       rlimit: [
         {
           type: "RLIMIT_FSIZE",

@@ -83,7 +83,15 @@ async function executeRunj(config, rootless = true) {
             )
           );
         } else {
-          resolve(JSON.parse(output));
+          let data;
+          try {
+            data = JSON.parse(output);
+          } catch (e) {
+            reject(new Error(`Error parsing output: ${output}`));
+            return;
+          }
+
+          resolve(data);
         }
       });
     } catch (err) {

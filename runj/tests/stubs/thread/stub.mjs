@@ -15,9 +15,7 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 3000,
-      },
+      time_ms: 3000,
       cgroup: {
         pids_limit: 8,
       },

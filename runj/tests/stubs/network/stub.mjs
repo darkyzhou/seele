@@ -15,9 +15,7 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 1000,
-      },
+      time_ms: 1000,
     },
   },
   check: (report) => {

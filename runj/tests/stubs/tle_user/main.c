@@ -1,5 +1,3 @@
-#include <unistd.h>
-
 int main(void) {
-    sleep(1145141919);
+    while (1);
 }

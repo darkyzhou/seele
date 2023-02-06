@@ -5,7 +5,7 @@ import assert from "node:assert";
 export default {
   config: {
     rootfs: "$IMAGE_ROOTFS_PATH",
-    cwd: '/',
+    cwd: "/",
     command: ["main"],
     mounts: [
       {
@@ -15,9 +15,7 @@ export default {
       },
     ],
     limits: {
-      time: {
-        wall: 300,
-      },
+      time_ms: 300,
       rlimit: [
         {
           type: "RLIMIT_FSIZE",
