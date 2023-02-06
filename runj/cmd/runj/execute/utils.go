@@ -11,6 +11,7 @@ import (
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 )
@@ -24,24 +25,28 @@ func initContainerFactory() (libcontainer.Factory, error) {
 	)
 }
 
-func getCgroupPath(useSystemdCgroupDriver bool) (string, string, error) {
+func getCgroupPath(parentCgroupPath string, rootless bool) (string, string, error) {
 	var (
-		parentPath string
-		cgroupPath string
-		err        error
+		parentPath     string
+		fullCgroupPath string
+		err            error
 	)
 
-	if useSystemdCgroupDriver {
-		parentPath, cgroupPath, err = cgroup.GetCgroupPathViaSystemd()
+	if parentCgroupPath != "" {
+		fullCgroupPath, err = cgroup.GetCgroupPathViaFs(parentCgroupPath)
 	} else {
-		cgroupPath, err = cgroup.GetCgroupPathViaFs()
+		if rootless {
+			parentPath, fullCgroupPath, err = cgroup.GetCgroupPathViaSystemd()
+		} else {
+			fullCgroupPath, err = cgroup.GetCgroupPathViaFs(fs2.UnifiedMountpoint)
+		}
 	}
 
 	if err != nil {
 		return "", "", err
 	}
 
-	return parentPath, cgroupPath, nil
+	return parentPath, fullCgroupPath, nil
 }
 
 func prepareIdMaps() error {

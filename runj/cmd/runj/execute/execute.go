@@ -42,7 +42,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}
 
-	parentCgroupPath, cgroupPath, err := getCgroupPath(config.Rootless)
+	parentCgroupPath, cgroupPath, err := getCgroupPath(config.CgroupPath, config.Rootless)
 	if err != nil {
 		return nil, fmt.Errorf("Error preparing cgroup path: %w", err)
 	}

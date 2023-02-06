@@ -6,15 +6,14 @@ import (
 	"path"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
-	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 )
 
 // Initialize a new cgroup v2 directory via cgroupfs.
 // Mainly used for containerized environments with the help of sysbox.
-func GetCgroupPathViaFs() (string, error) {
-	cgroupPath := path.Join(fs2.UnifiedMountpoint, "runj-containers", utils.RunjInstanceId)
+func GetCgroupPathViaFs(parentCgroupPath string) (string, error) {
+	cgroupPath := path.Join(parentCgroupPath, fmt.Sprintf("runj-container-%s", utils.RunjInstanceId))
 
-	if err := os.MkdirAll(cgroupPath, 0775); err != nil {
+	if err := os.Mkdir(cgroupPath, 0775); err != nil {
 		return "", fmt.Errorf("Failed to create cgroup directory: %w", err)
 	}
 
