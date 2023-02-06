@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub struct RunjConfig {
     pub rootless: bool,
 
+    pub cgroup_path: PathBuf,
+
     pub rootfs: PathBuf,
 
     pub cwd: PathBuf,

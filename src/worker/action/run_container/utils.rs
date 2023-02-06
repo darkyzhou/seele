@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 
 use super::{image, runj, Config};
-use crate::{conf, shared, worker::ActionContext};
+use crate::{cgroup, conf, shared, worker::ActionContext};
 
 pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<runj::RunjConfig> {
     let rootfs = image::get_unpacked_image_path(&config.image).join("rootfs");
@@ -20,6 +20,7 @@ pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<run
 
     Ok(runj::RunjConfig {
         rootless: conf::CONFIG.work_mode.is_rootless(),
+        cgroup_path: cgroup::CGROUP_CONTAINER_SLICE_PATH.clone(),
         rootfs,
         cwd: config.cwd,
         command,

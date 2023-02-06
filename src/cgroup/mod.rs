@@ -19,7 +19,7 @@ mod utils;
 
 const MANDATORY_CONTROLLERS: &str = "+cpu +cpuset +memory +io +pids";
 
-static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
+pub static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
     SeeleWorkMode::RootlessBare => {
         systemd::create_and_enter_cgroup().expect("Error entering cgroup scope cgroup")
     }
@@ -28,9 +28,9 @@ static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
     }
 });
 
-static CGROUP_MAIN_SCOPE_PATH: Lazy<PathBuf> = Lazy::new(|| CGROUP_PATH.join("main.scope"));
+pub static CGROUP_MAIN_SCOPE_PATH: Lazy<PathBuf> = Lazy::new(|| CGROUP_PATH.join("main.scope"));
 
-static CGROUP_CONTAINER_SLICE_PATH: Lazy<PathBuf> =
+pub static CGROUP_CONTAINER_SLICE_PATH: Lazy<PathBuf> =
     Lazy::new(|| CGROUP_PATH.join("container.slice"));
 
 #[inline]
