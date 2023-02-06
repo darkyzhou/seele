@@ -45,8 +45,6 @@ fn start_transient_unit(proxy: &Proxy<&Connection>) -> Result<()> {
         ),
         ("Delegate", Variant(Box::new(true))),
         ("Slice", Variant(Box::new(PARENT_SLICE.to_string()))),
-        ("CPUAccounting", Variant(Box::new(true))),
-        ("TasksAccounting", Variant(Box::new(true))),
         ("DefaultDependencies", Variant(Box::new(false))),
         ("PIDs", Variant(Box::new(vec![process::id()]))),
     ];
