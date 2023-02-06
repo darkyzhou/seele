@@ -42,7 +42,10 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
         return OjStatus::Accepted;
     }
 
-    if matches!(run_report.status, ExecutionStatus::TimeLimitExceeded) {
+    if matches!(
+        run_report.status,
+        ExecutionStatus::TimeLimitExceeded | ExecutionStatus::WallLimitExceeded
+    ) {
         return OjStatus::TimeLimitExceeded;
     }
 

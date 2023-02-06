@@ -182,8 +182,11 @@ pub enum ContainerExecutionStatus {
     #[serde(rename = "SIGNAL_STOP")]
     SignalStop,
 
-    #[serde(rename = "TIME_LIMIT_EXCEEDED")]
+    #[serde(rename = "USER_TIME_LIMIT_EXCEEDED")]
     TimeLimitExceeded,
+
+    #[serde(rename = "WALL_TIME_LIMIT_EXCEEDED")]
+    WallLimitExceeded,
 
     #[serde(rename = "MEMORY_LIMIT_EXCEEDED")]
     MemoryLimitExceeded,
