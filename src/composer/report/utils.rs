@@ -42,7 +42,7 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
         return OjStatus::Accepted;
     }
 
-    if run_report.is_wall_tle || run_report.is_user_tle || run_report.is_system_tle {
+    if matches!(run_report.status, ExecutionStatus::TimeLimitExceeded) {
         return OjStatus::TimeLimitExceeded;
     }
 

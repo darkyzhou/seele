@@ -9,7 +9,4 @@ type ExecutionReport struct {
 	CpuKernelTimeMs uint64 `json:"cpu_kernel_time_ms"`
 	MemoryUsageKiB  uint64 `json:"memory_usage_kib"`
 	IsOOM           bool   `json:"is_oom"`
-	IsWallTLE       bool   `json:"is_wall_tle"`
-	IsSystemTLE     bool   `json:"is_system_tle"`
-	IsUserTLE       bool   `json:"is_user_tle"`
 }

@@ -37,21 +37,16 @@ type ExecutionReportProps struct {
 func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport, error) {
 	var (
 		memoryUsageKib uint64
-		cpuTotalMs     uint64
 		cpuKernelMs    uint64
 		cpuUserMs      uint64
 		exitStatus     = STATUS_UNKNOWN
 		code           = -1
 		signal         = ""
-		isWallTLE      bool
-		isSystemTLE    bool
-		isUserTLE      bool
 	)
 
 	// Since `process.Wait()` could return an error, both `state` and `stats` may be nil
 	if props.stats != nil && props.stats.CgroupStats != nil {
 		memoryUsageKib = lo.Max([]uint64{props.stats.CgroupStats.MemoryStats.SwapUsage.Usage, props.stats.CgroupStats.MemoryStats.SwapUsage.MaxUsage}) / 1024
-		cpuTotalMs = props.stats.CgroupStats.CpuStats.CpuUsage.TotalUsage / 1e6
 		cpuKernelMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInKernelmode / 1e6
 		cpuUserMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInUsermode / 1e6
 	}
@@ -90,27 +85,17 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 	}
 
 	// SIGXCPUs sent by RLIMIT_CPU might not be able to terminate some processes in a dead loop.
-	// Plus, currently runj only uses a goroutine for time limiting which will send a SIGKILL
-	// if the process ran out of time.
+	// In addition, currently runj only uses a goroutine for time limiting which will send a SIGKILL if the process ran out of time.
 	// In order to determine if it's truly a TLE status, we manually check the config and compare them here.
-	if props.config.Limits != nil && props.config.Limits.Time != nil {
-		if props.config.Limits.Time.KernelLimitMs != 0 && cpuKernelMs > props.config.Limits.Time.KernelLimitMs {
+	if props.config.Limits != nil && props.config.Limits.TimeMs > 0 {
+		if props.config.Limits.TimeMs < cpuUserMs {
 			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
-			isSystemTLE = true
-		}
-		if props.config.Limits.Time.UserLimitMs != 0 && cpuUserMs > props.config.Limits.Time.UserLimitMs {
-			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
-			isUserTLE = true
-		}
-		if props.config.Limits.Time.WallLimitMs != 0 && lo.Max([]uint64{uint64(props.wallTime.Milliseconds()), cpuTotalMs}) > props.config.Limits.Time.WallLimitMs {
-			exitStatus = STATUS_TIME_LIMIT_EXCEEDED
-			isWallTLE = true
 		}
 	}
 
 	// SIGXFSZs sent by RLIMIT_FSIZE might not be able to terminate some processes in a dead loop.
-	// And they will usually be killed by SIGKILLs sent by TLE checker. Therefore we check
-	// the output files' length additionally to determine whether it is actually an OLE status.
+	// And they will usually be killed by SIGKILLs sent by time limit goroutine. Therefore we check
+	// the output files' lengths additionally to determine whether it is actually an OLE status.
 	if props.rlimitFsize > 0 {
 		if props.config.Fd != nil && props.config.Fd.StdOut != "" {
 			info, err := os.Stat(props.stdOutFilePath)
@@ -153,9 +138,6 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		CpuUserTimeMs:   cpuUserMs,
 		CpuKernelTimeMs: cpuKernelMs,
 		MemoryUsageKiB:  memoryUsageKib,
-		IsWallTLE:       isWallTLE,
-		IsSystemTLE:     isSystemTLE,
-		IsUserTLE:       isUserTLE,
 		IsOOM:           isOOM,
 	}, nil
 }

@@ -133,21 +133,6 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	}
 
 	var (
-		timeLimitMs uint64
-	)
-	{
-		if config.Limits != nil && config.Limits.Time != nil {
-			if config.Limits.Time.WallLimitMs != 0 {
-				timeLimitMs = config.Limits.Time.WallLimitMs
-			} else {
-				if config.Limits.Time.KernelLimitMs != 0 || config.Limits.Time.UserLimitMs != 0 {
-					timeLimitMs = config.Limits.Time.KernelLimitMs + config.Limits.Time.UserLimitMs
-				}
-			}
-		}
-	}
-
-	var (
 		rlimits     []configs.Rlimit
 		rlimitFsize uint64
 	)
@@ -201,13 +186,13 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		Rlimits:         rlimits,
 	}
 
-	timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), time.Duration(timeLimitMs*2)*time.Millisecond)
-	defer timeLimitCtxCancel()
-
 	processFinishedCtx, processFinishedCtxCancel := context.WithCancel(context.Background())
 	defer processFinishedCtxCancel()
 
-	if timeLimitMs > 0 {
+	if config.Limits.TimeMs > 0 {
+		timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), time.Duration(config.Limits.TimeMs*3)*time.Millisecond)
+		defer timeLimitCtxCancel()
+
 		go func() {
 			select {
 			case <-ctx.Done():

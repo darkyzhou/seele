@@ -25,15 +25,9 @@ type MountConfig struct {
 }
 
 type LimitsConfig struct {
-	Time   *TimeLimitsConfig `mapstructure:"time"`
-	Cgroup *CgroupConfig     `mapstructure:"cgroup"`
-	Rlimit []*RlimitConfig   `mapstructure:"rlimit"`
-}
-
-type TimeLimitsConfig struct {
-	WallLimitMs   uint64 `mapstructure:"wall"`
-	KernelLimitMs uint64 `mapstructure:"kernel"`
-	UserLimitMs   uint64 `mapstructure:"user"`
+	TimeMs uint64          `mapstructure:"time_ms"`
+	Cgroup *CgroupConfig   `mapstructure:"cgroup"`
+	Rlimit []*RlimitConfig `mapstructure:"rlimit"`
 }
 
 type CgroupConfig struct {

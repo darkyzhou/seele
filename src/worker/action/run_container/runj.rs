@@ -166,9 +166,6 @@ pub struct ContainerExecutionReport {
     pub cpu_kernel_time_ms: u64,
     pub memory_usage_kib: u64,
     pub is_oom: bool,
-    pub is_wall_tle: bool,
-    pub is_system_tle: bool,
-    pub is_user_tle: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
