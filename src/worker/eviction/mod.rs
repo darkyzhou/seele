@@ -198,6 +198,10 @@ impl EvictionManager {
             eviected_items
         };
 
+        for item in &evicted_items {
+            state.data_to_time_map.remove(item);
+        }
+
         debug!("Evicting files: {:?}", evicted_items);
         let errors = future::join_all(
             evicted_items.into_iter().map(|path| conf::CONFIG.root_path.join(path)).map(
