@@ -15,7 +15,6 @@ async-recursion = "1.0.0"
 async-trait = "0.1.59"
 bytes = "1.3.0"
 chrono = { version = "0.4.23", features = ["serde"] }
-ciborium = "0.2.0"
 config = "0.13.3"
 dbus = "0.9.7"
 duct = "0.13.6"

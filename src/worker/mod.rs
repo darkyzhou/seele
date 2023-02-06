@@ -60,9 +60,9 @@ macro_rules! new_eviction_manager {
             Some(config) => Some(
                 EvictionManager::new(
                     $name.to_string(),
-                    Duration::from_secs(60 * config.ttl_minute),
-                    Duration::from_secs(60 * config.interval_minute),
                     config.capacity,
+                    Duration::from_secs(60 * config.interval_minute),
+                    Duration::from_secs(60 * config.ttl_minute),
                     File::open($file).await.ok(),
                 )
                 .await
@@ -84,8 +84,8 @@ macro_rules! save_states {
 
 pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
     {
-        let submission_eviction_file = conf::PATHS.states.join("submission_eviction");
-        let image_eviction_file = conf::PATHS.states.join("image_eviction");
+        let submission_eviction_file = conf::PATHS.states.join("submission_eviction.yaml");
+        let image_eviction_file = conf::PATHS.states.join("image_eviction.yaml");
         let submission_eviction_manager = new_eviction_manager!(
             "submission",
             conf::CONFIG.worker.submission_eviction,

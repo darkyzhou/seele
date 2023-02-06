@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SubsecRound, Utc};
 use futures_util::future;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -52,9 +52,9 @@ struct EvictionState {
 impl EvictionManager {
     pub async fn new(
         name: String,
+        capacity: usize,
         interval: Duration,
         ttl: Duration,
-        capacity: usize,
         state_file: Option<File>,
     ) -> Result<Self> {
         let manager = Self {
@@ -109,7 +109,7 @@ impl EvictionManager {
     }
 
     pub async fn load_states(&self, data: &[u8]) -> Result<usize> {
-        let recovered: EvictionState = ciborium::de::from_reader(data)?;
+        let recovered: EvictionState = serde_yaml::from_reader(data)?;
         let state = {
             let mut state = self.state.lock().await;
             state.items = recovered.items;
@@ -122,11 +122,14 @@ impl EvictionManager {
 
     pub async fn save_states(&self, writer: &mut Vec<u8>) -> Result<()> {
         let state = self.state.lock().await;
-        Ok(ciborium::ser::into_writer(&*state, writer)?)
+
+        serde_yaml::to_writer(writer, &*state)?;
+
+        Ok(())
     }
 
     async fn do_visit<'a>(&self, mut state: MutexGuard<'a, EvictionState>, data: &Path) {
-        let now = Utc::now();
+        let now = Utc::now().trunc_subsecs(0);
 
         state.items.push(Reverse(now));
         state.data_to_time_map.insert(data.into(), now);
@@ -260,9 +263,9 @@ mod tests {
         let manager = Arc::new(
             super::EvictionManager::new(
                 "test".to_string(),
+                10,
                 Duration::from_millis(1000),
                 Duration::from_millis(200),
-                10,
                 None,
             )
             .await
@@ -297,9 +300,9 @@ mod tests {
         let manager = Arc::new(
             super::EvictionManager::new(
                 "test".to_string(),
+                2,
                 Duration::from_millis(300),
                 Duration::from_secs(100),
-                2,
                 None,
             )
             .await
@@ -334,9 +337,9 @@ mod tests {
         let manager = Arc::new(
             super::EvictionManager::new(
                 "test".to_string(),
+                10,
                 Duration::from_millis(100),
                 Duration::from_millis(200),
-                10,
                 None,
             )
             .await
@@ -366,9 +369,9 @@ mod tests {
         let manager = Arc::new(
             super::EvictionManager::new(
                 "test".to_string(),
+                2,
                 Duration::from_millis(300),
                 Duration::from_secs(100),
-                2,
                 None,
             )
             .await
