@@ -148,9 +148,12 @@ func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to resolve the absolute path for %s: %w", mount.From, err)
 		}
+
 		toPath := filepath.Join("/", mount.To)
+
 		if utils.FileExists(fromPath) {
-			options := append([]string{"bind", "ro", "private"}, mount.Options...)
+			options := append([]string{"bind", "private"}, mount.Options...)
+
 			if lo.Contains(options, "exec") {
 				// FIXME: Runj should not do this
 				mask := unix.Umask(0)
@@ -160,6 +163,7 @@ func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 					return nil, fmt.Errorf("Failed to chmod the file %s: %w", fromPath, err)
 				}
 			}
+
 			mounts = append(mounts, specs.Mount{
 				Destination: toPath,
 				Type:        "bind",
@@ -167,7 +171,7 @@ func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 				Options:     options,
 			})
 		} else if utils.DirectoryExists(fromPath) {
-			options := append([]string{"rbind", "ro", "private"}, mount.Options...)
+			options := append([]string{"rbind", "private"}, mount.Options...)
 			mounts = append(mounts, specs.Mount{
 				Destination: toPath,
 				Type:        "rbind",
