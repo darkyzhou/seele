@@ -81,7 +81,7 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
                 match reader.read_to_end(&mut output) {
                     Err(_) => {
                         let texts = {
-                            let output = output.into_iter().take(400).collect::<Vec<_>>();
+                            let output = output.into_iter().take(1024).collect::<Vec<_>>();
                             String::from_utf8_lossy(&output[..]).to_string()
                         };
                         error!(texts = %texts, "The runj process failed");
