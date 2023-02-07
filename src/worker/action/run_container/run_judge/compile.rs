@@ -39,7 +39,7 @@ pub enum CacheItem {
 
 #[instrument]
 pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
-    let mount_directory = conf::PATHS.temp.join(nano_id::base62::<8>());
+    let mount_directory = conf::PATHS.temp.join(format!("run-judge-{}", nano_id::base62::<8>()));
     fs::create_dir(&mount_directory).await?;
     // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
     // bit is for rootful case.
