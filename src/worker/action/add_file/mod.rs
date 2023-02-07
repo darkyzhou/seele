@@ -131,7 +131,7 @@ async fn download_http_file(url: String) -> Result<Bytes, String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{iter, path::PathBuf, sync::Arc};
+    use std::{iter, path::PathBuf};
 
     use tokio::fs;
 
@@ -145,11 +145,7 @@ mod tests {
 
         let text = "EXAMPLE 测试".to_string();
         super::handle_inline_file(
-            &ActionContext {
-                submission_root: submission_root.clone(),
-                submission_eviction_manager: Arc::default(),
-                image_eviction_manager: Arc::default(),
-            },
+            &ActionContext { submission_root: submission_root.clone() },
             &target_path,
             &text,
         )
@@ -168,11 +164,7 @@ mod tests {
         fs::create_dir_all(&submission_root).await.unwrap();
 
         super::handle_http_file(
-            &ActionContext {
-                submission_root: submission_root.clone(),
-                submission_eviction_manager: Arc::default(),
-                image_eviction_manager: Arc::default(),
-            },
+            &ActionContext { submission_root: submission_root.clone() },
             &target_path,
             &"https://reqbin.com/echo/get/json".to_string(),
         )

@@ -49,13 +49,9 @@ fn main() {
 
     info!("Creating necessary directories in {}", conf::PATHS.root.display());
     {
-        for path in [
-            &conf::PATHS.images,
-            &conf::PATHS.submissions,
-            &conf::PATHS.evicted,
-            &conf::PATHS.states,
-            &conf::PATHS.temp,
-        ] {
+        for path in
+            [&conf::PATHS.images, &conf::PATHS.submissions, &conf::PATHS.evicted, &conf::PATHS.temp]
+        {
             create_dir_all(path)
                 .expect(&format!("Error creating the directory: {}", path.display()));
         }
@@ -70,7 +66,7 @@ fn main() {
         .thread_keep_alive(Duration::from_secs(u64::MAX))
         .enable_all()
         .build()
-        .unwrap();
+        .expect("Error building tokio runtime");
     runtime
         .block_on(async move {
             {
