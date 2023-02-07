@@ -60,7 +60,7 @@ async fn handle_submission(
             "The submission's directory already exists, it may indicate a duplicate submission \
              id: {}",
             submission_root.display()
-        )
+        );
     }
 
     fs::create_dir_all(&submission_root)
