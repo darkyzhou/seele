@@ -17,7 +17,7 @@ use crate::{
     cgroup, conf,
     entities::{ActionFailedReportExt, ActionSuccessReportExt},
     worker::{
-        run_container::runj::{ContainerExecutionReport, RunjConfig},
+        run_container::runj::{ContainerExecutionReport, RunjConfig, RunjError},
         ActionErrorWithReport,
     },
 };
@@ -80,12 +80,11 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
                 let mut output = vec![];
                 match reader.read_to_end(&mut output) {
                     Err(_) => {
-                        let texts = {
-                            let output = output.into_iter().take(1024).collect::<Vec<_>>();
-                            String::from_utf8_lossy(&output[..]).to_string()
-                        };
-                        error!(texts = %texts, "The runj process failed");
-                        bail!("The runj process failed: {}", texts)
+                        let error: RunjError = serde_json::from_slice(&output)
+                            .context("Error deserializing runj error report")?;
+                        error!("The runj process failed: {}", error);
+
+                        bail!("The runj process failed: {}", error)
                     }
                     Ok(_) => serde_json::from_slice(&output[..])
                         .context("Error deserializing the report"),

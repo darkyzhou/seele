@@ -1,6 +1,22 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RunjError {
+    #[serde(rename = "msg")]
+    pub message: String,
+    pub error: Option<String>,
+}
+
+impl Display for RunjError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.error {
+            None => write!(f, "{}", self.message),
+            Some(error) => write!(f, "{}: {}", self.message, error),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RunjConfig {
