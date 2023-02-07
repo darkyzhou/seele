@@ -53,7 +53,7 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
             run_container_config.mounts.push(run_container::MountConfig::Full(runj::MountConfig {
                 from: mount_directory.clone(),
                 to: PathBuf::from(MOUNT_DIRECTORY),
-                options: Some(vec!["rw".to_string()]),
+                options: None,
             }));
 
             run_container_config.mounts.extend(

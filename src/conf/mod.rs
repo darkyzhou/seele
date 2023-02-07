@@ -25,6 +25,9 @@ pub struct SeeleConfig {
     #[serde(default = "default_root_path")]
     pub root_path: PathBuf,
 
+    #[serde(default = "default_tmp_path")]
+    pub tmp_path: PathBuf,
+
     #[serde(default = "default_runj_path")]
     pub runj_path: String,
 
@@ -76,6 +79,11 @@ fn default_work_mode() -> SeeleWorkMode {
 #[inline]
 fn default_root_path() -> PathBuf {
     "/seele".into()
+}
+
+#[inline]
+fn default_tmp_path() -> PathBuf {
+    "/tmp".into()
 }
 
 #[inline]
