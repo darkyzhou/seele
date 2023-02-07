@@ -21,8 +21,9 @@ import (
 )
 
 func init() {
+	runtime.GOMAXPROCS(1)
+
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		runtime.GOMAXPROCS(1)
 		runtime.LockOSThread()
 		factory, _ := libcontainer.New("")
 		if err := factory.StartInitialization(); err != nil {
@@ -30,17 +31,17 @@ func init() {
 		}
 
 		panic("Libcontainer failed to init")
+	}
+
+	if os.Getenv("RUNJ_DEBUG") != "" {
+		logrus.SetLevel(logrus.DebugLevel)
+		logrus.SetOutput(os.Stdout)
 	} else {
-		if os.Getenv("RUNJ_DEBUG") != "" {
-			logrus.SetLevel(logrus.DebugLevel)
-			logrus.SetOutput(os.Stdout)
-		} else {
-			logrus.SetFormatter(&logrus.JSONFormatter{
-				DisableTimestamp: true,
-			})
-			logrus.SetLevel(logrus.FatalLevel)
-			logrus.SetOutput(os.Stderr)
-		}
+		logrus.SetFormatter(&logrus.JSONFormatter{
+			DisableTimestamp: true,
+		})
+		logrus.SetLevel(logrus.FatalLevel)
+		logrus.SetOutput(os.Stderr)
 	}
 }
 
