@@ -43,7 +43,11 @@ async function runTest(stub, rootless = true) {
 }
 
 async function executeRunj(config, rootless = true) {
-  config.rootless = rootless;
+  config.user_namespace = {
+    enabled: true,
+    map_to_user: "seele",
+    map_to_group: "seele",
+  };
 
   const tempPath = resolve(
     tmpdir(),
