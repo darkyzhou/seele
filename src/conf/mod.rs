@@ -50,8 +50,8 @@ pub enum SeeleWorkMode {
     #[serde(rename = "bare")]
     Bare,
 
-    #[serde(rename = "systemd")]
-    Systemd,
+    #[serde(rename = "bare_systemd")]
+    BareSystemd,
 
     #[serde(rename = "containerized")]
     Containerized,

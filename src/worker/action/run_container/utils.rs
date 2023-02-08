@@ -11,7 +11,7 @@ use crate::{
 pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<runj::RunjConfig> {
     let user_namespace = {
         match &conf::CONFIG.work_mode {
-            SeeleWorkMode::Bare | SeeleWorkMode::Systemd | SeeleWorkMode::Containerized => {
+            SeeleWorkMode::Bare | SeeleWorkMode::BareSystemd | SeeleWorkMode::Containerized => {
                 Some(runj::UserNamespaceConfig {
                     enabled: true,
                     map_to_user: todo!(),
