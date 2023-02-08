@@ -1,15 +1,21 @@
 package entities
 
 type RunjConfig struct {
-	Rootless   bool           `mapstructure:"rootless"`
-	CgroupPath string         `mapstructure:"cgroup_path"`
-	Rootfs     string         `mapstructure:"rootfs" validate:"required"`
-	Cwd        string         `mapstructure:"cwd" validate:"required"`
-	Command    []string       `mapstructure:"command" validate:"required,dive,required"`
-	Paths      []string       `mapstructure:"paths" validate:"dive,required"`
-	Fd         *FdConfig      `mapstructure:"fd"`
-	Mounts     []*MountConfig `mapstructure:"mounts"`
-	Limits     *LimitsConfig  `mapstructure:"limits"`
+	UserNamespace *UserNamespaceConfig `mapstructure:"user_namespace"`
+	CgroupPath    string               `mapstructure:"cgroup_path"`
+	Rootfs        string               `mapstructure:"rootfs" validate:"required"`
+	Cwd           string               `mapstructure:"cwd" validate:"required"`
+	Command       []string             `mapstructure:"command" validate:"required,dive,required"`
+	Paths         []string             `mapstructure:"paths" validate:"dive,required"`
+	Fd            *FdConfig            `mapstructure:"fd"`
+	Mounts        []*MountConfig       `mapstructure:"mounts"`
+	Limits        *LimitsConfig        `mapstructure:"limits"`
+}
+
+type UserNamespaceConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	MapToUser  string `mapstructure:"map_to_user"`
+	MapToGroup string `mapstructure:"map_to_group"`
 }
 
 type FdConfig struct {

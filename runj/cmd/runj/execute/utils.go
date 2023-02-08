@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
+	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
@@ -49,54 +50,61 @@ func getCgroupPath(parentCgroupPath string, rootless bool) (string, string, erro
 	return parentPath, fullCgroupPath, nil
 }
 
-func prepareIdMaps() error {
-	if uidMappings == nil {
-		// Mapping 0 -> Geteuid() is required for libcontainer to work properly
-		uidMappings = append(uidMappings, specs.LinuxIDMapping{
-			HostID:      uint32(os.Geteuid()),
-			ContainerID: 0,
-			Size:        1,
-		})
+func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping, []specs.LinuxIDMapping, error) {
+	var (
+		uidMappings []specs.LinuxIDMapping
+		gidMappings []specs.LinuxIDMapping
+	)
 
-		// Map uids starting from 1
-		m, err := findIdMap(1, "/etc/subuid")
-		if err != nil {
-			return fmt.Errorf("Error initializing the uid map: %w", err)
-		}
-		uidMappings = append(uidMappings, *m)
+	// Mapping 0 -> Geteuid() is required for libcontainer to work properly
+	uidMappings = append(uidMappings, specs.LinuxIDMapping{
+		HostID:      uint32(os.Geteuid()),
+		ContainerID: 0,
+		Size:        1,
+	})
+
+	// Map uids starting from 1
+	subUids, err := findIdMap(config.MapToUser, 1, "/etc/subuid")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error initializing the uid map: %w", err)
 	}
+	uidMappings = append(uidMappings, *subUids)
 
-	if gidMappings == nil {
-		// Mapping 0 -> Getegid() is required for libcontainer to work properly
-		gidMappings = append(gidMappings, specs.LinuxIDMapping{
-			HostID:      uint32(os.Getegid()),
-			ContainerID: 0,
-			Size:        1,
-		})
+	// Mapping 0 -> Getegid() is required for libcontainer to work properly
+	gidMappings = append(gidMappings, specs.LinuxIDMapping{
+		HostID:      uint32(os.Getegid()),
+		ContainerID: 0,
+		Size:        1,
+	})
 
-		// Map gids starting from 1
-		m, err := findIdMap(1, "/etc/subgid")
-		if err != nil {
-			return fmt.Errorf("Error initializing the gid map: %w", err)
-		}
-		gidMappings = append(gidMappings, *m)
+	// Map gids starting from 1
+	subGids, err := findIdMap(config.MapToGroup, 1, "/etc/subgid")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error initializing the gid map: %w", err)
 	}
+	gidMappings = append(gidMappings, *subGids)
 
-	return nil
+	return uidMappings, gidMappings, nil
 }
 
-func findIdMap(containerId uint32, path string) (*specs.LinuxIDMapping, error) {
+func findIdMap(mapTo string, containerId uint32, path string) (*specs.LinuxIDMapping, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open %s: %w", path, err)
 	}
 	defer file.Close()
 
-	u, err := user.Current()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get current user: %w", err)
+	var target string
+
+	if mapTo == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get current user: %w", err)
+		}
+		target = fmt.Sprintf("%s:", u.Username)
+	} else {
+		target = mapTo
 	}
-	target := fmt.Sprintf("%s:", u.Username)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -129,7 +137,7 @@ func findIdMap(containerId uint32, path string) (*specs.LinuxIDMapping, error) {
 		return nil, fmt.Errorf("Failed to read %s: %w", path, err)
 	}
 
-	return nil, fmt.Errorf("Cannot find current user %s in %s", u.Username, path)
+	return nil, fmt.Errorf("Cannot find user or group %s in %s", target, path)
 }
 
 func prepareOutFile(path string) (*os.File, error) {

@@ -20,19 +20,24 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	uidMappings []specs.LinuxIDMapping
-	gidMappings []specs.LinuxIDMapping
-)
-
 func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.ExecutionReport, error) {
-	if config.Rootless {
-		if err := prepareIdMaps(); err != nil {
+	userNamespaceEnabled := config.UserNamespace != nil && config.UserNamespace.Enabled
+
+	var (
+		uidMappings []specs.LinuxIDMapping
+		gidMappings []specs.LinuxIDMapping
+	)
+	if userNamespaceEnabled {
+		uids, gids, err := getIdMappings(config.UserNamespace)
+		if err != nil {
 			return nil, fmt.Errorf("Error preparing id maps: %w", err)
 		}
+
+		uidMappings = append(uidMappings, uids...)
+		gidMappings = append(gidMappings, gids...)
 	}
 
-	spec, err := makeContainerSpec(config)
+	spec, err := makeContainerSpec(config, uidMappings, gidMappings)
 	if err != nil {
 		return nil, fmt.Errorf("Error making container specification: %w", err)
 	}
@@ -42,7 +47,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}
 
-	parentCgroupPath, cgroupPath, err := getCgroupPath(config.CgroupPath, config.Rootless)
+	parentCgroupPath, cgroupPath, err := getCgroupPath(config.CgroupPath, userNamespaceEnabled)
 	if err != nil {
 		return nil, fmt.Errorf("Error preparing cgroup path: %w", err)
 	}
@@ -57,8 +62,8 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	containerConfig, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		Spec:             spec,
-		RootlessEUID:     config.Rootless,
-		RootlessCgroups:  config.Rootless,
+		RootlessEUID:     userNamespaceEnabled,
+		RootlessCgroups:  userNamespaceEnabled,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("Error creating libcontainer config: %w", err)

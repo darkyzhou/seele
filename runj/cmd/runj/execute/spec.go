@@ -15,41 +15,41 @@ import (
 
 var defaultMountPoints = []specs.Mount{
 	{
-		Source:      "proc",
 		Destination: "/proc",
 		Type:        "proc",
-		Options:     []string{"noexec", "nosuid", "nodev"},
+		Source:      "proc",
+		Options:     nil,
 	},
 	{
-		Source:      "tmpfs",
 		Destination: "/dev",
 		Type:        "tmpfs",
+		Source:      "tmpfs",
 		Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
 	},
 	// TODO: May be not needed
 	{
-		Source:      "devpts",
 		Destination: "/dev/pts",
 		Type:        "devpts",
+		Source:      "devpts",
 		// Normally a devpts mount point will have a `gid=5` option but in rootless containers it will cause problems
 		Options: []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
 	},
 	{
-		Source:      "shm",
 		Destination: "/dev/shm",
 		Type:        "tmpfs",
+		Source:      "shm",
 		Options:     []string{"nosuid", "noexec", "nodev", "mode=1777", "size=65536k"},
 	},
 	{
-		Source:      "mqueue",
 		Destination: "/dev/mqueue",
 		Type:        "mqueue",
+		Source:      "mqueue",
 		Options:     []string{"nosuid", "noexec", "nodev"},
 	},
 	{
-		Source:      "sysfs",
 		Destination: "/sys",
 		Type:        "sysfs",
+		Source:      "sysfs",
 		Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 	},
 }
@@ -95,7 +95,7 @@ var defaultMemoryLimitBytes int64 = 512 * 1024 * 1024 // 512 MiB
 var defaultSwappiness uint64 = 0
 var defaultPidsLimit int64 = 64
 
-func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
+func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDMapping, gidMappings []specs.LinuxIDMapping) (*specs.Spec, error) {
 	var (
 		cgroupCpuRules = &specs.LinuxCPU{}
 		cgroupMemRules = &specs.LinuxMemory{
@@ -203,7 +203,7 @@ func makeContainerSpec(config *entities.RunjConfig) (*specs.Spec, error) {
 			Type: specs.CgroupNamespace,
 		},
 	}
-	if config.Rootless {
+	if config.UserNamespace != nil && config.UserNamespace.Enabled {
 		namespaces = append(namespaces, specs.LinuxNamespace{
 			Type: specs.UserNamespace,
 		})
