@@ -20,7 +20,8 @@ impl Display for RunjError {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RunjConfig {
-    pub rootless: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_namespace: Option<UserNamespaceConfig>,
 
     pub cgroup_path: PathBuf,
 
@@ -40,6 +41,13 @@ pub struct RunjConfig {
     pub mounts: Vec<MountConfig>,
 
     pub limits: LimitsConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct UserNamespaceConfig {
+    pub enabled: bool,
+    pub map_to_user: String,
+    pub map_to_group: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

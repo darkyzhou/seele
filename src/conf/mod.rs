@@ -55,6 +55,9 @@ pub enum SeeleWorkMode {
 
     #[serde(rename = "containerized")]
     Containerized,
+
+    #[serde(rename = "rootless_containerized")]
+    RootlessContainerized,
 }
 
 #[derive(Debug, Deserialize)]

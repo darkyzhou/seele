@@ -9,14 +9,29 @@ use crate::{
 };
 
 pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<runj::RunjConfig> {
-    let rootless = matches!(&conf::CONFIG.work_mode, SeeleWorkMode::Bare | SeeleWorkMode::Systemd);
+    let user_namespace = {
+        match &conf::CONFIG.work_mode {
+            SeeleWorkMode::Bare | SeeleWorkMode::Systemd | SeeleWorkMode::Containerized => {
+                Some(runj::UserNamespaceConfig {
+                    enabled: true,
+                    map_to_user: todo!(),
+                    map_to_group: todo!(),
+                })
+            }
+            SeeleWorkMode::RootlessContainerized => None,
+        }
+    };
+
     let rootfs = image::get_unpacked_image_path(&config.image).join("rootfs");
+
     let command = config.command.try_into().context("Error parsing command")?;
+
     let fd = config.fd.map(|fd| runj::FdConfig {
         stdin: fd.stdin.map(|path| ctx.submission_root.join(path)),
         stdout: fd.stdout.map(|path| ctx.submission_root.join(path)),
         stderr: fd.stderr.map(|path| ctx.submission_root.join(path)),
     });
+
     let mounts = config
         .mounts
         .into_iter()
@@ -25,7 +40,7 @@ pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<run
         .context("Error parsing mount")?;
 
     Ok(runj::RunjConfig {
-        rootless,
+        user_namespace,
         cgroup_path: cgroup::CGROUP_CONTAINER_SLICE_PATH.clone(),
         rootfs,
         cwd: config.cwd,
