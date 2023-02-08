@@ -20,6 +20,10 @@ pub fn check_and_get_self_cgroup() -> Result<PathBuf> {
         bail!("Unexpected /proc/thread-self/cgroup content, the cgroup is deleted: {}", content);
     }
 
+    if content == "0::/" {
+        return Ok(DEFAULT_CGROUP_ROOT.into());
+    }
+
     let cgroup_path = content.trim_start_matches("0::/");
     Ok([DEFAULT_CGROUP_ROOT, cgroup_path].into_iter().collect())
 }
