@@ -47,16 +47,14 @@ pub struct SeeleConfig {
 // TODO: move to cli argument
 #[derive(Debug, Deserialize)]
 pub enum SeeleWorkMode {
-    RootlessBare,
-    RootlessSystemd,
-    Privileged,
-}
+    #[serde(rename = "bare")]
+    Bare,
 
-impl SeeleWorkMode {
-    #[inline]
-    pub fn is_rootless(&self) -> bool {
-        matches!(self, SeeleWorkMode::RootlessBare | SeeleWorkMode::RootlessSystemd)
-    }
+    #[serde(rename = "systemd")]
+    Systemd,
+
+    #[serde(rename = "containerized")]
+    Containerized,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,7 +71,7 @@ impl Default for ThreadCounts {
 
 #[inline]
 fn default_work_mode() -> SeeleWorkMode {
-    SeeleWorkMode::RootlessBare
+    SeeleWorkMode::Bare
 }
 
 #[inline]

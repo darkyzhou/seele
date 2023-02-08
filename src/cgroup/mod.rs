@@ -20,10 +20,10 @@ mod utils;
 const MANDATORY_CONTROLLERS: &str = "+cpu +cpuset +memory +io +pids";
 
 pub static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
-    SeeleWorkMode::RootlessBare => {
+    SeeleWorkMode::Bare => {
         systemd::create_and_enter_cgroup().expect("Error entering cgroup scope cgroup")
     }
-    SeeleWorkMode::RootlessSystemd | SeeleWorkMode::Privileged => {
+    SeeleWorkMode::Systemd | SeeleWorkMode::Containerized => {
         utils::check_and_get_self_cgroup().expect("Error getting process' cgroup path")
     }
 });

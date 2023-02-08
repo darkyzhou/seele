@@ -1,9 +1,15 @@
 use anyhow::{Context, Result};
 
 use super::{image, runj, Config};
-use crate::{cgroup, conf, shared, worker::ActionContext};
+use crate::{
+    cgroup,
+    conf::{self, SeeleWorkMode},
+    shared,
+    worker::ActionContext,
+};
 
 pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<runj::RunjConfig> {
+    let rootless = matches!(&conf::CONFIG.work_mode, SeeleWorkMode::Bare | SeeleWorkMode::Systemd);
     let rootfs = image::get_unpacked_image_path(&config.image).join("rootfs");
     let command = config.command.try_into().context("Error parsing command")?;
     let fd = config.fd.map(|fd| runj::FdConfig {
@@ -19,7 +25,7 @@ pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<run
         .context("Error parsing mount")?;
 
     Ok(runj::RunjConfig {
-        rootless: conf::CONFIG.work_mode.is_rootless(),
+        rootless,
         cgroup_path: cgroup::CGROUP_CONTAINER_SLICE_PATH.clone(),
         rootfs,
         cwd: config.cwd,
