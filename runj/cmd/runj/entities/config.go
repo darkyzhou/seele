@@ -14,8 +14,8 @@ type RunjConfig struct {
 
 type UserNamespaceConfig struct {
 	Enabled    bool   `mapstructure:"enabled"`
-	MapToUser  string `mapstructure:"map_to_user"`
-	MapToGroup string `mapstructure:"map_to_group"`
+	MapToUser  string `mapstructure:"map_to_user" validate:"required"`
+	MapToGroup string `mapstructure:"map_to_group" validate:"required"`
 }
 
 type FdConfig struct {
