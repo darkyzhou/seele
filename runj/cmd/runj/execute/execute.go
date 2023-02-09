@@ -28,11 +28,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		gidMappings []specs.LinuxIDMapping
 	)
 	if userNamespaceEnabled {
-		uids, gids, err := getIdMappings(config.UserNamespace)
-		if err != nil {
-			return nil, fmt.Errorf("Error preparing id maps: %w", err)
-		}
-
+		uids, gids := getIdMappings(config.UserNamespace)
 		uidMappings = append(uidMappings, uids...)
 		gidMappings = append(gidMappings, gids...)
 	}
