@@ -5,6 +5,7 @@ pub use exchange::*;
 use once_cell::sync::Lazy;
 pub use path::*;
 use serde::Deserialize;
+use tracing_subscriber::filter::LevelFilter;
 pub use worker::*;
 
 use self::worker::WorkerConfig;
@@ -26,6 +27,9 @@ pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
 
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
+    #[serde(default)]
+    pub log_level: LogLevel,
+
     #[serde(default = "default_work_mode")]
     pub work_mode: SeeleWorkMode,
 
@@ -38,25 +42,46 @@ pub struct SeeleConfig {
     pub telemetry: Option<TelemetryConfig>,
 
     #[serde(default)]
-    pub exchanges: Vec<ExchangeConfig>,
+    pub exchange: Vec<ExchangeConfig>,
 
     #[serde(default)]
     pub worker: WorkerConfig,
 }
 
-// TODO: move to cli argument
+#[derive(Debug, Copy, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Off,
+}
+
+impl Default for LogLevel {
+    fn default() -> Self {
+        Self::Info
+    }
+}
+
+impl Into<LevelFilter> for LogLevel {
+    fn into(self) -> LevelFilter {
+        match self {
+            Self::Debug => LevelFilter::DEBUG,
+            Self::Info => LevelFilter::INFO,
+            Self::Warn => LevelFilter::WARN,
+            Self::Error => LevelFilter::ERROR,
+            Self::Off => LevelFilter::OFF,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SeeleWorkMode {
-    #[serde(rename = "bare")]
     Bare,
-
-    #[serde(rename = "bare_systemd")]
     BareSystemd,
-
-    #[serde(rename = "containerized")]
     Containerized,
-
-    #[serde(rename = "rootless_containerized")]
     RootlessContainerized,
 }
 

@@ -14,7 +14,7 @@ use opentelemetry_otlp::WithExportConfig;
 use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
-use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, Layer};
+use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
 
 use crate::{conf::SeeleWorkMode, worker::action};
 
@@ -44,7 +44,7 @@ fn main() {
                         tracing_subscriber::fmt()
                             .compact()
                             .with_line_number(true)
-                            .with_max_level(tracing::Level::DEBUG)
+                            .with_max_level(conf::CONFIG.log_level)
                             .finish(),
                     )
                     .expect("Failed to initialize the logger");
@@ -70,13 +70,13 @@ fn main() {
                             .with(
                                 tracing_opentelemetry::layer()
                                     .with_tracer(tracer)
-                                    .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
+                                    .with_filter(LevelFilter::INFO),
                             )
                             .with(
                                 tracing_subscriber::fmt::layer()
                                     .compact()
                                     .with_line_number(true)
-                                    .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
+                                    .with_filter::<LevelFilter>(conf::CONFIG.log_level.into()),
                             ),
                     )
                     .expect("Error initializing the tracing subscriber");
