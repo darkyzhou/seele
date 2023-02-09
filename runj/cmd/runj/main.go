@@ -37,9 +37,6 @@ func init() {
 		logrus.SetLevel(logrus.DebugLevel)
 		logrus.SetOutput(os.Stdout)
 	} else {
-		logrus.SetFormatter(&logrus.JSONFormatter{
-			DisableTimestamp: true,
-		})
 		logrus.SetLevel(logrus.FatalLevel)
 		logrus.SetOutput(os.Stderr)
 	}
