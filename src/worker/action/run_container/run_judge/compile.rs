@@ -37,7 +37,7 @@ pub enum CacheItem {
     File { file: String },
 }
 
-#[instrument]
+#[instrument(skip_all, name = "action_run_judge_compile_execute")]
 pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let mount_directory = conf::PATHS.temp.join(format!("run-judge-{}", nano_id::base62::<8>()));
     fs::create_dir(&mount_directory).await?;

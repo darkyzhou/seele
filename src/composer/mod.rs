@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context, Result};
 use tokio::{fs, sync::mpsc};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{debug, debug_span, error, instrument, Instrument};
+use tracing::{debug, error, info_span, Instrument};
 
 use crate::{conf, entities::SubmissionConfig, worker::WorkerQueueTx};
 
@@ -32,7 +32,8 @@ pub async fn composer_main(
         composer_queue_rx.recv().cancel_on_shutdown(&handle).await
     {
         tokio::spawn({
-            let span = debug_span!("composer_main_handle_submission", submission = ?submission);
+            let span =
+                info_span!("composer_handle_submission", seele.submission.id = submission.id);
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
                 // TODO: pass the `handle`
@@ -48,7 +49,6 @@ pub async fn composer_main(
     Ok(())
 }
 
-#[instrument(level = "debug")]
 async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,

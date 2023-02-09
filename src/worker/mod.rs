@@ -4,7 +4,7 @@ use anyhow::Result;
 use chrono::Utc;
 use tokio::{sync::oneshot, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{error, instrument};
+use tracing::{error, info_span, instrument, Instrument, Span};
 
 pub use self::action::*;
 use crate::{
@@ -19,6 +19,7 @@ pub mod action;
 
 #[derive(Debug)]
 pub struct WorkerQueueItem {
+    pub parent_span: Span,
     pub submission_id: String,
     pub submission_root: PathBuf,
     pub config: Arc<ActionTaskConfig>,
@@ -59,23 +60,24 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Re
 
 async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
     while let Ok(Ok(item)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
-        let report =
-            execute_action(item.submission_id.clone(), item.submission_root, &item.config).await;
+        let span = info_span!(parent: item.parent_span, "worker_handler");
 
-        if item.report_tx.send(report).is_err() {
-            error!(submission_id = item.submission_id, "Error sending the report");
+        async move {
+            let report = execute_action(item.submission_root, &item.config).await;
+
+            if item.report_tx.send(report).is_err() {
+                error!(submission_id = item.submission_id, "Error sending the report");
+            }
         }
+        .instrument(span)
+        .await;
     }
 
     Ok(())
 }
 
-#[instrument]
-async fn execute_action(
-    _submission_id: String,
-    submission_root: PathBuf,
-    task: &ActionTaskConfig,
-) -> ActionReport {
+#[instrument(skip_all)]
+async fn execute_action(submission_root: PathBuf, task: &ActionTaskConfig) -> ActionReport {
     let ctx = Arc::new(ActionContext { submission_root });
 
     let begin = Instant::now();

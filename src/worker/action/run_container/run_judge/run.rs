@@ -23,7 +23,7 @@ pub struct Config {
     pub executable: Vec<String>,
 }
 
-#[instrument]
+#[instrument(skip_all, name = "action_run_judge_run_execute")]
 pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();

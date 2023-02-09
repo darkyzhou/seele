@@ -60,7 +60,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     .build()
 });
 
-#[instrument]
+#[instrument(skip_all, name = "action_add_file_execute")]
 pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
     let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
         match &item.ext {
@@ -101,7 +101,7 @@ async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> Res
 static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
-#[instrument]
+#[instrument(skip_all)]
 async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> Result<()> {
     let mut file = {
         let target_path: PathBuf = ctx.submission_root.join(path);

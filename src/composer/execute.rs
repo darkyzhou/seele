@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use tokio::{sync::oneshot, time::Instant};
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, Span};
 
 use super::{
     predicate,
@@ -27,7 +27,7 @@ struct ExecutionContext {
     status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
 }
 
-#[instrument(skip_all, fields(id = submission.id))]
+#[instrument(skip_all)]
 pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
@@ -102,7 +102,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
     .await;
 }
 
-#[instrument(skip(ctx, node))]
+#[instrument(skip_all)] // TODO: task name
 async fn track_action_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
@@ -117,7 +117,6 @@ async fn track_action_execution(
         },
         Ok(report) => report.into(),
     };
-    debug!(status = ?status, "Setting the status");
     {
         *node.config.status.write().unwrap() = status;
     }
@@ -125,7 +124,7 @@ async fn track_action_execution(
     let _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
 }
 
-#[instrument(skip(ctx, node))]
+#[instrument(skip_all)] // TODO: task name
 async fn track_schedule_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
@@ -239,6 +238,7 @@ async fn submit_action(
     let (tx, rx) = oneshot::channel();
     ctx.worker_queue_tx
         .send(WorkerQueueItem {
+            parent_span: Span::current(),
             submission_root: ctx.submission_root,
             submission_id: ctx.submission_id,
             config,

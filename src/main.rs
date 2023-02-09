@@ -6,9 +6,15 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use opentelemetry::{
+    sdk::{trace, Resource},
+    KeyValue,
+};
+use opentelemetry_otlp::WithExportConfig;
 use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
+use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, Layer};
 
 use crate::{conf::SeeleWorkMode, worker::action};
 
@@ -32,14 +38,47 @@ fn main() {
         .expect("Error building tokio runtime");
     runtime
         .block_on(async move {
-            tracing::subscriber::set_global_default(
-                tracing_subscriber::fmt()
-                    .compact()
-                    .with_line_number(true)
-                    .with_max_level(tracing::Level::DEBUG)
-                    .finish(),
-            )
-            .expect("Failed to initialize the logger");
+            // tracing::subscriber::set_global_default(
+            //     tracing_subscriber::fmt()
+            //         .compact()
+            //         .with_line_number(true)
+            //         .with_max_level(tracing::Level::DEBUG)
+            //         .finish(),
+            // )
+            // .expect("Failed to initialize the logger");
+
+            {
+                let tracer = opentelemetry_otlp::new_pipeline()
+                    .tracing()
+                    .with_exporter(
+                        opentelemetry_otlp::new_exporter()
+                            .tonic()
+                            .with_endpoint("http://192.168.20.218:4317")
+                            .with_timeout(Duration::from_secs(5)), // with metadata x-hostname
+                    )
+                    .with_trace_config(trace::config().with_resource(Resource::new(vec![
+                        KeyValue::new("service.name", "seele"),
+                        KeyValue::new("service.host", "local"),
+                    ])))
+                    .install_batch(opentelemetry::runtime::Tokio)
+                    .expect("Error initializing the tracer");
+
+                tracing::subscriber::set_global_default(
+                    tracing_subscriber::registry()
+                        .with(
+                            tracing_opentelemetry::layer()
+                                .with_tracer(tracer)
+                                .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
+                        )
+                        .with(
+                            tracing_subscriber::fmt::layer()
+                                .compact()
+                                .with_line_number(true)
+                                .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
+                        ),
+                )
+                .expect("Error initializing the tracing subscriber");
+            }
 
             spawn_blocking(|| -> Result<()> {
                 info!("Checking cpu counts");

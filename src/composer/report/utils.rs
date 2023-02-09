@@ -44,7 +44,7 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
 
     if matches!(
         run_report.status,
-        ExecutionStatus::TimeLimitExceeded | ExecutionStatus::WallLimitExceeded
+        ExecutionStatus::UserTimeLimitExceeded | ExecutionStatus::WallTimeLimitExceeded
     ) {
         return OjStatus::TimeLimitExceeded;
     }

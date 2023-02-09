@@ -30,7 +30,7 @@ async fn prepare_image_impl(image: OciImage) -> Result<(), String> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn pull_image(image: &OciImage) -> Result<()> {
     const PULL_TIMEOUT_SECOND: u64 = 180;
 
@@ -107,7 +107,7 @@ async fn pull_image(image: &OciImage) -> Result<()> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn unpack_image(image: &OciImage) -> Result<()> {
     const UNPACK_TIMEOUT_SECOND: u64 = 120;
 
