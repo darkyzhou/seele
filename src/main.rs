@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::{bail, Context, Result};
 use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
@@ -20,66 +21,8 @@ mod shared;
 mod worker;
 
 fn main() {
-    tracing::subscriber::set_global_default(
-        tracing_subscriber::fmt()
-            .compact()
-            .with_line_number(true)
-            .with_max_level(tracing::Level::DEBUG)
-            .finish(),
-    )
-    .expect("Failed to initialize the logger");
-
-    info!("Checking cpu counts");
-    {
-        let logical_cpu_count = num_cpus::get();
-        let physical_cpu_count = num_cpus::get_physical();
-        if physical_cpu_count < logical_cpu_count {
-            // TODO: Add link to document
-            warn!(
-                "Seele does not recommand enabling the cpu's SMT technology, current logical cpu \
-                 count: {}, physical cpu count: {}",
-                logical_cpu_count, physical_cpu_count
-            )
-        }
-    }
-
-    {
-        if !matches!(&conf::CONFIG.work_mode, SeeleWorkMode::RootlessContainerized) {
-            info!("Checking id maps");
-            if action::run_container::SUBUIDS.count < 65536 {
-                panic!(
-                    "The user specified in the run_container namespace config has not enough \
-                     subuid mapping range"
-                );
-            }
-            if action::run_container::SUBGIDS.count < 65536 {
-                panic!(
-                    "The group specified in the run_container namespace config has not enough \
-                     subgid mapping range"
-                );
-            }
-        }
-    }
-
-    info!("Checking cgroup setup");
-    cgroup::check_cgroup_setup().expect("Error checking cgroup setup");
-
-    info!("Initializing cgroup subtrees");
-    cgroup::initialize_cgroup_subtrees().expect("Error initializing cgroup subtrees");
-
-    info!("Creating necessary directories in {}", conf::PATHS.root.display());
-    {
-        for path in
-            [&conf::PATHS.images, &conf::PATHS.submissions, &conf::PATHS.evicted, &conf::PATHS.temp]
-        {
-            create_dir_all(path)
-                .expect(&format!("Error creating the directory: {}", path.display()));
-        }
-    }
-
     let pid = process::id();
 
-    info!("Initializing the runtime");
     let runtime = runtime::Builder::new_multi_thread()
         .worker_threads(conf::CONFIG.thread_counts.runtime)
         .max_blocking_threads(conf::CONFIG.thread_counts.worker)
@@ -89,7 +32,69 @@ fn main() {
         .expect("Error building tokio runtime");
     runtime
         .block_on(async move {
+            tracing::subscriber::set_global_default(
+                tracing_subscriber::fmt()
+                    .compact()
+                    .with_line_number(true)
+                    .with_max_level(tracing::Level::DEBUG)
+                    .finish(),
+            )
+            .expect("Failed to initialize the logger");
+
+            spawn_blocking(|| -> Result<()> {
+                info!("Checking cpu counts");
+                let logical_cpu_count = num_cpus::get();
+                let physical_cpu_count = num_cpus::get_physical();
+                if physical_cpu_count < logical_cpu_count {
+                    // TODO: Add link to document
+                    warn!(
+                        "Seele does not recommand enabling the cpu's SMT technology, current \
+                         logical cpu count: {}, physical cpu count: {}",
+                        logical_cpu_count, physical_cpu_count
+                    )
+                }
+
+                if !matches!(&conf::CONFIG.work_mode, SeeleWorkMode::RootlessContainerized) {
+                    info!("Checking id maps");
+                    if action::run_container::SUBUIDS.count < 65536 {
+                        bail!(
+                            "The user specified in the run_container namespace config has not \
+                             enough subuid mapping range"
+                        );
+                    }
+                    if action::run_container::SUBGIDS.count < 65536 {
+                        bail!(
+                            "The group specified in the run_container namespace config has not \
+                             enough subgid mapping range"
+                        );
+                    }
+                }
+
+                info!("Checking cgroup setup");
+                cgroup::check_cgroup_setup().context("Error checking cgroup setup")?;
+
+                info!("Initializing cgroup subtrees");
+                cgroup::initialize_cgroup_subtrees()
+                    .context("Error initializing cgroup subtrees")?;
+
+                info!("Creating necessary directories in {}", conf::PATHS.root.display());
+                for path in [
+                    &conf::PATHS.images,
+                    &conf::PATHS.submissions,
+                    &conf::PATHS.evicted,
+                    &conf::PATHS.temp,
+                ] {
+                    create_dir_all(path).with_context(|| {
+                        format!("Error creating the directory: {}", path.display())
+                    })?;
+                }
+
+                Ok(())
+            })
+            .await??;
+
             {
+                info!("Binding application threads to cpus");
                 let worker_count = conf::CONFIG.thread_counts.worker;
                 let begin_barrier = Arc::new(Barrier::new(worker_count));
                 let end_barrier = Arc::new(Barrier::new(worker_count));
