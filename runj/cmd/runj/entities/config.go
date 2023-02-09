@@ -13,9 +13,13 @@ type RunjConfig struct {
 }
 
 type UserNamespaceConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	MapToUser  string `mapstructure:"map_to_user" validate:"required"`
-	MapToGroup string `mapstructure:"map_to_group" validate:"required"`
+	Enabled     bool   `mapstructure:"enabled"`
+	RootUid     uint32 `mapstructure:"root_uid" validate:"required"`
+	UidMapBegin uint32 `mapstructure:"uid_map_begin" validate:"required"`
+	UidMapCount uint32 `mapstructure:"uid_map_count" validate:"required"`
+	RootGid     uint32 `mapstructure:"root_gid" validate:"required"`
+	GidMapBegin uint32 `mapstructure:"gid_map_begin" validate:"required"`
+	GidMapCount uint32 `mapstructure:"gid_map_count" validate:"required"`
 }
 
 type FdConfig struct {

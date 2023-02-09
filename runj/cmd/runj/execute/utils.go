@@ -1,11 +1,8 @@
 package execute
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"os/user"
-	"strconv"
 	"strings"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
@@ -50,102 +47,30 @@ func getCgroupPath(parentCgroupPath string, rootless bool) (string, string, erro
 	return parentPath, fullCgroupPath, nil
 }
 
-func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping, []specs.LinuxIDMapping, error) {
-	var uidMappings []specs.LinuxIDMapping
-	{
-		{
-			user, err := user.Lookup(config.MapToUser)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to find the user specified in the namespace config: %w", err)
-			}
-			userId, err := strconv.Atoi(user.Uid)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to parse the uid: %w", err)
-			}
-
-			uidMappings = append(uidMappings, specs.LinuxIDMapping{
-				HostID:      uint32(userId),
+func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping, []specs.LinuxIDMapping) {
+	return []specs.LinuxIDMapping{
+			specs.LinuxIDMapping{
+				HostID:      config.RootUid,
 				ContainerID: 0,
 				Size:        1,
-			})
-		}
-
-		subUids, err := findIdMap(config.MapToUser, 1, "/etc/subuid")
-		if err != nil {
-			return nil, nil, err
-		}
-
-		uidMappings = append(uidMappings, *subUids)
-	}
-
-	var gidMappings []specs.LinuxIDMapping
-	{
-		{
-			group, err := user.LookupGroup(config.MapToGroup)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to find the user specified in the namespace config: %w", err)
-			}
-			groupId, err := strconv.Atoi(group.Gid)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Failed to parse the uid: %w", err)
-			}
-
-			gidMappings = append(gidMappings, specs.LinuxIDMapping{
-				HostID:      uint32(groupId),
+			},
+			specs.LinuxIDMapping{
+				HostID:      config.UidMapBegin,
+				ContainerID: 1,
+				Size:        config.UidMapCount,
+			},
+		}, []specs.LinuxIDMapping{
+			specs.LinuxIDMapping{
+				HostID:      config.RootGid,
 				ContainerID: 0,
 				Size:        1,
-			})
+			},
+			specs.LinuxIDMapping{
+				HostID:      config.GidMapBegin,
+				ContainerID: 1,
+				Size:        config.GidMapCount,
+			},
 		}
-
-		subGids, err := findIdMap(config.MapToGroup, 1, "/etc/subgid")
-		if err != nil {
-			return nil, nil, fmt.Errorf("Error initializing the gid map: %w", err)
-		}
-		gidMappings = append(gidMappings, *subGids)
-	}
-
-	return uidMappings, gidMappings, nil
-}
-
-func findIdMap(username string, containerId uint32, path string) (*specs.LinuxIDMapping, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to open %s: %w", path, err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if strings.Contains(text, username) {
-			data := strings.SplitN(text, ":", 3)
-			if len(data) < 3 {
-				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
-			}
-
-			id, err := strconv.Atoi(data[1])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
-			}
-
-			size, err := strconv.Atoi(data[2])
-			if err != nil {
-				return nil, fmt.Errorf("Invalid %s content: %s", path, text)
-			}
-
-			return &specs.LinuxIDMapping{
-				ContainerID: containerId,
-				HostID:      uint32(id),
-				Size:        uint32(size),
-			}, nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Failed to read %s: %w", path, err)
-	}
-
-	return nil, fmt.Errorf("Cannot find user or group %s in %s", username, path)
 }
 
 func prepareOutFile(path string) (*os.File, error) {
