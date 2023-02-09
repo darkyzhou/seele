@@ -15,7 +15,7 @@ pub async fn exchange_main(
 ) -> Result<()> {
     info!("Initializing exchanges based on the configuration");
 
-    for exchange in &conf::CONFIG.exchange {
+    for exchange in &conf::CONFIG.exchanges {
         match exchange {
             ExchangeConfig::Http(config) => {
                 let tx = composer_queue_tx.clone();

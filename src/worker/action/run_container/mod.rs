@@ -83,7 +83,7 @@ fn prepare_and_execute_runj(
     let mut output = vec![];
     let result = {
         let _enter = span.enter();
-        let mut reader = cmd!(&conf::CONFIG.runj_path)
+        let mut reader = cmd!(&conf::CONFIG.paths.runj)
             .stdin_bytes(config.as_bytes())
             .stderr_to_stdout()
             .reader()

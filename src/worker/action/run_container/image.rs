@@ -57,14 +57,14 @@ async fn pull_image(image: &OciImage) -> Result<()> {
     let skopeo_log_file_path =
         conf::PATHS.temp.join(&format!("skopeo-{}.log", nano_id::base62::<12>()));
 
-    debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.skopeo_path, "Pulling the image using skopeo");
+    debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.paths.skopeo, "Pulling the image using skopeo");
     let output = spawn_blocking({
         let image = image.clone();
         let temp_target_path = temp_target_path.clone();
         let skopeo_log_file_path = skopeo_log_file_path.clone();
         move || {
             cmd!(
-                &conf::CONFIG.skopeo_path,
+                &conf::CONFIG.paths.skopeo,
                 "copy",
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
                 &format!("oci:{}:{}", temp_target_path.display(), image.tag),
@@ -134,7 +134,7 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     let umoci_log_file_path =
         conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
 
-    debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.umoci_path, "Unpacking the image using umoci");
+    debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
     let output = spawn_blocking({
         let image = image.clone();
         let image_path = get_oci_image_path(&image);
@@ -142,7 +142,7 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
         let umoci_log_file_path = umoci_log_file_path.clone();
         move || {
             cmd!(
-                &conf::CONFIG.umoci_path,
+                &conf::CONFIG.paths.umoci,
                 "--log",
                 "error",
                 "unpack",

@@ -38,46 +38,49 @@ fn main() {
         .expect("Error building tokio runtime");
     runtime
         .block_on(async move {
-            // tracing::subscriber::set_global_default(
-            //     tracing_subscriber::fmt()
-            //         .compact()
-            //         .with_line_number(true)
-            //         .with_max_level(tracing::Level::DEBUG)
-            //         .finish(),
-            // )
-            // .expect("Failed to initialize the logger");
-
-            {
-                let tracer = opentelemetry_otlp::new_pipeline()
-                    .tracing()
-                    .with_exporter(
-                        opentelemetry_otlp::new_exporter()
-                            .tonic()
-                            .with_endpoint("http://192.168.20.218:4317")
-                            .with_timeout(Duration::from_secs(5)), // with metadata x-hostname
+            match &conf::CONFIG.telemetry {
+                None => {
+                    tracing::subscriber::set_global_default(
+                        tracing_subscriber::fmt()
+                            .compact()
+                            .with_line_number(true)
+                            .with_max_level(tracing::Level::DEBUG)
+                            .finish(),
                     )
-                    .with_trace_config(trace::config().with_resource(Resource::new(vec![
-                        KeyValue::new("service.name", "seele"),
-                        KeyValue::new("service.host", "local"),
-                    ])))
-                    .install_batch(opentelemetry::runtime::Tokio)
-                    .expect("Error initializing the tracer");
-
-                tracing::subscriber::set_global_default(
-                    tracing_subscriber::registry()
-                        .with(
-                            tracing_opentelemetry::layer()
-                                .with_tracer(tracer)
-                                .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
+                    .expect("Failed to initialize the logger");
+                }
+                Some(telemetry) => {
+                    let tracer = opentelemetry_otlp::new_pipeline()
+                        .tracing()
+                        .with_exporter(
+                            opentelemetry_otlp::new_exporter()
+                                .tonic()
+                                .with_endpoint(&telemetry.collector_url)
+                                .with_timeout(Duration::from_secs(5)),
                         )
-                        .with(
-                            tracing_subscriber::fmt::layer()
-                                .compact()
-                                .with_line_number(true)
-                                .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
-                        ),
-                )
-                .expect("Error initializing the tracing subscriber");
+                        .with_trace_config(trace::config().with_resource(Resource::new(vec![
+                            KeyValue::new("service.name", "seele"),
+                            KeyValue::new("service.hostname", telemetry.hostname.clone()),
+                        ])))
+                        .install_batch(opentelemetry::runtime::Tokio)
+                        .expect("Error initializing the tracer");
+
+                    tracing::subscriber::set_global_default(
+                        tracing_subscriber::registry()
+                            .with(
+                                tracing_opentelemetry::layer()
+                                    .with_tracer(tracer)
+                                    .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
+                            )
+                            .with(
+                                tracing_subscriber::fmt::layer()
+                                    .compact()
+                                    .with_line_number(true)
+                                    .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
+                            ),
+                    )
+                    .expect("Error initializing the tracing subscriber");
+                }
             }
 
             spawn_blocking(|| -> Result<()> {

@@ -14,6 +14,16 @@ mod exchange;
 mod path;
 mod worker;
 
+pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
+    config::Config::builder()
+        .add_source(config::File::with_name("config"))
+        .add_source(config::Environment::with_prefix("SEELE"))
+        .build()
+        .expect("Failed to load the config")
+        .try_deserialize()
+        .expect("Failed to parse the config")
+});
+
 #[derive(Debug, Deserialize)]
 pub struct SeeleConfig {
     #[serde(default = "default_work_mode")]
@@ -22,23 +32,13 @@ pub struct SeeleConfig {
     #[serde(default)]
     pub thread_counts: ThreadCounts,
 
-    #[serde(default = "default_root_path")]
-    pub root_path: PathBuf,
-
-    #[serde(default = "default_tmp_path")]
-    pub tmp_path: PathBuf,
-
-    #[serde(default = "default_runj_path")]
-    pub runj_path: String,
-
-    #[serde(default = "default_skopeo_path")]
-    pub skopeo_path: String,
-
-    #[serde(default = "default_umoci_path")]
-    pub umoci_path: String,
+    pub paths: PathsConfig,
 
     #[serde(default)]
-    pub exchange: Vec<ExchangeConfig>,
+    pub telemetry: Option<TelemetryConfig>,
+
+    #[serde(default)]
+    pub exchanges: Vec<ExchangeConfig>,
 
     #[serde(default)]
     pub worker: WorkerConfig,
@@ -60,6 +60,11 @@ pub enum SeeleWorkMode {
     RootlessContainerized,
 }
 
+#[inline]
+fn default_work_mode() -> SeeleWorkMode {
+    SeeleWorkMode::Bare
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ThreadCounts {
     pub runtime: usize,
@@ -72,14 +77,21 @@ impl Default for ThreadCounts {
     }
 }
 
-#[inline]
-fn default_work_mode() -> SeeleWorkMode {
-    SeeleWorkMode::Bare
-}
+#[derive(Debug, Deserialize)]
+pub struct PathsConfig {
+    pub root: PathBuf,
 
-#[inline]
-fn default_root_path() -> PathBuf {
-    "/seele".into()
+    #[serde(default = "default_tmp_path")]
+    pub tmp: PathBuf,
+
+    #[serde(default = "default_runj_path")]
+    pub runj: String,
+
+    #[serde(default = "default_skopeo_path")]
+    pub skopeo: String,
+
+    #[serde(default = "default_umoci_path")]
+    pub umoci: String,
 }
 
 #[inline]
@@ -102,12 +114,18 @@ fn default_umoci_path() -> String {
     "umoci".to_string()
 }
 
-pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
-    config::Config::builder()
-        .add_source(config::File::with_name("config"))
-        .add_source(config::Environment::with_prefix("SEELE"))
-        .build()
-        .expect("Failed to load the config")
-        .try_deserialize()
-        .expect("Failed to parse the config")
-});
+#[derive(Debug, Deserialize)]
+pub struct TelemetryConfig {
+    #[serde(default = "default_hostname")]
+    pub hostname: String,
+
+    pub collector_url: String,
+}
+
+#[inline]
+fn default_hostname() -> String {
+    nix::unistd::gethostname()
+        .expect("Failed to get hostname")
+        .into_string()
+        .expect("Error converting hostname from OsString")
+}

@@ -14,9 +14,9 @@ pub struct SeelePaths {
 }
 
 pub static PATHS: Lazy<SeelePaths> = Lazy::new(|| SeelePaths {
-    root: CONFIG.root_path.clone(),
-    images: CONFIG.root_path.join("images"),
-    evicted: CONFIG.root_path.join("evicted"),
-    temp: CONFIG.root_path.join("temp"),
-    submissions: CONFIG.tmp_path.join("seele").join("submissions"),
+    root: CONFIG.paths.root.clone(),
+    images: CONFIG.paths.root.join("images"),
+    evicted: CONFIG.paths.root.join("evicted"),
+    temp: CONFIG.paths.root.join("temp"),
+    submissions: CONFIG.paths.tmp.join("seele").join("submissions"),
 });
