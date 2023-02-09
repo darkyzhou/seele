@@ -7,7 +7,7 @@ use thread_local::ThreadLocal;
 use tokio::task::spawn_blocking;
 use tracing::{debug, error, instrument, warn};
 
-pub use self::entities::*;
+pub use self::{entities::*, idmap::*};
 use self::{
     runj::ContainerExecutionStatus,
     utils::{check_and_create_directories, convert_to_runj_config},
@@ -23,6 +23,7 @@ use crate::{
 };
 
 mod entities;
+mod idmap;
 mod image;
 pub mod run_judge;
 mod runj;

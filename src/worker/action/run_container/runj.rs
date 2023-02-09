@@ -46,8 +46,12 @@ pub struct RunjConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct UserNamespaceConfig {
     pub enabled: bool,
-    pub map_to_user: String,
-    pub map_to_group: String,
+    pub root_uid: u32,
+    pub uid_map_begin: u32,
+    pub uid_map_count: u32,
+    pub root_gid: u32,
+    pub gid_map_begin: u32,
+    pub gid_map_count: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

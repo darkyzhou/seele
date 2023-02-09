@@ -4,6 +4,9 @@ use serde::Deserialize;
 pub struct ActionConfig {
     #[serde(default)]
     pub add_file: ActionAddFileConfig,
+
+    #[serde(default)]
+    pub run_container: ActionRunContainerConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,4 +32,56 @@ fn default_cache_size_mib() -> u64 {
 #[inline]
 fn default_cache_ttl_hour() -> u64 {
     24 * 3
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ActionRunContainerConfig {
+    #[serde(default = "default_userns_uid")]
+    pub userns_uid: u32,
+
+    #[serde(default = "default_userns_user")]
+    pub userns_user: String,
+
+    #[serde(default = "default_userns_gid")]
+    pub userns_gid: u32,
+
+    #[serde(default = "default_userns_group")]
+    pub userns_group: String,
+}
+
+impl Default for ActionRunContainerConfig {
+    fn default() -> Self {
+        Self {
+            userns_uid: default_userns_uid(),
+            userns_user: default_userns_user(),
+            userns_gid: default_userns_gid(),
+            userns_group: default_userns_group(),
+        }
+    }
+}
+
+#[inline]
+fn default_userns_uid() -> u32 {
+    users::get_effective_uid()
+}
+
+#[inline]
+fn default_userns_user() -> String {
+    users::get_current_username()
+        .expect("Failed to get current username")
+        .into_string()
+        .expect("Failed to convert the username")
+}
+
+#[inline]
+fn default_userns_gid() -> u32 {
+    users::get_effective_gid()
+}
+
+#[inline]
+fn default_userns_group() -> String {
+    users::get_current_groupname()
+        .expect("Failed to get current group name")
+        .into_string()
+        .expect("Failed to convert the group name")
 }

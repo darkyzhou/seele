@@ -9,6 +9,8 @@ use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
 
+use crate::{conf::SeeleWorkMode, worker::action};
+
 pub mod cgroup;
 mod composer;
 mod conf;
@@ -38,6 +40,24 @@ fn main() {
                  count: {}, physical cpu count: {}",
                 logical_cpu_count, physical_cpu_count
             )
+        }
+    }
+
+    {
+        if !matches!(&conf::CONFIG.work_mode, SeeleWorkMode::RootlessContainerized) {
+            info!("Checking id maps");
+            if action::run_container::SUBUIDS.count < 65536 {
+                panic!(
+                    "The user specified in the run_container namespace config has not enough \
+                     subuid mapping range"
+                );
+            }
+            if action::run_container::SUBGIDS.count < 65536 {
+                panic!(
+                    "The group specified in the run_container namespace config has not enough \
+                     subgid mapping range"
+                );
+            }
         }
     }
 

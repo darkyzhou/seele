@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 
-use super::{image, runj, Config};
+use super::{idmap, image, runj, Config};
 use crate::{
     cgroup,
     conf::{self, SeeleWorkMode},
@@ -12,10 +12,15 @@ pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<run
     let user_namespace = {
         match &conf::CONFIG.work_mode {
             SeeleWorkMode::Bare | SeeleWorkMode::BareSystemd | SeeleWorkMode::Containerized => {
+                let config = &conf::CONFIG.worker.action.run_container;
                 Some(runj::UserNamespaceConfig {
                     enabled: true,
-                    map_to_user: todo!(),
-                    map_to_group: todo!(),
+                    root_uid: config.userns_uid,
+                    uid_map_begin: idmap::SUBUIDS.begin,
+                    uid_map_count: idmap::SUBUIDS.count,
+                    root_gid: config.userns_gid,
+                    gid_map_begin: idmap::SUBGIDS.begin,
+                    gid_map_count: idmap::SUBGIDS.count,
                 })
             }
             SeeleWorkMode::RootlessContainerized => None,
