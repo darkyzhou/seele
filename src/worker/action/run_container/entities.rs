@@ -4,14 +4,14 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use super::runj;
-use crate::shared::oci_image::OciImage;
+use crate::shared::image::OciImage;
 
 pub type ExecutionReport = runj::ContainerExecutionReport;
 pub type ExecutionStatus = runj::ContainerExecutionStatus;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(with = "crate::shared::oci_image::serde_format")]
+    #[serde(with = "crate::shared::image::serde_format")]
     pub image: OciImage,
 
     #[serde(default = "default_cwd")]

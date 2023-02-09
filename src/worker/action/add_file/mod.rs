@@ -89,7 +89,7 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
 async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> Result<()> {
     let mut file = {
         let path: PathBuf = ctx.submission_root.join(path);
-        shared::file_utils::create_file(&path).await.context("Error creating the file")?
+        shared::file::create_file(&path).await.context("Error creating the file")?
     };
 
     let mut text = text.as_bytes();
@@ -105,7 +105,7 @@ static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
 async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> Result<()> {
     let mut file = {
         let target_path: PathBuf = ctx.submission_root.join(path);
-        shared::file_utils::create_file(&target_path).await.context("Error creating the file")?
+        shared::file::create_file(&target_path).await.context("Error creating the file")?
     };
 
     let data =

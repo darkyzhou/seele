@@ -12,7 +12,7 @@ use tracing::{debug, instrument, warn};
 
 use crate::{
     conf,
-    shared::{self, cond_group::CondGroup, oci_image::OciImage},
+    shared::{self, cond_group::CondGroup, image::OciImage},
 };
 
 static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =

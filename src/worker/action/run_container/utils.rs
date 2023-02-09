@@ -60,15 +60,15 @@ pub fn convert_to_runj_config(ctx: &ActionContext, config: Config) -> Result<run
 pub async fn check_and_create_directories(config: &runj::RunjConfig) -> Result<()> {
     if let Some(config) = &config.fd {
         if let Some(path) = &config.stdin {
-            shared::file_utils::create_parent_directories(path).await?;
+            shared::file::create_parent_directories(path).await?;
         }
 
         if let Some(path) = &config.stdout {
-            shared::file_utils::create_parent_directories(path).await?;
+            shared::file::create_parent_directories(path).await?;
         }
 
         if let Some(path) = &config.stderr {
-            shared::file_utils::create_parent_directories(path).await?;
+            shared::file::create_parent_directories(path).await?;
         }
     }
 
