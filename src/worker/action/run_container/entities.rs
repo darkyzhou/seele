@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-use super::runj;
+use super::runj::{self, RlimitItem};
 use crate::shared::image::OciImage;
 
 pub type ExecutionReport = runj::ContainerExecutionReport;
@@ -116,13 +116,13 @@ impl Into<runj::LimitsConfig> for LimitsConfig {
                 pids_limit: self.pids_count,
                 ..Default::default()
             },
-            rlimit: self.fsize_kib.map(|fsize_kib| {
-                vec![runj::RlimitConfig {
-                    r#type: runj::RlimitType::Fsize,
-                    hard: fsize_kib,
-                    soft: fsize_kib,
-                }]
-            }),
+            rlimit: self
+                .fsize_kib
+                .map(|fsize_kib| runj::RlimitConfig {
+                    fsize: RlimitItem::new_single(fsize_kib * 1024),
+                    ..Default::default()
+                })
+                .unwrap_or_default(),
         }
     }
 }

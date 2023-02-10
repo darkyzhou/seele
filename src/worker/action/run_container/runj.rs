@@ -67,8 +67,8 @@ pub struct LimitsConfig {
     #[serde(default)]
     pub cgroup: CgroupConfig,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rlimit: Option<Vec<RlimitConfig>>,
+    #[serde(default)]
+    pub rlimit: RlimitConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -107,62 +107,52 @@ pub struct CgroupConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RlimitConfig {
-    #[serde(rename = "type")]
-    pub r#type: RlimitType,
+    #[serde(default = "default_rlimit_core")]
+    pub core: RlimitItem,
 
-    pub hard: u64,
-    pub soft: u64,
+    #[serde(default = "default_rlimit_fsize")]
+    pub fsize: RlimitItem,
+
+    #[serde(default = "default_rlimit_no_file")]
+    pub no_file: RlimitItem,
+}
+
+impl Default for RlimitConfig {
+    fn default() -> Self {
+        Self {
+            core: default_rlimit_core(),
+            fsize: default_rlimit_fsize(),
+            no_file: default_rlimit_no_file(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum RlimitType {
-    #[serde(rename = "RLIMIT_AS")]
-    As,
+pub struct RlimitItem {
+    hard: u64,
+    soft: u64,
+}
 
-    #[serde(rename = "RLIMIT_CORE")]
-    Core,
+impl RlimitItem {
+    #[inline]
+    pub fn new_single(value: u64) -> Self {
+        Self { hard: value, soft: value }
+    }
+}
 
-    #[serde(rename = "RLIMIT_CPU")]
-    Cpu,
+#[inline]
+fn default_rlimit_core() -> RlimitItem {
+    RlimitItem { hard: 0, soft: 0 }
+}
 
-    #[serde(rename = "RLIMIT_DATA")]
-    Data,
+#[inline]
+fn default_rlimit_fsize() -> RlimitItem {
+    RlimitItem { hard: 64 * 1024 * 1024, soft: 64 * 1024 * 1024 }
+}
 
-    #[serde(rename = "RLIMIT_FSIZE")]
-    Fsize,
-
-    #[serde(rename = "RLIMIT_LOCKS")]
-    Locks,
-
-    #[serde(rename = "RLIMIT_MEMLOCK")]
-    MemLock,
-
-    #[serde(rename = "RLIMIT_MSGQUEUE")]
-    MsgQueue,
-
-    #[serde(rename = "RLIMIT_NICE")]
-    Nice,
-
-    #[serde(rename = "RLIMIT_NOFILE")]
-    NoFile,
-
-    #[serde(rename = "RLIMIT_NPROC")]
-    Nproc,
-
-    #[serde(rename = "RLIMIT_RSS")]
-    Rss,
-
-    #[serde(rename = "RLIMIT_RTPRIO")]
-    RtPrio,
-
-    #[serde(rename = "RLIMIT_RTTIME")]
-    RtTime,
-
-    #[serde(rename = "RLIMIT_SIGPENDING")]
-    SigPending,
-
-    #[serde(rename = "RLIMIT_STACK")]
-    Stack,
+#[inline]
+fn default_rlimit_no_file() -> RlimitItem {
+    RlimitItem { hard: 128, soft: 128 }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
