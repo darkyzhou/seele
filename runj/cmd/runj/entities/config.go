@@ -35,9 +35,9 @@ type MountConfig struct {
 }
 
 type LimitsConfig struct {
-	TimeMs uint64        `mapstructure:"time_ms"`
-	Cgroup *CgroupConfig `mapstructure:"cgroup"`
-	Rlimit *RlimitConfig `mapstructure:"rlimit"`
+	TimeMs uint64        `mapstructure:"time_ms" validate:"required"`
+	Cgroup *CgroupConfig `mapstructure:"cgroup" validate:"required"`
+	Rlimit *RlimitConfig `mapstructure:"rlimit" validate:"required"`
 }
 
 type CgroupConfig struct {
