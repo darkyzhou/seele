@@ -10,17 +10,16 @@ use opentelemetry::{
     global,
     sdk::{
         export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
-        Resource,
     },
-    Context as OpenTelemetryCtx, KeyValue,
+    Context as OpenTelemetryCtx,
 };
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
-use tokio::{runtime, sync::mpsc, task::spawn_blocking};
+use tokio::{runtime, sync::mpsc, task::spawn_blocking, time::sleep};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
 use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
 
-use crate::{conf::SeeleWorkMode, worker::action};
+use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
 
 pub mod cgroup;
 mod composer;
@@ -54,11 +53,6 @@ fn main() {
                     .expect("Failed to initialize the logger");
                 }
                 Some(telemetry) => {
-                    let resource = Resource::new(vec![
-                        KeyValue::new("service.name", "seele"),
-                        KeyValue::new("service.hostname", telemetry.hostname.clone()),
-                    ]);
-
                     let tracer = opentelemetry_otlp::new_pipeline()
                         .tracing()
                         .with_exporter(
@@ -70,7 +64,7 @@ fn main() {
                                 },
                             ),
                         )
-                        .with_trace_config(trace::config().with_resource(resource.clone()))
+                        .with_trace_config(trace::config().with_resource(METRICS_RESOURCE.clone()))
                         .install_batch(opentelemetry::runtime::Tokio)
                         .expect("Error initializing the tracer");
 
@@ -89,8 +83,8 @@ fn main() {
                                 },
                             ),
                         )
-                        .with_resource(resource)
-                        .with_period(Duration::from_secs(3))
+                        .with_resource(METRICS_RESOURCE.clone())
+                        .with_period(Duration::from_secs(5))
                         .build()
                         .expect("Error initializing the metrics");
 
@@ -209,14 +203,6 @@ fn main() {
                 .handle_shutdown_requests(Duration::from_secs(10))
                 .await;
 
-            if conf::CONFIG.telemetry.is_some() {
-                global::shutdown_tracer_provider();
-                _ = shared::metrics::METRICS_CONTROLLER
-                    .get()
-                    .unwrap()
-                    .stop(&OpenTelemetryCtx::current());
-            }
-
             if let Err(err) = result {
                 error!("Seele encountered fatal issue(s):");
                 for error in err.get_subsystem_errors() {
@@ -233,6 +219,16 @@ fn main() {
                     }
                 }
             }
+
+            if conf::CONFIG.telemetry.is_some() {
+                global::shutdown_tracer_provider();
+                _ = shared::metrics::METRICS_CONTROLLER
+                    .get()
+                    .unwrap()
+                    .stop(&OpenTelemetryCtx::current());
+            }
+
+            sleep(Duration::from_secs(3)).await;
 
             anyhow::Ok(())
         })

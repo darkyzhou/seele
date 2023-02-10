@@ -1,16 +1,14 @@
 use std::path::PathBuf;
 
-pub use action::*;
-pub use exchange::*;
 use once_cell::sync::Lazy;
-pub use path::*;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
-pub use worker::*;
 
 use self::worker::WorkerConfig;
+pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
 
 mod action;
+mod env;
 mod exchange;
 mod path;
 mod worker;
@@ -141,16 +139,5 @@ fn default_umoci_path() -> String {
 
 #[derive(Debug, Deserialize)]
 pub struct TelemetryConfig {
-    #[serde(default = "default_hostname")]
-    pub hostname: String,
-
     pub collector_url: String,
-}
-
-#[inline]
-fn default_hostname() -> String {
-    nix::unistd::gethostname()
-        .expect("Failed to get hostname")
-        .into_string()
-        .expect("Error converting hostname from OsString")
 }
