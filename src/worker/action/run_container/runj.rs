@@ -64,10 +64,8 @@ pub struct LimitsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<TimeLimitsConfig>,
 
-    #[serde(default)]
     pub cgroup: CgroupConfig,
 
-    #[serde(default)]
     pub rlimit: RlimitConfig,
 }
 
@@ -80,14 +78,14 @@ pub struct TimeLimitsConfig {
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct CgroupConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory: Option<i64>,
+    pub memory: i64,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_reservation: Option<i64>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory_swap: Option<i64>,
+    pub memory_swap: i64,
+
+    pub memory_swappiness: u64,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_shares: Option<u64>,
@@ -101,30 +99,16 @@ pub struct CgroupConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpuset_mems: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pids_limit: Option<i64>,
+    pub pids_limit: i64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RlimitConfig {
-    #[serde(default = "default_rlimit_core")]
     pub core: RlimitItem,
 
-    #[serde(default = "default_rlimit_fsize")]
     pub fsize: RlimitItem,
 
-    #[serde(default = "default_rlimit_no_file")]
     pub no_file: RlimitItem,
-}
-
-impl Default for RlimitConfig {
-    fn default() -> Self {
-        Self {
-            core: default_rlimit_core(),
-            fsize: default_rlimit_fsize(),
-            no_file: default_rlimit_no_file(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -138,21 +122,6 @@ impl RlimitItem {
     pub fn new_single(value: u64) -> Self {
         Self { hard: value, soft: value }
     }
-}
-
-#[inline]
-fn default_rlimit_core() -> RlimitItem {
-    RlimitItem { hard: 0, soft: 0 }
-}
-
-#[inline]
-fn default_rlimit_fsize() -> RlimitItem {
-    RlimitItem { hard: 64 * 1024 * 1024, soft: 64 * 1024 * 1024 }
-}
-
-#[inline]
-fn default_rlimit_no_file() -> RlimitItem {
-    RlimitItem { hard: 128, soft: 128 }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

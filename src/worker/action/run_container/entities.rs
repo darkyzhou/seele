@@ -108,21 +108,35 @@ pub struct LimitsConfig {
 
 impl Into<runj::LimitsConfig> for LimitsConfig {
     fn into(self) -> runj::LimitsConfig {
+        const DEFAULT_MEMORY_LIMIT_BYTES: i64 = 256 * 1024 * 1024; // 256 MiB
+        const DEFAULT_MEMORY_SWAPPINESS: u64 = 0; // Disable swap
+        const DEFAULT_PIDS_LIMIT: i64 = 32;
+        const DEFAULT_CORE: u64 = 0; // Disable core dump
+        const DEFAULT_NO_FILE: u64 = 64;
+        const DEFAULT_FSIZE_BYTES: u64 = 64 * 1024 * 1024; // 64 MiB
+
         runj::LimitsConfig {
             time: self.time,
             cgroup: runj::CgroupConfig {
-                memory: self.memory_kib.map(|memory_kib| memory_kib * 1024),
-                memory_swap: self.memory_kib.map(|memory_kib| memory_kib * 1024),
-                pids_limit: self.pids_count,
+                memory: self
+                    .memory_kib
+                    .map(|memory_kib| memory_kib * 1024)
+                    .unwrap_or(DEFAULT_MEMORY_LIMIT_BYTES),
+                memory_swap: self
+                    .memory_kib
+                    .map(|memory_kib| memory_kib * 1024)
+                    .unwrap_or(DEFAULT_MEMORY_LIMIT_BYTES),
+                memory_swappiness: DEFAULT_MEMORY_SWAPPINESS,
+                pids_limit: self.pids_count.unwrap_or(DEFAULT_PIDS_LIMIT),
                 ..Default::default()
             },
-            rlimit: self
-                .fsize_kib
-                .map(|fsize_kib| runj::RlimitConfig {
-                    fsize: RlimitItem::new_single(fsize_kib * 1024),
-                    ..Default::default()
-                })
-                .unwrap_or_default(),
+            rlimit: runj::RlimitConfig {
+                core: RlimitItem::new_single(DEFAULT_CORE),
+                no_file: RlimitItem::new_single(DEFAULT_NO_FILE),
+                fsize: RlimitItem::new_single(
+                    self.fsize_kib.map(|fsize_kib| fsize_kib * 1024).unwrap_or(DEFAULT_FSIZE_BYTES),
+                ),
+            },
         }
     }
 }
