@@ -1,5 +1,8 @@
-use anyhow::Result;
+use std::{fs::Permissions, os::unix::prelude::PermissionsExt};
+
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use tokio::fs::{metadata, set_permissions};
 use tracing::instrument;
 
 use super::MOUNT_DIRECTORY;
@@ -33,6 +36,18 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
                 paths.push(MOUNT_DIRECTORY.to_string());
             } else {
                 run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
+            }
+
+            for file in &config.executable {
+                let path = ctx.submission_root.join(file);
+
+                if let Err(err) = metadata(&path).await {
+                    bail!("The executable {file} does not exist: {err:#}")
+                }
+
+                set_permissions(path, Permissions::from_mode(0o777))
+                    .await
+                    .with_context(|| format!("Error setting permission of executable {file}"))?;
             }
 
             run_container_config.mounts.extend(
