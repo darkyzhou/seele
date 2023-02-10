@@ -54,7 +54,6 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 		cgroupMemRules = &specs.LinuxMemory{}
 		cgroupPidRules = &specs.LinuxPids{}
 	)
-
 	if config.Limits != nil && config.Limits.Cgroup != nil {
 		if config.Limits.Cgroup.CpuQuota != 0 {
 			cgroupCpuRules.Quota = &config.Limits.Cgroup.CpuQuota
@@ -72,21 +71,15 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 			cgroupCpuRules.Mems = config.Limits.Cgroup.CpusetMems
 		}
 
-		if config.Limits.Cgroup.Memory != 0 {
-			cgroupMemRules.Limit = &config.Limits.Cgroup.Memory
-		}
+		cgroupMemRules.Limit = &config.Limits.Cgroup.Memory
 
 		if config.Limits.Cgroup.MemoryReservation != 0 {
 			cgroupMemRules.Reservation = &config.Limits.Cgroup.MemoryReservation
 		}
 
-		if config.Limits.Cgroup.MemorySwap != 0 {
-			cgroupMemRules.Swap = &config.Limits.Cgroup.MemorySwap
-		}
-
-		if config.Limits.Cgroup.PidsLimit != 0 {
-			cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
-		}
+		cgroupMemRules.Swap = &config.Limits.Cgroup.MemorySwap
+		cgroupMemRules.Swappiness = &config.Limits.Cgroup.MemorySwappiness
+		cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
 	}
 
 	mounts := defaultMountPoints[:]

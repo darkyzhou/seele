@@ -29,8 +29,8 @@ type FdConfig struct {
 }
 
 type MountConfig struct {
-	From    string   `mapstructure:"from"  validate:"required"`
-	To      string   `mapstructure:"to"  validate:"required"`
+	From    string   `mapstructure:"from" validate:"required"`
+	To      string   `mapstructure:"to" validate:"required"`
 	Options []string `mapstructure:"options"`
 }
 
@@ -41,23 +41,24 @@ type LimitsConfig struct {
 }
 
 type CgroupConfig struct {
-	Memory            int64  `mapstructure:"memory"`
+	Memory            int64  `mapstructure:"memory" validate:"required"`
 	MemoryReservation int64  `mapstructure:"memory_reservation"`
-	MemorySwap        int64  `mapstructure:"memory_swap"`
+	MemorySwap        int64  `mapstructure:"memory_swap" validate:"required"`
+	MemorySwappiness  uint64 `mapstructure:"memory_swappiness"`
 	CpuShares         uint64 `mapstructure:"cpu_shares"`
 	CpuQuota          int64  `mapstructure:"cpu_quota"`
 	CpusetCpus        string `mapstructure:"cpuset_cpus"`
 	CpusetMems        string `mapstructure:"cpuset_mems"`
-	PidsLimit         int64  `mapstructure:"pids_limit"`
+	PidsLimit         int64  `mapstructure:"pids_limit" validate:"required"`
 }
 
 type RlimitConfig struct {
-	Core   *RlimitItem `mapstructure:"core"`
-	Fsize  *RlimitItem `mapstructure:"fsize"`
-	NoFile *RlimitItem `mapstructure:"no_file"`
+	Core   *RlimitItem `mapstructure:"core" validate:"required"`
+	Fsize  *RlimitItem `mapstructure:"fsize" validate:"required"`
+	NoFile *RlimitItem `mapstructure:"no_file" validate:"required"`
 }
 
 type RlimitItem struct {
-	Hard uint64 `mapstructure:"hard"  validate:"required"`
-	Soft uint64 `mapstructure:"soft"  validate:"required"`
+	Hard uint64 `mapstructure:"hard"`
+	Soft uint64 `mapstructure:"soft"`
 }
