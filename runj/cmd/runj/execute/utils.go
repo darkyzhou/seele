@@ -49,23 +49,23 @@ func getCgroupPath(parentCgroupPath string, rootless bool) (string, string, erro
 
 func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping, []specs.LinuxIDMapping) {
 	return []specs.LinuxIDMapping{
-			specs.LinuxIDMapping{
+			{
 				HostID:      config.RootUid,
 				ContainerID: 0,
 				Size:        1,
 			},
-			specs.LinuxIDMapping{
+			{
 				HostID:      config.UidMapBegin,
 				ContainerID: 1,
 				Size:        config.UidMapCount,
 			},
 		}, []specs.LinuxIDMapping{
-			specs.LinuxIDMapping{
+			{
 				HostID:      config.RootGid,
 				ContainerID: 0,
 				Size:        1,
 			},
-			specs.LinuxIDMapping{
+			{
 				HostID:      config.GidMapBegin,
 				ContainerID: 1,
 				Size:        config.GidMapCount,
