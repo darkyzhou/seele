@@ -139,34 +139,29 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	)
 	{
 		if config.Limits != nil && config.Limits.Rlimit != nil {
-			for _, rule := range config.Limits.Rlimit {
-				rlimitType, ok := rlimitTypeMap[rule.Type]
-				if !ok {
-					return nil, fmt.Errorf("Invalid rlimit type: %s", rule.Type)
-				}
-
-				if rlimitType == unix.RLIMIT_FSIZE {
-					rlimits = append(rlimits, configs.Rlimit{
-						Type: rlimitType,
-						Soft: rule.Soft + 1,
-						Hard: rule.Hard + 1,
-					})
-					rlimitFsize = rule.Hard
-				} else {
-					rlimits = append(rlimits, configs.Rlimit{
-						Type: rlimitType,
-						Soft: rule.Soft,
-						Hard: rule.Hard,
-					})
-				}
+			if config.Limits.Rlimit.Core != nil {
+				rlimits = append(rlimits, configs.Rlimit{
+					Type: unix.RLIMIT_CORE,
+					Hard: config.Limits.Rlimit.Core.Hard,
+					Soft: config.Limits.Rlimit.Core.Soft,
+				})
 			}
-		}
 
-		for _, defaultRule := range defaultRlimitRules {
-			if lo.NoneBy(rlimits, func(rule configs.Rlimit) bool {
-				return defaultRule.Type == rule.Type
-			}) {
-				rlimits = append(rlimits, defaultRule)
+			if config.Limits.Rlimit.NoFile != nil {
+				rlimits = append(rlimits, configs.Rlimit{
+					Type: unix.RLIMIT_NOFILE,
+					Hard: config.Limits.Rlimit.NoFile.Hard,
+					Soft: config.Limits.Rlimit.NoFile.Soft,
+				})
+			}
+
+			if config.Limits.Rlimit.Fsize != nil {
+				rlimits = append(rlimits, configs.Rlimit{
+					Type: unix.RLIMIT_FSIZE,
+					Hard: config.Limits.Rlimit.Fsize.Hard + 1,
+					Soft: config.Limits.Rlimit.Fsize.Soft + 1,
+				})
+				rlimitFsize = config.Limits.Rlimit.Fsize.Hard
 			}
 		}
 	}

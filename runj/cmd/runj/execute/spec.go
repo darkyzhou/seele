@@ -6,9 +6,7 @@ import (
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"golang.org/x/sys/unix"
 )
 
 var defaultMountPoints = []specs.Mount{
@@ -24,13 +22,11 @@ var defaultMountPoints = []specs.Mount{
 		Source:      "tmpfs",
 		Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
 	},
-	// TODO: May be not needed
 	{
 		Destination: "/dev/pts",
 		Type:        "devpts",
 		Source:      "devpts",
-		// Normally a devpts mount point will have a `gid=5` option but in rootless containers it will cause problems
-		Options: []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
+		Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
 	},
 	{
 		Destination: "/dev/shm",
@@ -50,43 +46,6 @@ var defaultMountPoints = []specs.Mount{
 		Source:      "sysfs",
 		Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 	},
-}
-
-var defaultRlimitRules = []configs.Rlimit{
-	{
-		Type: unix.RLIMIT_FSIZE,
-		Hard: 256 * 1024 * 1024, // 256 MiB
-		Soft: 256 * 1024 * 1024,
-	},
-	{
-		Type: unix.RLIMIT_NOFILE,
-		Hard: 256,
-		Soft: 256,
-	},
-	{
-		Type: unix.RLIMIT_CORE,
-		Hard: 0,
-		Soft: 0,
-	},
-}
-
-var rlimitTypeMap = map[string]int{
-	"RLIMIT_AS":         unix.RLIMIT_AS,
-	"RLIMIT_CORE":       unix.RLIMIT_CORE,
-	"RLIMIT_CPU":        unix.RLIMIT_CPU,
-	"RLIMIT_DATA":       unix.RLIMIT_DATA,
-	"RLIMIT_FSIZE":      unix.RLIMIT_FSIZE,
-	"RLIMIT_LOCKS":      unix.RLIMIT_LOCKS,
-	"RLIMIT_MEMLOCK":    unix.RLIMIT_MEMLOCK,
-	"RLIMIT_MSGQUEUE":   unix.RLIMIT_MSGQUEUE,
-	"RLIMIT_NICE":       unix.RLIMIT_NICE,
-	"RLIMIT_NOFILE":     unix.RLIMIT_NOFILE,
-	"RLIMIT_NPROC":      unix.RLIMIT_NPROC,
-	"RLIMIT_RSS":        unix.RLIMIT_RSS,
-	"RLIMIT_RTPRIO":     unix.RLIMIT_RTPRIO,
-	"RLIMIT_RTTIME":     unix.RLIMIT_RTTIME,
-	"RLIMIT_SIGPENDING": unix.RLIMIT_SIGPENDING,
-	"RLIMIT_STACK":      unix.RLIMIT_STACK,
 }
 
 var defaultMemoryLimitBytes int64 = 512 * 1024 * 1024 // 512 MiB
