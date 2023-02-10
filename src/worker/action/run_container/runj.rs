@@ -61,19 +61,11 @@ pub struct MountConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LimitsConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<TimeLimitsConfig>,
+    pub time_ms: u64,
 
     pub cgroup: CgroupConfig,
 
     pub rlimit: RlimitConfig,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TimeLimitsConfig {
-    pub wall: u64,
-    pub kernel: u64,
-    pub user: u64,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]

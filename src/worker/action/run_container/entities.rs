@@ -94,7 +94,7 @@ impl MountConfig {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct LimitsConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<runj::TimeLimitsConfig>,
+    pub time_ms: Option<u64>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_kib: Option<i64>,
@@ -108,6 +108,7 @@ pub struct LimitsConfig {
 
 impl Into<runj::LimitsConfig> for LimitsConfig {
     fn into(self) -> runj::LimitsConfig {
+        const DEFAULT_TIME_MS: u64 = 30 * 1000; // 30 seconds
         const DEFAULT_MEMORY_LIMIT_BYTES: i64 = 256 * 1024 * 1024; // 256 MiB
         const DEFAULT_MEMORY_SWAPPINESS: u64 = 0; // Disable swap
         const DEFAULT_PIDS_LIMIT: i64 = 32;
@@ -116,7 +117,7 @@ impl Into<runj::LimitsConfig> for LimitsConfig {
         const DEFAULT_FSIZE_BYTES: u64 = 64 * 1024 * 1024; // 64 MiB
 
         runj::LimitsConfig {
-            time: self.time,
+            time_ms: self.time_ms.unwrap_or(DEFAULT_TIME_MS),
             cgroup: runj::CgroupConfig {
                 memory: self
                     .memory_kib
