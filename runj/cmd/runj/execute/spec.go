@@ -48,21 +48,11 @@ var defaultMountPoints = []specs.Mount{
 	},
 }
 
-var defaultMemoryLimitBytes int64 = 512 * 1024 * 1024 // 512 MiB
-var defaultSwappiness uint64 = 0
-var defaultPidsLimit int64 = 64
-
 func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDMapping, gidMappings []specs.LinuxIDMapping) (*specs.Spec, error) {
 	var (
 		cgroupCpuRules = &specs.LinuxCPU{}
-		cgroupMemRules = &specs.LinuxMemory{
-			Limit:      &defaultMemoryLimitBytes,
-			Swap:       &defaultMemoryLimitBytes,
-			Swappiness: &defaultSwappiness,
-		}
-		cgroupPidRules = &specs.LinuxPids{
-			Limit: defaultPidsLimit,
-		}
+		cgroupMemRules = &specs.LinuxMemory{}
+		cgroupPidRules = &specs.LinuxPids{}
 	)
 
 	if config.Limits != nil && config.Limits.Cgroup != nil {
