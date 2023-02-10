@@ -7,10 +7,14 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use opentelemetry::{
-    sdk::{trace, Resource},
-    KeyValue,
+    global,
+    sdk::{
+        export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
+        Resource,
+    },
+    Context as OpenTelemetryCtx, KeyValue,
 };
-use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
 use tokio::{runtime, sync::mpsc, task::spawn_blocking};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
@@ -50,36 +54,65 @@ fn main() {
                     .expect("Failed to initialize the logger");
                 }
                 Some(telemetry) => {
+                    let resource = Resource::new(vec![
+                        KeyValue::new("service.name", "seele"),
+                        KeyValue::new("service.hostname", telemetry.hostname.clone()),
+                    ]);
+
                     let tracer = opentelemetry_otlp::new_pipeline()
                         .tracing()
                         .with_exporter(
-                            opentelemetry_otlp::new_exporter()
-                                .tonic()
-                                .with_endpoint(&telemetry.collector_url)
-                                .with_timeout(Duration::from_secs(5)),
+                            opentelemetry_otlp::new_exporter().tonic().with_export_config(
+                                ExportConfig {
+                                    endpoint: telemetry.collector_url.clone(),
+                                    timeout: Duration::from_secs(5),
+                                    protocol: Protocol::Grpc,
+                                },
+                            ),
                         )
-                        .with_trace_config(trace::config().with_resource(Resource::new(vec![
-                            KeyValue::new("service.name", "seele"),
-                            KeyValue::new("service.hostname", telemetry.hostname.clone()),
-                        ])))
+                        .with_trace_config(trace::config().with_resource(resource.clone()))
                         .install_batch(opentelemetry::runtime::Tokio)
                         .expect("Error initializing the tracer");
 
+                    let metrics = opentelemetry_otlp::new_pipeline()
+                        .metrics(
+                            selectors::simple::histogram(vec![5.0, 15.0, 30.0, 60.0]),
+                            cumulative_temporality_selector(),
+                            opentelemetry::runtime::Tokio,
+                        )
+                        .with_exporter(
+                            opentelemetry_otlp::new_exporter().tonic().with_export_config(
+                                ExportConfig {
+                                    endpoint: telemetry.collector_url.clone(),
+                                    timeout: Duration::from_secs(5),
+                                    protocol: Protocol::Grpc,
+                                },
+                            ),
+                        )
+                        .with_resource(resource)
+                        .with_period(Duration::from_secs(3))
+                        .build()
+                        .expect("Error initializing the metrics");
+
+                    _ = shared::metrics::METRICS_CONTROLLER.set(metrics);
+
                     tracing::subscriber::set_global_default(
                         tracing_subscriber::registry()
-                            .with(
-                                tracing_opentelemetry::layer()
-                                    .with_tracer(tracer)
-                                    .with_filter(LevelFilter::INFO),
-                            )
                             .with(
                                 tracing_subscriber::fmt::layer()
                                     .compact()
                                     .with_line_number(true)
                                     .with_filter::<LevelFilter>(conf::CONFIG.log_level.into()),
+                            )
+                            .with(
+                                tracing_opentelemetry::layer()
+                                    .with_tracer(tracer)
+                                    .with_filter(LevelFilter::INFO),
                             ),
                     )
                     .expect("Error initializing the tracing subscriber");
+
+                    info!("Telemetry initialized successfully");
                 }
             }
 
@@ -175,6 +208,15 @@ fn main() {
                 .catch_signals()
                 .handle_shutdown_requests(Duration::from_secs(10))
                 .await;
+
+            if conf::CONFIG.telemetry.is_some() {
+                global::shutdown_tracer_provider();
+                _ = shared::metrics::METRICS_CONTROLLER
+                    .get()
+                    .unwrap()
+                    .stop(&OpenTelemetryCtx::current());
+            }
+
             if let Err(err) = result {
                 error!("Seele encountered fatal issue(s):");
                 for error in err.get_subsystem_errors() {

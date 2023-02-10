@@ -9,6 +9,7 @@ use tokio::{
 pub mod cond_group;
 pub mod file;
 pub mod image;
+pub mod metrics;
 
 #[inline]
 pub fn random_task_id() -> String {

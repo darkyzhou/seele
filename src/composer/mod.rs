@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use tokio::{fs, sync::mpsc};
+use opentelemetry::Context as OpenTelemetryCtx;
+use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, info_span, Instrument};
 
-use crate::{conf, entities::SubmissionConfig, worker::WorkerQueueTx};
+use crate::{conf, entities::SubmissionConfig, shared::metrics, worker::WorkerQueueTx};
 
 mod execute;
 mod predicate;
@@ -27,18 +28,31 @@ pub async fn composer_main(
     mut composer_queue_rx: ComposerQueueRx,
     worker_queue_tx: WorkerQueueTx,
 ) -> Result<()> {
-    debug!("Composer ready to accept submissions");
     while let Ok(Some((submission, status_tx))) =
         composer_queue_rx.recv().cancel_on_shutdown(&handle).await
     {
         tokio::spawn({
-            let span =
-                info_span!("composer_handle_submission", seele.submission.id = submission.id);
+            let span = info_span!("submission_entry", seele.submission.id = submission.id);
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
                 // TODO: pass the `handle`
                 debug!("Receives the submission, start handling");
-                if let Err(err) = handle_submission(submission, worker_queue_tx, status_tx).await {
+                let result = async move {
+                    let begin = Instant::now();
+                    let result = handle_submission(submission, worker_queue_tx, status_tx).await?;
+                    let duration = {
+                        let end = Instant::now();
+                        end.duration_since(begin).as_secs_f64()
+                    };
+                    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
+                        &OpenTelemetryCtx::current(),
+                        duration,
+                        &[],
+                    );
+                    anyhow::Ok(result)
+                }
+                .await;
+                if let Err(err) = result {
                     error!("Error handling the submission: {:#}", err);
                 }
             }
