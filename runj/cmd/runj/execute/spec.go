@@ -2,14 +2,12 @@ package execute
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/samber/lo"
 	"golang.org/x/sys/unix"
 )
 
@@ -153,17 +151,6 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 
 		if utils.FileExists(fromPath) {
 			options := append([]string{"bind", "private"}, mount.Options...)
-
-			if lo.Contains(options, "exec") {
-				// FIXME: Runj should not do this
-				mask := unix.Umask(0)
-				err := os.Chmod(fromPath, 0777)
-				unix.Umask(mask)
-				if err != nil {
-					return nil, fmt.Errorf("Failed to chmod the file %s: %w", fromPath, err)
-				}
-			}
-
 			mounts = append(mounts, specs.Mount{
 				Destination: toPath,
 				Type:        "bind",
