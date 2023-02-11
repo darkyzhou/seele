@@ -185,11 +185,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	processFinishedCtx, processFinishedCtxCancel := context.WithCancel(context.Background())
 	defer processFinishedCtxCancel()
 
-	timeLimit := lo.TernaryF(config.Limits != nil && config.Limits.TimeMs > 0, func() time.Duration {
-		return time.Duration(config.Limits.TimeMs*3) * time.Millisecond
-	}, func() time.Duration {
-		return time.Duration(10) * time.Minute
-	})
+	timeLimit := time.Duration(config.Limits.TimeMs*3) * time.Millisecond
 	timeLimitCtx, timeLimitCtxCancel := context.WithTimeout(context.Background(), timeLimit)
 	defer timeLimitCtxCancel()
 

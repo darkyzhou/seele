@@ -9,7 +9,7 @@ type RunjConfig struct {
 	Paths         []string             `mapstructure:"paths" validate:"dive,required"`
 	Fd            *FdConfig            `mapstructure:"fd"`
 	Mounts        []*MountConfig       `mapstructure:"mounts"`
-	Limits        *LimitsConfig        `mapstructure:"limits"`
+	Limits        *LimitsConfig        `mapstructure:"limits" validate:"required"`
 }
 
 type UserNamespaceConfig struct {
