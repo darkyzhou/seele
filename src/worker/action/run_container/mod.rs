@@ -107,7 +107,7 @@ fn prepare_and_execute_runj(
             for pid in &pids {
                 _ = signal::kill(Pid::from_raw(*pid as i32), Signal::SIGTERM);
             }
-            info!(parent: span, "Killed runj process with pids: {pids:?}");
+            info!(parent: span, "Sent SIGTERM to pids: {pids:?}");
         }
     });
 
