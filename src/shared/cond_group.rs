@@ -1,8 +1,9 @@
+use std::{collections::HashMap, hash::Hash};
+
 use futures_util::{
     future::{BoxFuture, Shared},
     FutureExt,
 };
-use std::{collections::HashMap, hash::Hash};
 use tokio::sync::Mutex;
 
 type Task<R> = Shared<BoxFuture<'static, R>>;
@@ -15,9 +16,7 @@ pub struct CondGroup<K, R> {
 
 impl<K, R> CondGroup<K, R>
 where
-    K: Eq,
-    K: Hash,
-    K: Clone,
+    K: Eq + Hash + Clone,
     R: Clone,
 {
     pub fn new(task_fn: impl Fn(&K) -> BoxFuture<'static, R> + Send + Sync + 'static) -> Self {
@@ -46,10 +45,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::CondGroup;
+    use std::time::Duration;
+
     use futures_util::FutureExt;
     use rand::Rng;
-    use std::time::Duration;
+
+    use super::CondGroup;
 
     #[tokio::test]
     async fn test_run_single() {
