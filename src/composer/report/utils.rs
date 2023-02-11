@@ -31,10 +31,6 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
         return OjStatus::WrongAnswer;
     }
 
-    if !matches!(run_report.status, ExecutionStatus::Normal) {
-        return OjStatus::RuntimeError;
-    }
-
     if matches!(
         (&run_report.status, &compare_report.status),
         (&ExecutionStatus::Normal, &ExecutionStatus::Normal)
@@ -55,6 +51,10 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
 
     if run_report.is_oom {
         return OjStatus::MemoryLimitExceeded;
+    }
+
+    if !matches!(run_report.status, ExecutionStatus::Normal) {
+        return OjStatus::RuntimeError;
     }
 
     return OjStatus::InternalError;
