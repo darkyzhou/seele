@@ -3,13 +3,14 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 pub use entities::*;
-use futures_util::FutureExt;
+use futures_util::{future, FutureExt};
 use once_cell::sync::Lazy;
 use tokio::io;
 use tracing::instrument;
+use triggered::Listener;
 
 use super::ActionContext;
 use crate::{
@@ -61,11 +62,20 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 });
 
 #[instrument(skip_all, name = "action_add_file_execute")]
-pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
-    let results = futures_util::future::join_all(config.files.iter().map(|item| async move {
-        match &item.ext {
-            FileItemExt::Inline { content } => handle_inline_file(ctx, &item.path, content).await,
-            FileItemExt::Http { url } => handle_http_file(ctx, &item.path, url).await,
+pub async fn execute(
+    handle: Listener,
+    ctx: &ActionContext,
+    config: &Config,
+) -> Result<ActionSuccessReportExt> {
+    let results = future::join_all(config.files.iter().map(|item| {
+        let handle = handle.clone();
+        async move {
+            match &item.ext {
+                FileItemExt::Inline { content } => {
+                    handle_inline_file(ctx, &item.path, content).await
+                }
+                FileItemExt::Http { url } => handle_http_file(handle, ctx, &item.path, url).await,
+            }
         }
     }))
     .await;
@@ -77,6 +87,7 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
             result.as_ref().err().map(|err| format!("{}: {:#}", config.files[i], err))
         })
         .collect();
+
     if !failed_items.is_empty() {
         bail!(ActionErrorWithReport::new(ActionFailedReportExt::AddFile(FailedReport {
             files: failed_items
@@ -102,18 +113,26 @@ static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
 #[instrument(skip_all)]
-async fn handle_http_file(ctx: &ActionContext, path: &Path, url: &String) -> Result<()> {
+async fn handle_http_file(
+    handle: Listener,
+    ctx: &ActionContext,
+    path: &Path,
+    url: &String,
+) -> Result<()> {
     let mut file = {
         let target_path: PathBuf = ctx.submission_root.join(path);
         shared::file::create_file(&target_path).await.context("Error creating the file")?
     };
 
-    let data =
-        HTTP_TASKS.run(url).await.map_err(|msg| anyhow!("Error downloading the file: {}", msg))?;
-    let mut data = data.as_ref();
-    io::copy_buf(&mut data, &mut file).await.context("Error writing the data")?;
-
-    Ok(())
+    match HTTP_TASKS.run(url.clone(), handle).await {
+        None => bail!(shared::ABORTED_MESSAGE),
+        Some(Err(err)) => bail!("Error downloading the file: {err:#}"),
+        Some(Ok(data)) => {
+            let mut data = data.as_ref();
+            io::copy_buf(&mut data, &mut file).await.context("Error writing the data")?;
+            Ok(())
+        }
+    }
 }
 
 async fn download_http_file(url: String) -> Result<Bytes, String> {
@@ -163,7 +182,9 @@ mod tests {
         let target_path: PathBuf = iter::once("foo/bar.txt").collect();
         fs::create_dir_all(&submission_root).await.unwrap();
 
+        let (_trigger, listener) = triggered::trigger();
         super::handle_http_file(
+            listener,
             &ActionContext { submission_root: submission_root.clone() },
             &target_path,
             &"https://reqbin.com/echo/get/json".to_string(),

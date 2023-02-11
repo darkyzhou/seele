@@ -1,4 +1,4 @@
-use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, sync::Arc};
+use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Result};
 use bytes::Buf;
@@ -9,6 +9,7 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Server,
 };
+use tokio::time::sleep;
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{debug, error, info};
 
@@ -49,6 +50,10 @@ pub async fn run_http_exchange(
         .serve(service)
         .with_graceful_shutdown(async move {
             handle.on_shutdown_requested().await;
+
+            info!("Http exchange is shutting down, waiting for unfinished submissions");
+            // Wait for aborted submissions' reports
+            sleep(Duration::from_secs(5)).await;
         })
         .await?;
 

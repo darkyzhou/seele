@@ -11,6 +11,8 @@ pub mod file;
 pub mod image;
 pub mod metrics;
 
+pub static ABORTED_MESSAGE: &str = "Aborted due to shutting down";
+
 #[inline]
 pub fn random_task_id() -> String {
     nano_id::base62::<8>()

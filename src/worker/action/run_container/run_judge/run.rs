@@ -4,6 +4,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{metadata, set_permissions};
 use tracing::instrument;
+use triggered::Listener;
 
 use super::MOUNT_DIRECTORY;
 use crate::{
@@ -27,7 +28,11 @@ pub struct Config {
 }
 
 #[instrument(skip_all, name = "action_run_judge_run_execute")]
-pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
+pub async fn execute(
+    handle: Listener,
+    ctx: &ActionContext,
+    config: &Config,
+) -> Result<ActionSuccessReportExt> {
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
@@ -66,5 +71,5 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
         run_container_config
     };
 
-    run_container::execute(ctx, &run_container_config).await
+    run_container::execute(handle, ctx, &run_container_config).await
 }

@@ -35,7 +35,6 @@ pub async fn composer_main(
             let span = info_span!("submission_entry", seele.submission.id = submission.id);
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
-                // TODO: pass the `handle`
                 debug!("Receives the submission, start handling");
                 let result = async move {
                     let begin = Instant::now();
@@ -49,6 +48,7 @@ pub async fn composer_main(
                         duration,
                         &[],
                     );
+
                     anyhow::Ok(result)
                 }
                 .await;

@@ -4,6 +4,7 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tracing::{instrument, warn};
+use triggered::Listener;
 
 use super::MOUNT_DIRECTORY;
 use crate::{
@@ -38,7 +39,11 @@ pub enum CacheItem {
 }
 
 #[instrument(skip_all, name = "action_run_judge_compile_execute")]
-pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSuccessReportExt> {
+pub async fn execute(
+    handle: Listener,
+    ctx: &ActionContext,
+    config: &Config,
+) -> Result<ActionSuccessReportExt> {
     let mount_directory = conf::PATHS.temp.join(format!("run-judge-{}", nano_id::base62::<8>()));
     fs::create_dir(&mount_directory).await?;
     // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
@@ -71,7 +76,7 @@ pub async fn execute(ctx: &ActionContext, config: &Config) -> Result<ActionSucce
             run_container_config
         };
 
-        match run_container::execute(ctx, &run_container_config).await {
+        match run_container::execute(handle, ctx, &run_container_config).await {
             Err(err) => Err(err),
             Ok(report) => {
                 for file in &config.save {

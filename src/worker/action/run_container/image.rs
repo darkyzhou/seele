@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use duct::cmd;
 use futures_util::FutureExt;
 use once_cell::sync::Lazy;
@@ -9,6 +9,7 @@ use tokio::{
     task::spawn_blocking,
 };
 use tracing::{debug, instrument, warn};
+use triggered::Listener;
 
 use crate::{
     conf,
@@ -18,9 +19,12 @@ use crate::{
 static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =
     Lazy::new(|| CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed()));
 
-pub async fn prepare_image(image: &OciImage) -> Result<()> {
-    PREPARATION_TASKS.run(image).await.map_err(|err| anyhow!(err))?;
-    Ok(())
+pub async fn prepare_image(abort: Listener, image: OciImage) -> Result<()> {
+    match PREPARATION_TASKS.run(image, abort).await {
+        None => bail!(shared::ABORTED_MESSAGE),
+        Some(Err(err)) => bail!("Error preparing the image: {err:#}"),
+        _ => Ok(()),
+    }
 }
 
 #[instrument]

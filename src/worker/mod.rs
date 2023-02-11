@@ -3,8 +3,9 @@ use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc};
 use anyhow::Result;
 use chrono::Utc;
 use tokio::{sync::oneshot, time::Instant};
-use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{error, info_span, instrument, Instrument, Span};
+use tokio_graceful_shutdown::SubsystemHandle;
+use tracing::{error, info_span, Instrument, Span};
+use triggered::Listener;
 
 pub use self::action::*;
 use crate::{
@@ -59,40 +60,58 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Re
 }
 
 async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
-    while let Ok(Ok(item)) = queue_rx.recv().cancel_on_shutdown(&handle).await {
-        let span = info_span!(parent: item.parent_span, "worker_handler");
+    let (trigger, abort_handle) = triggered::trigger();
 
-        async move {
-            let report = execute_action(item.submission_root, &item.config).await;
+    tokio::spawn(async move {
+        handle.on_shutdown_requested().await;
+        trigger.trigger();
+    });
 
-            if item.report_tx.send(report).is_err() {
-                error!(submission_id = item.submission_id, "Error sending the report");
+    loop {
+        let outer_handle = abort_handle.clone();
+        tokio::select! {
+            _ = outer_handle => break,
+            item = queue_rx.recv() => match item {
+                Err(_) => break,
+                Ok(item) => {
+                    let span = info_span!(parent: item.parent_span, "worker_execute_entry");
+                    async {
+                        let report = execute_action(abort_handle.clone(), item.submission_root, &item.config).await;
+
+                        if item.report_tx.send(report).is_err() {
+                            error!(submission_id = item.submission_id, "Error sending the report");
+                        }
+                    }
+                    .instrument(span)
+                    .await;
+                }
             }
         }
-        .instrument(span)
-        .await;
     }
 
     Ok(())
 }
 
-#[instrument(skip_all)]
-async fn execute_action(submission_root: PathBuf, task: &ActionTaskConfig) -> ActionReport {
+async fn execute_action(
+    handle: Listener,
+    submission_root: PathBuf,
+    task: &ActionTaskConfig,
+) -> ActionReport {
     let ctx = Arc::new(ActionContext { submission_root });
 
     let begin = Instant::now();
     let run_at = Utc::now();
     let result = match task {
         ActionTaskConfig::Noop(config) => action::noop::execute(config).await,
-        ActionTaskConfig::AddFile(config) => action::add_file::execute(&ctx, config).await,
+        ActionTaskConfig::AddFile(config) => action::add_file::execute(handle, &ctx, config).await,
         ActionTaskConfig::RunContainer(config) => {
-            action::run_container::execute(&ctx, config).await
+            action::run_container::execute(handle, &ctx, config).await
         }
         ActionTaskConfig::RunJudgeCompile(config) => {
-            action::run_container::run_judge::compile::execute(&ctx, config).await
+            action::run_container::run_judge::compile::execute(handle, &ctx, config).await
         }
         ActionTaskConfig::RunJudgeRun(config) => {
-            action::run_container::run_judge::run::execute(&ctx, config).await
+            action::run_container::run_judge::run::execute(handle, &ctx, config).await
         }
     };
     let time_elapsed_ms = {
