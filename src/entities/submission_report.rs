@@ -41,11 +41,9 @@ pub struct SubmissionReportUploadConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum SubmissionReportUploadMethod {
-    #[serde(rename = "GET")]
     Get,
-    #[serde(rename = "POST")]
     Post,
-    #[serde(rename = "PUT")]
     Put,
 }

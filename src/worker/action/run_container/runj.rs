@@ -132,32 +132,16 @@ pub struct ContainerExecutionReport {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ContainerExecutionStatus {
-    #[serde(rename = "NORMAL")]
     Normal,
-
-    #[serde(rename = "RUNTIME_ERROR")]
     RuntimeError,
-
-    #[serde(rename = "SIGNAL_TERMINATE")]
     SignalTerminate,
-
-    #[serde(rename = "SIGNAL_STOP")]
     SignalStop,
-
-    #[serde(rename = "USER_TIME_LIMIT_EXCEEDED")]
     UserTimeLimitExceeded,
-
-    #[serde(rename = "WALL_TIME_LIMIT_EXCEEDED")]
     WallTimeLimitExceeded,
-
-    #[serde(rename = "MEMORY_LIMIT_EXCEEDED")]
     MemoryLimitExceeded,
-
-    #[serde(rename = "OUTPUT_LIMIT_EXCEEDED")]
     OutputLimitExceeded,
-
-    #[serde(rename = "UNKNOWN")]
     Unknown,
 }
 

@@ -104,15 +104,11 @@ pub struct ParallelTaskConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "status")]
+#[serde(tag = "status", rename_all = "UPPERCASE")]
 pub enum TaskStatus {
-    #[serde(rename = "PENDING")]
     Pending,
-    #[serde(rename = "SKIPPED")]
     Skipped,
-    #[serde(rename = "FAILED")]
     Failed { report: TaskFailedReport },
-    #[serde(rename = "SUCCESS")]
     Success { report: TaskSuccessReport },
 }
 
