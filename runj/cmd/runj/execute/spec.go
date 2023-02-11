@@ -178,7 +178,6 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 				CPU:    cgroupCpuRules,
 				Memory: cgroupMemRules,
 				Pids:   cgroupPidRules,
-				// TODO: Maybe we should have rules for device?
 			},
 			Namespaces: namespaces,
 		},
