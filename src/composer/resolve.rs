@@ -20,13 +20,7 @@ pub fn resolve_submission(
             resolve_sequence(".", &config.tasks).context("Error resolving root sequence tasks")?,
         ],
     });
-    Ok(Submission {
-        id: config.id.clone(),
-        root_directory,
-        config,
-        nodes: get_id_to_node_map(root_node.clone()),
-        root_node,
-    })
+    Ok(Submission { id: config.id.clone(), root_directory, config, root_node })
 }
 
 fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
@@ -125,29 +119,6 @@ fn append_children(
             .collect();
     }
     node
-}
-
-fn get_id_to_node_map(root: Arc<RootTaskNode>) -> HashMap<String, Arc<TaskNode>> {
-    let mut result = HashMap::default();
-    let mut queue = root.tasks.clone();
-
-    while !queue.is_empty() {
-        let mut next_queue = vec![];
-
-        for node in queue {
-            result.insert(node.id.clone(), node.clone());
-
-            if let TaskNodeExt::Schedule(tasks) = &node.ext {
-                next_queue.extend(tasks.iter().cloned());
-            }
-
-            next_queue.extend(node.children.iter().cloned());
-        }
-
-        queue = next_queue;
-    }
-
-    result
 }
 
 #[cfg(test)]

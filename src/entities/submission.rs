@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex, RwLock},
 };
@@ -61,9 +60,6 @@ pub struct Submission {
 
     pub config: Arc<SubmissionConfig>,
     pub root_node: Arc<RootTaskNode>,
-
-    #[cfg_attr(test, serde(skip_serializing))]
-    pub nodes: HashMap<String, Arc<TaskNode>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
