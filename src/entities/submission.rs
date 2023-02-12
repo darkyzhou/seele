@@ -57,7 +57,6 @@ fn random_submission_id() -> String {
 pub struct Submission {
     pub id: String,
     pub root_directory: PathBuf,
-
     pub config: Arc<SubmissionConfig>,
     pub root_node: Arc<RootTaskNode>,
 }
@@ -69,8 +68,10 @@ pub struct TaskConfig {
 
     #[serde(skip_serializing, default)]
     pub when: Option<String>,
+
     #[serde(skip_serializing, default)]
     pub needs: Option<String>,
+
     #[serde(skip_serializing_if = "TaskConfigExt::is_action_task", flatten)]
     pub ext: TaskConfigExt,
 }
