@@ -8,7 +8,7 @@ use nix::{
 };
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
-use tokio::task::spawn_blocking;
+use tokio::{sync::oneshot, task::spawn_blocking};
 use tracing::{error, info, info_span, instrument, warn, Span};
 use triggered::Listener;
 
@@ -99,15 +99,20 @@ fn prepare_and_execute_runj(
         .context("Error running the runj process")?;
     let pids = reader.pids();
 
+    let (cancel_tx, cancel_rx) = oneshot::channel();
     tokio::spawn({
         let abort = abort.clone();
         let span = Span::current();
         async move {
-            abort.await;
-            for pid in &pids {
-                _ = signal::kill(Pid::from_raw(*pid as i32), Signal::SIGTERM);
+            tokio::select! {
+                _ = cancel_rx => {},
+                _ = abort => {
+                    for pid in &pids {
+                        _ = signal::kill(Pid::from_raw(*pid as i32), Signal::SIGTERM);
+                    }
+                    info!(parent: span, "Sent SIGTERM to pids: {pids:?}");
+                }
             }
-            info!(parent: span, "Sent SIGTERM to pids: {pids:?}");
         }
     });
 
@@ -116,6 +121,8 @@ fn prepare_and_execute_runj(
     if abort.is_triggered() {
         bail!("Aborted");
     }
+
+    _ = cancel_tx.send(());
 
     match result {
         Ok(_) => {
