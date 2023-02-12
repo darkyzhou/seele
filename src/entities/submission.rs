@@ -226,6 +226,7 @@ pub struct RootTaskNode {
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct TaskNode {
+    pub name: String,
     #[cfg_attr(test, serde(skip_serializing))]
     pub config: Arc<TaskConfig>,
     pub id: String,

@@ -17,7 +17,7 @@ pub fn resolve_submission(
     let root_node = Arc::new(RootTaskNode {
         id: config.id.clone(),
         tasks: vec![
-            resolve_sequence(&config.tasks).context("Error resolving root sequence tasks")?,
+            resolve_sequence(".", &config.tasks).context("Error resolving root sequence tasks")?,
         ],
     });
     Ok(Submission {
@@ -29,7 +29,7 @@ pub fn resolve_submission(
     })
 }
 
-fn resolve_sequence(tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
+fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
     if tasks.is_empty() {
         bail!("Empty steps provided");
     }
@@ -40,14 +40,14 @@ fn resolve_sequence(tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
     let mut id_to_children_map: HashMap<String, Vec<String>> = HashMap::default();
 
     let root_node = {
-        let (_, root_task) = tasks.first().unwrap();
-        resolve_task(root_task.clone())?
+        let (name, root_task) = tasks.first().unwrap();
+        resolve_task(format!("{name_prefix}{}", name.clone()), root_task.clone())?
     };
     id_to_node_map.insert(root_node.id.clone(), root_node.clone());
 
     let mut prev_seq_node_id = root_node.id.clone();
     for (i, (name, task)) in tasks.iter().enumerate().skip(1) {
-        let node = resolve_task(task.clone())?;
+        let node = resolve_task(format!("{name_prefix}{}", name.clone()), task.clone())?;
 
         match &task.needs {
             None => {
@@ -76,28 +76,35 @@ fn resolve_sequence(tasks: &SequenceTasks) -> Result<Arc<TaskNode>> {
     Ok(Arc::new(append_children(&id_to_node_map, &id_to_children_map, root_node)))
 }
 
-fn resolve_task(config: Arc<TaskConfig>) -> Result<TaskNode> {
+fn resolve_task(name: String, config: Arc<TaskConfig>) -> Result<TaskNode> {
     let id = shared::random_task_id();
     Ok(match &config.ext {
         TaskConfigExt::Sequence(ext) => {
+            let prefix = format!("{}.", name);
             let ext = TaskNodeExt::Schedule({
-                vec![resolve_sequence(&ext.tasks).context("Error resolving sequence tasks")?]
+                vec![
+                    resolve_sequence(&prefix, &ext.tasks)
+                        .context("Error resolving sequence tasks")?,
+                ]
             });
-            TaskNode { config, id, children: vec![], ext }
+            TaskNode { name, config, id, children: vec![], ext }
         }
         TaskConfigExt::Parallel(ext) => {
             let ext = TaskNodeExt::Schedule(
                 ext.tasks
                     .iter()
-                    .map(|task| resolve_task(task.clone()).map(Arc::new))
+                    .enumerate()
+                    .map(|(i, task)| {
+                        resolve_task(format!("{}.{}", name, i), task.clone()).map(Arc::new)
+                    })
                     .collect::<Result<_>>()
                     .context("Error resolving parallel tasks")?,
             );
-            TaskNode { config, id, children: vec![], ext }
+            TaskNode { name, config, id, children: vec![], ext }
         }
         TaskConfigExt::Action(ext) => {
             let ext = TaskNodeExt::Action(Arc::new(ext.clone()));
-            TaskNode { config, id, children: vec![], ext }
+            TaskNode { name, config, id, children: vec![], ext }
         }
     })
 }

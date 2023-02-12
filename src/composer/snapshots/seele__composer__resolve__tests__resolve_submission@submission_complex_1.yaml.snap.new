@@ -1,6 +1,6 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 160
+assertion_line: 167
 expression: submission
 input_file: src/composer/stubs/submission_complex_1.yaml
 ---
@@ -51,26 +51,33 @@ Submission(
     id: "[id]",
     tasks: [
       TaskNode(
+        name: ".prepare_sources",
         id: "[id]",
         children: [
           TaskNode(
+            name: ".compile",
             id: "[id]",
             children: [
               TaskNode(
+                name: ".standard",
                 id: "[id]",
                 children: [],
                 ext: [
                   TaskNode(
+                    name: ".standard.0",
                     id: "[id]",
                     children: [],
                     ext: [
                       TaskNode(
+                        name: ".standard.0.prepare",
                         id: "[id]",
                         children: [
                           TaskNode(
+                            name: ".standard.0.run",
                             id: "[id]",
                             children: [
                               TaskNode(
+                                name: ".standard.0.compare",
                                 id: "[id]",
                                 children: [],
                                 ext: Config(
@@ -97,6 +104,7 @@ Submission(
             ],
             ext: [
               TaskNode(
+                name: ".compile.0",
                 id: "[id]",
                 children: [],
                 ext: Config(
@@ -105,6 +113,7 @@ Submission(
                 ),
               ),
               TaskNode(
+                name: ".compile.1",
                 id: "[id]",
                 children: [],
                 ext: Config(

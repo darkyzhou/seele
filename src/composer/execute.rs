@@ -112,7 +112,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) -> boo
     return success && results.into_iter().all(|success| success);
 }
 
-#[instrument(skip_all)] // TODO: task name
+#[instrument(skip_all, fields(task.name = node.name))]
 async fn track_action_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
@@ -143,7 +143,7 @@ async fn track_action_execution(
     success
 }
 
-#[instrument(skip_all)] // TODO: task name
+#[instrument(skip_all, fields(task.name = node.name))]
 async fn track_schedule_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,

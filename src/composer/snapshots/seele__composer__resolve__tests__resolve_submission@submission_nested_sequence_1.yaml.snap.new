@@ -1,6 +1,6 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 160
+assertion_line: 167
 expression: submission
 input_file: src/composer/stubs/submission_nested_sequence_1.yaml
 ---
@@ -35,12 +35,15 @@ Submission(
     id: "[id]",
     tasks: [
       TaskNode(
+        name: ".one",
         id: "[id]",
         children: [
           TaskNode(
+            name: ".two",
             id: "[id]",
             children: [
               TaskNode(
+                name: ".three",
                 id: "[id]",
                 children: [],
                 ext: Config(
@@ -51,9 +54,11 @@ Submission(
             ],
             ext: [
               TaskNode(
+                name: ".two.two-one",
                 id: "[id]",
                 children: [
                   TaskNode(
+                    name: ".two.two-two",
                     id: "[id]",
                     children: [],
                     ext: Config(

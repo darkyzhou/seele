@@ -1,6 +1,6 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 160
+assertion_line: 167
 expression: submission
 input_file: src/composer/stubs/submission_nested_sequence_2.yaml
 ---
@@ -65,29 +65,37 @@ Submission(
     id: "[id]",
     tasks: [
       TaskNode(
+        name: ".one",
         id: "[id]",
         children: [
           TaskNode(
+            name: ".two",
             id: "[id]",
             children: [
               TaskNode(
+                name: ".three",
                 id: "[id]",
                 children: [
                   TaskNode(
+                    name: ".four",
                     id: "[id]",
                     children: [],
                     ext: [
                       TaskNode(
+                        name: ".four.four-one",
                         id: "[id]",
                         children: [
                           TaskNode(
+                            name: ".four.four-two",
                             id: "[id]",
                             children: [
                               TaskNode(
+                                name: ".four.four-three",
                                 id: "[id]",
                                 children: [],
                                 ext: [
                                   TaskNode(
+                                    name: ".four.four-three.four-three-one",
                                     id: "[id]",
                                     children: [],
                                     ext: Config(
@@ -100,6 +108,7 @@ Submission(
                             ],
                             ext: [
                               TaskNode(
+                                name: ".four.four-two.0",
                                 id: "[id]",
                                 children: [],
                                 ext: Config(
@@ -108,6 +117,7 @@ Submission(
                                 ),
                               ),
                               TaskNode(
+                                name: ".four.four-two.1",
                                 id: "[id]",
                                 children: [],
                                 ext: Config(
@@ -116,6 +126,7 @@ Submission(
                                 ),
                               ),
                               TaskNode(
+                                name: ".four.four-two.2",
                                 id: "[id]",
                                 children: [],
                                 ext: Config(
@@ -142,9 +153,11 @@ Submission(
             ],
             ext: [
               TaskNode(
+                name: ".two.two-one",
                 id: "[id]",
                 children: [
                   TaskNode(
+                    name: ".two.two-two",
                     id: "[id]",
                     children: [],
                     ext: Config(
