@@ -39,7 +39,8 @@ pub async fn composer_main(
                 "submission_entry",
                 submission.id = submission.id,
                 submission.error.internal = false,
-                submission.error.execution = false
+                submission.error.execution = false,
+                submission.attribute = submission.tracing_attribute,
             );
             let worker_queue_tx = worker_queue_tx.clone();
             async move {

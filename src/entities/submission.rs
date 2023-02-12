@@ -27,6 +27,9 @@ pub struct SubmissionConfig {
     #[serde(default = "random_submission_id")]
     pub id: String,
 
+    #[serde(default)]
+    pub tracing_attribute: Option<String>,
+
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 
