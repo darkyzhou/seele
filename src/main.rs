@@ -158,6 +158,16 @@ fn main() {
                     })?;
                 }
 
+                shared::metrics::METER
+                    .register_callback(|ctx| {
+                        shared::metrics::WORKER_COUNT_GAUGE.observe(
+                            ctx,
+                            conf::CONFIG.thread_counts.worker as u64,
+                            &[],
+                        )
+                    })
+                    .context("Error registering the meter callback")?;
+
                 Ok(())
             })
             .await??;

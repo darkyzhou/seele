@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use opentelemetry::Context as OpenTelemetryCtx;
+use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, info_span, Instrument};
@@ -38,15 +38,16 @@ pub async fn composer_main(
                 debug!("Receives the submission, start handling");
                 let result = async move {
                     let begin = Instant::now();
-                    let result = handle_submission(submission, worker_queue_tx, status_tx).await?;
+                    let result = handle_submission(submission, worker_queue_tx, status_tx).await;
                     let duration = {
                         let end = Instant::now();
                         end.duration_since(begin).as_secs_f64()
                     };
+
                     metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
                         &OpenTelemetryCtx::current(),
                         duration,
-                        &[],
+                        &vec![KeyValue::new("submission.success", result.is_ok())],
                     );
 
                     anyhow::Ok(result)

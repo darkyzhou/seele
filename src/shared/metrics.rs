@@ -1,7 +1,7 @@
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
     global,
-    metrics::{Histogram, Meter, Unit},
+    metrics::{Histogram, Meter, ObservableGauge, Unit},
     sdk::{metrics::controllers::BasicController, Resource},
     KeyValue,
 };
@@ -40,5 +40,12 @@ pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
         .f64_histogram("submission.duration")
         .with_description("Duration of submissions handling")
         .with_unit(Unit::new("s"))
+        .init()
+});
+
+pub static WORKER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+    METER
+        .u64_observable_gauge("worker.count")
+        .with_description("Count of available worker thread")
         .init()
 });
