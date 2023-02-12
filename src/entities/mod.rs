@@ -1,7 +1,7 @@
 pub use action::*;
+pub use report::*;
 pub use submission::*;
-pub use submission_report::*;
 
 mod action;
+mod report;
 mod submission;
-mod submission_report;
