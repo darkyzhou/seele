@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use tokio::{sync::oneshot, time::Instant};
-use tracing::{debug, instrument, Span};
+use tracing::{debug, error, instrument, Span};
 
 use super::{
     predicate,
@@ -32,7 +32,7 @@ pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
-) -> Result<()> {
+) -> Result<bool> {
     let mut ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
@@ -40,7 +40,7 @@ pub async fn execute_submission(
         status_tx,
     };
 
-    futures_util::future::join_all(
+    let results = futures_util::future::join_all(
         submission
             .root_node
             .tasks
@@ -49,43 +49,51 @@ pub async fn execute_submission(
             .map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
+    let success = results.into_iter().all(|success| success);
 
-    let report_result = async {
-        if let Some(reporter) = &submission.config.reporter {
-            let mut report_config =
-                make_submission_report(submission.config.clone(), reporter).await?;
+    if success {
+        let report_result = async {
+            if let Some(reporter) = &submission.config.reporter {
+                let mut report_config =
+                    make_submission_report(submission.config.clone(), reporter).await?;
 
-            let result = apply_report_config(&report_config, &submission).await?;
+                let result = apply_report_config(&report_config, &submission).await?;
 
-            for (field, content) in result.embeds {
-                report_config.report.insert(field, content.into());
+                for (field, content) in result.embeds {
+                    report_config.report.insert(field, content.into());
+                }
+
+                *submission.config.report.lock().unwrap() = Some(report_config.report);
             }
 
-            *submission.config.report.lock().unwrap() = Some(report_config.report);
+            anyhow::Ok(())
+        }
+        .await;
+
+        if let Err(err) = &report_result {
+            *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
         }
 
-        anyhow::Ok(())
-    }
-    .await;
-    if let Err(err) = &report_result {
-        *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
-    }
+        _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
 
-    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
+        report_result.map(move |_| success)
+    } else {
+        _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
 
-    report_result
+        Ok(success)
+    }
 }
 
 #[async_recursion]
-async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
-    match &node.ext {
+async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) -> bool {
+    let success = match &node.ext {
         TaskNodeExt::Action(config) => {
             track_action_execution(ctx.clone(), node.clone(), config.clone()).await
         }
         TaskNodeExt::Schedule(tasks) => {
             track_schedule_execution(ctx.clone(), node.clone(), tasks).await
         }
-    }
+    };
 
     let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
         .children
@@ -96,10 +104,12 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) {
         skip_task_node(node);
     }
 
-    futures_util::future::join_all(
+    let results = futures_util::future::join_all(
         continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
     )
     .await;
+
+    return success && results.into_iter().all(|success| success);
 }
 
 #[instrument(skip_all)] // TODO: task name
@@ -107,7 +117,7 @@ async fn track_action_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
-) {
+) -> bool {
     debug!("Submitting the action");
     let result = submit_action(ctx.clone(), config.clone()).await;
 
@@ -117,11 +127,20 @@ async fn track_action_execution(
         },
         Ok(report) => report.into(),
     };
+
+    if let TaskStatus::Failed { report } = &status {
+        error!("The execution of the task returned a failed report: {:?}", report);
+    }
+
+    let success = matches!(status, TaskStatus::Success { .. });
+
     {
         *node.config.status.write().unwrap() = status;
     }
 
-    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
+    _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
+
+    success
 }
 
 #[instrument(skip_all)] // TODO: task name
@@ -129,7 +148,7 @@ async fn track_schedule_execution(
     mut ctx: ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
-) {
+) -> bool {
     let begin = Instant::now();
     futures_util::future::join_all(
         tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
@@ -150,12 +169,16 @@ async fn track_schedule_execution(
             config.tasks.iter().map(|(key, value)| (key.to_string(), value.to_owned())),
         ),
     };
+    let success = matches!(status, TaskStatus::Success { .. });
+
     debug!(status = ?status, "Setting the status");
     {
         *node.config.status.write().unwrap() = status;
     }
 
-    let _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
+    _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
+
+    success
 }
 
 fn resolve_parallel_status(time_elapsed_ms: u64, tasks: Vec<Arc<TaskConfig>>) -> TaskStatus {

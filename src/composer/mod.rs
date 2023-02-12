@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{debug, error, info_span, Instrument};
+use tracing::{debug, error, info_span, Instrument, Span};
 
 use crate::{conf, entities::SubmissionConfig, shared::metrics, worker::WorkerQueueTx};
 
@@ -28,33 +28,47 @@ pub async fn composer_main(
     mut composer_queue_rx: ComposerQueueRx,
     worker_queue_tx: WorkerQueueTx,
 ) -> Result<()> {
+    const SUBMISSION_ERROR_INTERNAL: &str = "submission.error.internal";
+    const SUBMISSION_ERROR_EXECUTION: &str = "submission.error.execution";
+
     while let Ok(Some((submission, status_tx))) =
         composer_queue_rx.recv().cancel_on_shutdown(&handle).await
     {
         tokio::spawn({
-            let span = info_span!("submission_entry", seele.submission.id = submission.id);
+            let span = info_span!(
+                "submission_entry",
+                submission.id = submission.id,
+                submission.error.internal = false,
+                submission.error.execution = false
+            );
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
-                debug!("Receives the submission, start handling");
-                let result = async move {
-                    let begin = Instant::now();
-                    let result = handle_submission(submission, worker_queue_tx, status_tx).await;
-                    let duration = {
-                        let end = Instant::now();
-                        end.duration_since(begin).as_secs_f64()
-                    };
+                let begin = Instant::now();
+                let result = handle_submission(submission, worker_queue_tx, status_tx).await;
+                let duration = {
+                    let end = Instant::now();
+                    end.duration_since(begin).as_secs_f64()
+                };
 
-                    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
-                        &OpenTelemetryCtx::current(),
-                        duration,
-                        &vec![KeyValue::new("submission.success", result.is_ok())],
-                    );
+                metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
+                    &OpenTelemetryCtx::current(),
+                    duration,
+                    &vec![
+                        KeyValue::new(SUBMISSION_ERROR_INTERNAL, result.is_err()),
+                        KeyValue::new(SUBMISSION_ERROR_EXECUTION, matches!(result, Ok(false))),
+                    ],
+                );
 
-                    anyhow::Ok(result)
-                }
-                .await;
-                if let Err(err) = result {
-                    error!("Error handling the submission: {:#}", err);
+                match result {
+                    Err(err) => {
+                        Span::current().record(SUBMISSION_ERROR_INTERNAL, true);
+                        error!("Error executing the submission: {:#}", err);
+                    }
+                    Ok(false) => {
+                        Span::current().record(SUBMISSION_ERROR_EXECUTION, true);
+                        error!("The execution of the submission returned a failed report");
+                    }
+                    _ => {}
                 }
             }
             .instrument(span)
@@ -68,7 +82,7 @@ async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
-) -> Result<()> {
+) -> Result<bool> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
         bail!(
@@ -87,9 +101,7 @@ async fn handle_submission(
         .context("Failed to resolve the submission")?;
 
     debug!("Executing the submission");
-    execute::execute_submission(submission, worker_queue_tx, status_tx)
+    Ok(execute::execute_submission(submission, worker_queue_tx, status_tx)
         .await
-        .context("Error executing the submission")?;
-
-    Ok(())
+        .context("Error executing the submission")?)
 }
