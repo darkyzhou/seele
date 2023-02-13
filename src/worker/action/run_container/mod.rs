@@ -52,7 +52,7 @@ pub async fn execute(
 
     let report = spawn_blocking({
         let local = RUNNER_THREAD_LOCAL.clone();
-        let span = info_span!(parent: Span::current(), "prepare_and_execute_runj");
+        let span = info_span!(parent: Span::current(), "execute_runj");
         move || span.in_scope(move || prepare_and_execute_runj(abort, &local, config))
     })
     .await??;
