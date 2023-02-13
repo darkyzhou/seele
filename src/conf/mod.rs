@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
@@ -43,7 +44,7 @@ pub struct SeeleConfig {
     pub report_progress: bool,
 
     #[serde(default)]
-    pub exchange: Vec<ExchangeConfig>,
+    pub exchange: IndexMap<String, ExchangeConfig>,
 
     #[serde(default)]
     pub worker: WorkerConfig,

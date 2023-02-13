@@ -18,11 +18,12 @@ use crate::{
 };
 
 pub async fn run(
+    name: &str,
     handle: SubsystemHandle,
     tx: ComposerQueueTx,
     config: &HttpExchangeConfig,
 ) -> Result<()> {
-    info!("Starting http exchange on {}:{}", config.address, config.port);
+    info!("Starting http exchange {} on {}:{}", name, config.address, config.port);
 
     let service = make_service_fn(move |_| {
         let tx = tx.clone();
@@ -45,7 +46,6 @@ pub async fn run(
         }
     });
 
-    info!("Running http exchange on {}:{}", config.address, config.port);
     Server::bind(&SocketAddr::from((config.address, config.port)))
         .serve(service)
         .with_graceful_shutdown(async move {

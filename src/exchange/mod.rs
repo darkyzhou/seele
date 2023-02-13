@@ -14,15 +14,19 @@ pub async fn exchange_main(
 ) -> Result<()> {
     info!("Initializing exchanges based on the configuration");
 
-    for (index, exchange) in conf::CONFIG.exchange.iter().enumerate() {
+    for (name, exchange) in &conf::CONFIG.exchange {
         match exchange {
             ExchangeConfig::Http(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("http-{index}"), move |handle| http::run(handle, tx, config));
+                handle.start(&format!("{name}-http"), move |handle| {
+                    http::run(name, handle, tx, config)
+                });
             }
             ExchangeConfig::Amqp(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("amqp-{index}"), move |handle| amqp::run(handle, tx, config));
+                handle.start(&format!("{name}-amqp"), move |handle| {
+                    amqp::run(name, handle, tx, config)
+                });
             }
         }
     }

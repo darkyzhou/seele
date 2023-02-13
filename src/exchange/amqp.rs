@@ -12,11 +12,12 @@ use crate::{
 };
 
 pub async fn run(
+    name: &str,
     handle: SubsystemHandle,
     tx: ComposerQueueTx,
     config: &AmqpExchangeConfig,
 ) -> Result<()> {
-    info!("Starting amqp exchange for {}", config.url.host_str().unwrap_or_default());
+    info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
 
     if conf::CONFIG.report_progress && config.report.progress_routing_key.is_empty() {
         bail!("report_progress is enabled but progress_routing_key is not specified");
@@ -36,7 +37,7 @@ pub async fn run(
             Default::default(),
         )
         .await
-        .context("Error declaring the exchange")?;
+        .context("Error declaring the submission exchange")?;
 
     channel
         .queue_declare(
@@ -57,6 +58,16 @@ pub async fn run(
         )
         .await
         .context("Error binding the queue to the exchange")?;
+
+    channel
+        .exchange_declare(
+            &config.report.exchange.name,
+            config.report.exchange.kind.clone(),
+            config.report.exchange.options.clone(),
+            Default::default(),
+        )
+        .await
+        .context("Error declaring the report exchange")?;
 
     let mut consumer = channel
         .basic_consume(
