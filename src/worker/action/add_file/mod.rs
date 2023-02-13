@@ -16,7 +16,7 @@ use super::ActionContext;
 use crate::{
     conf,
     entities::{ActionFailedReportExt, ActionSuccessReportExt},
-    shared::{self, cond_group::CondGroup},
+    shared::{self, cond::CondGroup},
     worker::ActionErrorWithReport,
 };
 

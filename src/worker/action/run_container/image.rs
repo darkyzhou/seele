@@ -13,7 +13,7 @@ use triggered::Listener;
 
 use crate::{
     conf,
-    shared::{self, cond_group::CondGroup, image::OciImage},
+    shared::{self, cond::CondGroup, image::OciImage},
 };
 
 static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =

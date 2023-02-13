@@ -6,7 +6,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncSeekExt, BufReader},
 };
 
-pub mod cond_group;
+pub mod cond;
 pub mod file;
 pub mod image;
 pub mod metrics;
