@@ -52,7 +52,6 @@ pub async fn run(
             handle.on_shutdown_requested().await;
 
             info!("Http exchange is shutting down, waiting for unfinished submissions");
-            // Wait for aborted submissions' reports
             sleep(Duration::from_secs(5)).await;
         })
         .await?;
