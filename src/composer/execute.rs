@@ -1,14 +1,15 @@
 use std::{path::PathBuf, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_recursion::async_recursion;
+use serde_yaml::Value;
 use tokio::{sync::oneshot, time::Instant};
 use tracing::{debug, error, instrument, Span};
 
 use super::{
     predicate,
     report::{apply_report_config, make_submission_report},
-    SubmissionUpdateSignal,
+    SubmissionProgressSignal, SubmissionSignal,
 };
 use crate::{
     entities::{
@@ -24,16 +25,16 @@ struct ExecutionContext {
     submission_id: String,
     submission_root: PathBuf,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
+    status_tx: ring_channel::RingSender<SubmissionSignal>,
 }
 
 #[instrument(skip_all)]
 pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<SubmissionUpdateSignal>,
-) -> Result<bool> {
-    let mut ctx = ExecutionContext {
+    status_tx: ring_channel::RingSender<SubmissionSignal>,
+) -> Result<(bool, Value, Option<Value>)> {
+    let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
         worker_queue_tx,
@@ -49,39 +50,33 @@ pub async fn execute_submission(
             .map(|task| track_task_execution(ctx.clone(), task)),
     )
     .await;
+
     let success = results.into_iter().all(|success| success);
+    let status = serde_yaml::to_value(&submission.config)
+        .context("Error serializing the submission report")?;
+    let report = async {
+        anyhow::Ok(if let Some(reporter) = &submission.config.reporter {
+            let mut report_config =
+                make_submission_report(submission.config.clone(), reporter).await?;
 
-    if success {
-        let report_result = async {
-            if let Some(reporter) = &submission.config.reporter {
-                let mut report_config =
-                    make_submission_report(submission.config.clone(), reporter).await?;
+            let result = apply_report_config(&report_config, &submission).await?;
 
-                let result = apply_report_config(&report_config, &submission).await?;
-
-                for (field, content) in result.embeds {
-                    report_config.report.insert(field, content.into());
-                }
-
-                *submission.config.report.lock().unwrap() = Some(report_config.report);
+            for (field, content) in result.embeds {
+                report_config.report.insert(field, content.into());
             }
 
-            anyhow::Ok(())
-        }
-        .await;
-
-        if let Err(err) = &report_result {
-            *submission.config.report_error.lock().unwrap() = Some(format!("{err:#}"));
-        }
-
-        _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
-
-        report_result.map(move |_| success)
-    } else {
-        _ = ctx.status_tx.send(SubmissionUpdateSignal::Finished);
-
-        Ok(success)
+            Some(
+                serde_yaml::to_value(report_config.report)
+                    .context("Error serializing report returned by the reporter")?,
+            )
+        } else {
+            None
+        })
     }
+    .await
+    .context("Error executing the reporter")?;
+
+    Ok((success, status, report))
 }
 
 #[async_recursion]
@@ -114,7 +109,7 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) -> boo
 
 #[instrument(skip_all, fields(task.name = node.name))]
 async fn track_action_execution(
-    mut ctx: ExecutionContext,
+    ctx: ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) -> bool {
@@ -137,8 +132,6 @@ async fn track_action_execution(
     {
         *node.config.status.write().unwrap() = status;
     }
-
-    _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
 
     success
 }
@@ -171,12 +164,21 @@ async fn track_schedule_execution(
     };
     let success = matches!(status, TaskStatus::Success { .. });
 
-    debug!(status = ?status, "Setting the status");
     {
         *node.config.status.write().unwrap() = status;
     }
 
-    _ = ctx.status_tx.send(SubmissionUpdateSignal::Progress);
+    match serde_yaml::to_value(&node.config) {
+        Err(err) => {
+            error!("Error serializing the task node config: {err:#}");
+        }
+        Ok(status) => {
+            _ = ctx.status_tx.send(SubmissionSignal::Progress(SubmissionProgressSignal {
+                name: node.name.clone(),
+                status,
+            }));
+        }
+    }
 
     success
 }

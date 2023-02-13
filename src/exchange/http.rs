@@ -1,22 +1,20 @@
-use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, time::Duration};
 
 use anyhow::{bail, Result};
-use bytes::Buf;
 use futures_util::StreamExt;
 use http::{Request, Response, StatusCode};
 use hyper::{
-    body::{aggregate, HttpBody},
+    body::{self, HttpBody},
     service::{make_service_fn, service_fn},
     Body, Server,
 };
 use tokio::time::sleep;
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
-    composer::{ComposerQueueTx, SubmissionUpdateSignal},
+    composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal},
     conf::HttpExchangeConfig,
-    entities::SubmissionConfig,
 };
 
 pub async fn run_http_exchange(
@@ -73,36 +71,30 @@ async fn handle_submission_request(
     }
 
     let show_progress = matches!(request.uri().query(), Some(query) if query.contains("progress"));
-    let submission: Arc<SubmissionConfig> = {
-        let body = aggregate(request).await?;
-        Arc::new(serde_yaml::from_reader(body.reader())?)
+    let config_yaml = {
+        let body = body::to_bytes(request.into_body()).await?;
+        String::from_utf8(body.into())?
     };
     let (status_tx, status_rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
-    debug!(id = submission.id, "Sending the submission into the composer_tx");
-    tx.send((submission.clone(), status_tx)).await?;
+    tx.send(ComposerQueueItem { config_yaml, status_tx }).await?;
 
     Ok(Response::new(Body::wrap_stream(status_rx.map(move |signal| {
         type CallbackResult = Result<String, Infallible>;
 
-        fn serialize(submission: &SubmissionConfig) -> String {
-            match serde_yaml::to_string(submission) {
+        if !show_progress && matches!(signal, SubmissionSignal::Progress(_)) {
+            return CallbackResult::Ok("".to_string());
+        }
+
+        fn serialize(signal: &SubmissionSignal) -> String {
+            match serde_yaml::to_string(signal) {
                 Err(err) => {
-                    error!("Error serializing the submission: {:#}", err);
+                    error!("Error serializing the value: {:#}", err);
                     "".to_string()
                 }
                 Ok(json) => format!("\n---\n{}\n...\n", json),
             }
         }
 
-        match signal {
-            SubmissionUpdateSignal::Progress => {
-                if show_progress {
-                    return CallbackResult::Ok(serialize(&submission));
-                }
-
-                CallbackResult::Ok("".to_string())
-            }
-            SubmissionUpdateSignal::Finished => CallbackResult::Ok(serialize(&submission)),
-        }
+        CallbackResult::Ok(serialize(&signal))
     }))))
 }

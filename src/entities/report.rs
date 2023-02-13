@@ -15,7 +15,7 @@ pub enum SubmissionReporter {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionReportConfig {
-    pub report: IndexMap<String, serde_yaml::Value>,
+    pub report: SubmissionReport,
 
     #[serde(default)]
     pub embeds: Vec<SubmissionReportEmbedConfig>,

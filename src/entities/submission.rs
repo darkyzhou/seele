@@ -1,16 +1,13 @@
 use std::{
     path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
 };
 
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReport,
-    SubmissionReporter,
-};
+use super::{ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReporter};
 
 pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
 pub type ParallelTasks = Vec<Arc<TaskConfig>>;
@@ -34,12 +31,6 @@ pub struct SubmissionConfig {
 
     #[serde(skip_serializing)]
     pub reporter: Option<SubmissionReporter>,
-
-    #[serde(skip_deserializing, default)]
-    pub report: Mutex<Option<SubmissionReport>>,
-
-    #[serde(skip_deserializing, default)]
-    pub report_error: Mutex<Option<String>>,
 }
 
 #[inline]
