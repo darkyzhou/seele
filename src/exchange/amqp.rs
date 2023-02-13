@@ -1,8 +1,9 @@
-use std::{num::NonZeroUsize, sync::Arc};
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
 use lapin::{message::Delivery, Channel, Connection};
+use tokio::time::sleep;
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info};
 
@@ -94,6 +95,10 @@ pub async fn run(
             }
         }
     }
+
+    info!("Shutting down, waiting for unfinished submissions");
+    sleep(Duration::from_secs(5)).await;
+    _ = channel.close(302, "Seele is shutting down").await;
 
     Ok(())
 }
