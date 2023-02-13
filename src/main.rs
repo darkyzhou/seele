@@ -20,7 +20,7 @@ use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_Subs
 
 use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
 
-pub mod cgroup;
+mod cgroup;
 mod composer;
 mod conf;
 mod entities;
