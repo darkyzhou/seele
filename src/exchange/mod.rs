@@ -3,10 +3,9 @@ use tokio::sync::mpsc;
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::info;
 
-use crate::{
-    composer::ComposerQueueItem, conf, conf::ExchangeConfig, exchange::http::run_http_exchange,
-};
+use crate::{composer::ComposerQueueItem, conf, conf::ExchangeConfig};
 
+mod amqp;
 mod http;
 
 pub async fn exchange_main(
@@ -15,13 +14,15 @@ pub async fn exchange_main(
 ) -> Result<()> {
     info!("Initializing exchanges based on the configuration");
 
-    for exchange in &conf::CONFIG.exchange {
+    for (index, exchange) in conf::CONFIG.exchange.iter().enumerate() {
         match exchange {
             ExchangeConfig::Http(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("http-{}-{}", config.address, config.port), move |handle| {
-                    run_http_exchange(handle, tx.clone(), config)
-                });
+                handle.start(&format!("http-{index}"), move |handle| http::run(handle, tx, config));
+            }
+            ExchangeConfig::Amqp(config) => {
+                let tx = composer_queue_tx.clone();
+                handle.start(&format!("amqp-{index}"), move |handle| amqp::run(handle, tx, config));
             }
         }
     }

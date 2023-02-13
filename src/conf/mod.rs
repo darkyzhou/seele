@@ -40,6 +40,9 @@ pub struct SeeleConfig {
     pub telemetry: Option<TelemetryConfig>,
 
     #[serde(default)]
+    pub report_progress: bool,
+
+    #[serde(default)]
     pub exchange: Vec<ExchangeConfig>,
 
     #[serde(default)]

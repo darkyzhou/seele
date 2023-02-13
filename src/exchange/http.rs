@@ -17,11 +17,13 @@ use crate::{
     conf::HttpExchangeConfig,
 };
 
-pub async fn run_http_exchange(
+pub async fn run(
     handle: SubsystemHandle,
     tx: ComposerQueueTx,
     config: &HttpExchangeConfig,
 ) -> Result<()> {
+    info!("Starting http exchange on {}:{}", config.address, config.port);
+
     let service = make_service_fn(move |_| {
         let tx = tx.clone();
         let body_size_limit_bytes = config.max_body_size_bytes;
