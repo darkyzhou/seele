@@ -231,11 +231,14 @@ fn main() {
             }
 
             if conf::CONFIG.telemetry.is_some() {
-                global::shutdown_tracer_provider();
-                _ = shared::metrics::METRICS_CONTROLLER
-                    .get()
-                    .unwrap()
-                    .stop(&OpenTelemetryCtx::current());
+                _ = spawn_blocking(|| {
+                    global::shutdown_tracer_provider();
+                    _ = shared::metrics::METRICS_CONTROLLER
+                        .get()
+                        .unwrap()
+                        .stop(&OpenTelemetryCtx::current());
+                })
+                .await;
             }
 
             sleep(Duration::from_secs(3)).await;
