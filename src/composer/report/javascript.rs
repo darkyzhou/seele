@@ -36,6 +36,7 @@ pub async fn execute_javascript_reporter(
 
 fn init_context(config: String) -> Result<quick_js::Context> {
     let context = quick_js::Context::new()?;
+    // TODO: convert config to JsValue instead of String
     context.set_global("DATA", JsValue::String(config))?;
     context.add_callback("getOJStatus", get_oj_status_wrapper)?;
     Ok(context)
