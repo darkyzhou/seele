@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use async_recursion::async_recursion;
 use serde_yaml::Value;
 use tokio::{sync::oneshot, time::Instant};
-use tracing::{debug, error, instrument, Span};
+use tracing::{debug, error, info_span, instrument, Instrument, Span};
 
 use super::{
     predicate,
@@ -54,28 +54,30 @@ pub async fn execute_submission(
     let success = results.into_iter().all(|success| success);
     let status = serde_yaml::to_value(&submission.config)
         .context("Error serializing the submission report")?;
-    let report = async {
-        anyhow::Ok(if let Some(reporter) = &submission.config.reporter {
-            let mut report_config =
-                make_submission_report(submission.config.clone(), reporter).await?;
+    let report = match &submission.config.reporter {
+        None => None,
+        Some(reporter) => {
+            let span = info_span!(parent: Span::current(), "handle_reporter");
+            async {
+                let mut report_config =
+                    make_submission_report(submission.config.clone(), reporter).await?;
 
-            let result = apply_report_config(&report_config, &submission).await?;
+                let result = apply_report_config(&report_config, &submission).await?;
 
-            for (field, content) in result.embeds {
-                report_config.report.insert(field, content.into());
+                for (field, content) in result.embeds {
+                    report_config.report.insert(field, content.into());
+                }
+
+                let report = serde_yaml::to_value(report_config.report)
+                    .context("Error serializing report returned by the reporter")?;
+                anyhow::Ok(report)
             }
-
-            Some(
-                serde_yaml::to_value(report_config.report)
-                    .context("Error serializing report returned by the reporter")?,
-            )
-        } else {
-            None
-        })
-    }
-    .await
-    .context("Error executing the reporter")?;
-
+            .instrument(span)
+            .await
+            .map(Some)
+            .context("Error executing the reporter")?
+        }
+    };
     Ok((success, status, report))
 }
 
