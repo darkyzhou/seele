@@ -154,15 +154,8 @@ fn main() {
                     })?;
                 }
 
-                shared::metrics::METER
-                    .register_callback(|ctx| {
-                        shared::metrics::RUNNER_COUNT_GAUGE.observe(
-                            ctx,
-                            conf::CONFIG.thread_counts.runner as u64,
-                            &[],
-                        )
-                    })
-                    .context("Error registering the meter callback")?;
+                shared::metrics::register_gauge_metrics()
+                    .context("Error registering gauge metrics")?;
 
                 Ok(())
             })

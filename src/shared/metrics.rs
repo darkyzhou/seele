@@ -1,3 +1,4 @@
+use anyhow::Result;
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
     global,
@@ -49,3 +50,11 @@ pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
         .with_description("Count of available runner threads")
         .init()
 });
+
+pub fn register_gauge_metrics() -> Result<()> {
+    METER.register_callback(|ctx| {
+        RUNNER_COUNT_GAUGE.observe(ctx, conf::CONFIG.thread_counts.runner as u64, &[])
+    })?;
+
+    Ok(())
+}
