@@ -5,7 +5,7 @@ use std::{
     process,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use libcgroups::common::{get_cgroup_setup, read_cgroup_file, write_cgroup_file_str, CgroupSetup};
 use once_cell::sync::Lazy;
 use tracing::debug;
@@ -58,7 +58,7 @@ pub fn initialize_cgroup_subtrees() -> Result<()> {
     Ok(())
 }
 
-pub fn bind_application_threads(skip_id: u32) -> Result<()> {
+pub fn bind_application_threads() -> Result<()> {
     let available_cpus = {
         let mut cpus: Vec<u32> = vec![];
         let content = read_cgroup_file(CGROUP_MAIN_SCOPE_PATH.join("cpuset.cpus.effective"))?;
@@ -86,16 +86,13 @@ pub fn bind_application_threads(skip_id: u32) -> Result<()> {
 
     let pids = {
         let content = read_cgroup_file(CGROUP_MAIN_SCOPE_PATH.join("cgroup.threads"))?;
-        let mut pids = vec![];
-
-        for line in BufReader::new(content.as_bytes()).lines().flatten() {
-            let pid = line.trim().parse::<u32>()?;
-            if pid == skip_id {
-                continue;
-            }
-
-            pids.push(pid)
-        }
+        let pids = BufReader::new(content.as_bytes())
+            .lines()
+            .flatten()
+            .map(|line| {
+                line.trim().parse::<u32>().with_context(|| format!("Error parsing line: {line}"))
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         if pids.is_empty() {
             bail!("No pids found in the cgroup.threads");

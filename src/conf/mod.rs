@@ -90,14 +90,27 @@ fn default_work_mode() -> SeeleWorkMode {
 
 #[derive(Debug, Deserialize)]
 pub struct ThreadCounts {
-    pub runtime: usize,
+    #[serde(default = "default_worker_thread_count")]
     pub worker: usize,
+
+    #[serde(default = "default_runner_thread_count")]
+    pub runner: usize,
 }
 
 impl Default for ThreadCounts {
     fn default() -> Self {
-        Self { runtime: 2, worker: num_cpus::get() - 2 }
+        Self { worker: default_worker_thread_count(), runner: default_runner_thread_count() }
     }
+}
+
+#[inline]
+fn default_worker_thread_count() -> usize {
+    1
+}
+
+#[inline]
+fn default_runner_thread_count() -> usize {
+    num_cpus::get() - 2
 }
 
 #[derive(Debug, Deserialize)]

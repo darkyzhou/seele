@@ -50,16 +50,16 @@ pub type WorkerQueueTx = async_channel::Sender<WorkerQueueItem>;
 pub type WorkerQueueRx = async_channel::Receiver<WorkerQueueItem>;
 
 pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
-    for i in 0..conf::CONFIG.thread_counts.worker {
+    for i in 0..conf::CONFIG.thread_counts.runner {
         let queue_rx = queue_rx.clone();
-        handle.start(&format!("worker-{}", i), |handle| worker_main_impl(handle, queue_rx));
+        handle.start(&format!("runner-{}", i), |handle| runner_loop(handle, queue_rx));
     }
 
     handle.on_shutdown_requested().await;
     Ok(())
 }
 
-async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
+async fn runner_loop(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
     let (trigger, abort_handle) = triggered::trigger();
 
     tokio::spawn(async move {
@@ -74,7 +74,7 @@ async fn worker_main_impl(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> R
             item = queue_rx.recv() => match item {
                 Err(_) => break,
                 Ok(item) => {
-                    let span = info_span!(parent: item.parent_span, "worker_execute_entry");
+                    let span = info_span!(parent: item.parent_span, "runner_handle_submission");
                     async {
                         let report = execute_action(abort_handle.clone(), item.submission_root, &item.config).await;
 

@@ -43,9 +43,9 @@ pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
         .init()
 });
 
-pub static WORKER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     METER
-        .u64_observable_gauge("worker.count")
-        .with_description("Count of available worker thread")
+        .u64_observable_gauge("runner.count")
+        .with_description("Count of available runner threads")
         .init()
 });

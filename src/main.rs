@@ -1,6 +1,5 @@
 use std::{
     fs::create_dir_all,
-    process,
     sync::{Arc, Barrier},
     time::Duration,
 };
@@ -30,11 +29,8 @@ mod shared;
 mod worker;
 
 fn main() {
-    let pid = process::id();
-
-    let runtime = runtime::Builder::new_multi_thread()
-        .worker_threads(conf::CONFIG.thread_counts.runtime)
-        .max_blocking_threads(conf::CONFIG.thread_counts.worker)
+    let runtime = runtime::Builder::new_current_thread()
+        .max_blocking_threads(conf::CONFIG.thread_counts.worker + conf::CONFIG.thread_counts.runner)
         .thread_keep_alive(Duration::from_secs(u64::MAX))
         .enable_all()
         .build()
@@ -160,9 +156,9 @@ fn main() {
 
                 shared::metrics::METER
                     .register_callback(|ctx| {
-                        shared::metrics::WORKER_COUNT_GAUGE.observe(
+                        shared::metrics::RUNNER_COUNT_GAUGE.observe(
                             ctx,
-                            conf::CONFIG.thread_counts.worker as u64,
+                            conf::CONFIG.thread_counts.runner as u64,
                             &[],
                         )
                     })
@@ -174,11 +170,11 @@ fn main() {
 
             {
                 info!("Binding application threads to cpus");
-                let worker_count = conf::CONFIG.thread_counts.worker;
-                let begin_barrier = Arc::new(Barrier::new(worker_count));
-                let end_barrier = Arc::new(Barrier::new(worker_count));
+                let count = conf::CONFIG.thread_counts.worker + conf::CONFIG.thread_counts.runner;
+                let begin_barrier = Arc::new(Barrier::new(count));
+                let end_barrier = Arc::new(Barrier::new(count));
 
-                for _ in 0..(worker_count - 1) {
+                for _ in 0..(count - 1) {
                     let begin_barrier = begin_barrier.clone();
                     let end_barrier = end_barrier.clone();
                     spawn_blocking(move || {
@@ -189,7 +185,7 @@ fn main() {
 
                 spawn_blocking(move || {
                     begin_barrier.wait();
-                    let result = cgroup::bind_application_threads(pid);
+                    let result = cgroup::bind_application_threads();
                     end_barrier.wait();
                     result
                 })
