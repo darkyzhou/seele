@@ -33,7 +33,7 @@ pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionSignal>,
-) -> Result<(bool, Value, Option<Value>)> {
+) -> Result<(bool, Value, Option<Result<Value>>)> {
     let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
@@ -54,9 +54,9 @@ pub async fn execute_submission(
     let success = results.into_iter().all(|success| success);
     let status = serde_yaml::to_value(&submission.config)
         .context("Error serializing the submission report")?;
-    let report = match &submission.config.reporter {
-        None => None,
-        Some(reporter) => {
+    let report = match (&submission.config.reporter, success) {
+        (None, _) | (Some(_), false) => None,
+        (Some(reporter), true) => Some({
             let span = info_span!(parent: Span::current(), "handle_reporter");
             async {
                 let mut report_config =
@@ -74,9 +74,8 @@ pub async fn execute_submission(
             }
             .instrument(span)
             .await
-            .map(Some)
-            .context("Error executing the reporter")?
-        }
+            .context("Error executing the reporter")
+        }),
     };
     Ok((success, status, report))
 }

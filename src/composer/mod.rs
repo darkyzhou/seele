@@ -33,6 +33,7 @@ pub async fn composer_main(
     const SUBMISSION_ID: &str = "submission.id";
     const SUBMISSION_ERROR_INTERNAL: &str = "submission.error.internal";
     const SUBMISSION_ERROR_EXECUTION: &str = "submission.error.execution";
+    const SUBMISSION_ERROR_REPORTER: &str = "submission.error.reporter";
     const SUBMISSION_ATTRIBUTE: &str = "submission.attribute";
 
     while let Ok(Some(item)) = composer_queue_rx.recv().cancel_on_shutdown(&handle).await {
@@ -40,9 +41,10 @@ pub async fn composer_main(
             let span = info_span!(
                 "submission_entry",
                 submission.id = field::Empty,
+                submission.attribute = field::Empty,
                 submission.error.internal = false,
                 submission.error.execution = false,
-                submission.attribute = field::Empty,
+                submission.error.reporter = false,
             );
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
@@ -82,19 +84,38 @@ pub async fn composer_main(
                     Err(err) => {
                         Span::current().record(SUBMISSION_ERROR_INTERNAL, true);
                         error!("Error executing the submission: {:#}", err);
-                        _ = outer_status_tx.send(SubmissionSignal::Error(SubmissionErrorSignal {
-                            error: format!("{:#}", err),
-                        }));
+                        _ = outer_status_tx.send(SubmissionSignal::Completed(
+                            SubmissionCompletedSignal::InternalError {
+                                error: format!("{:#}", err),
+                            },
+                        ));
                     }
                     Ok((success, status, report)) => {
-                        if !success {
-                            Span::current().record(SUBMISSION_ERROR_EXECUTION, true);
-                            error!("The execution of the submission returned a failed report");
-                        }
+                        let signal = match (success, report) {
+                            (false, _) => {
+                                Span::current().record(SUBMISSION_ERROR_EXECUTION, true);
 
-                        _ = outer_status_tx.send(SubmissionSignal::Completed(
-                            SubmissionCompletedSignal { status, report },
-                        ));
+                                let message = "The execution returned a failed report".to_string();
+                                error!(message);
+                                SubmissionCompletedSignal::ExecutionError { error: message, status }
+                            }
+                            (true, Some(Err(err))) => {
+                                Span::current().record(SUBMISSION_ERROR_REPORTER, true);
+
+                                let message =
+                                    format!("The reporter of the submission failed: {:#}", err);
+                                error!(message);
+                                SubmissionCompletedSignal::ReporterError { error: message, status }
+                            }
+                            (true, Some(Ok(report))) => {
+                                SubmissionCompletedSignal::Success { status, report: Some(report) }
+                            }
+                            (true, None) => {
+                                SubmissionCompletedSignal::Success { status, report: None }
+                            }
+                        };
+
+                        _ = outer_status_tx.send(SubmissionSignal::Completed(signal));
                     }
                 }
             }
@@ -109,7 +130,7 @@ async fn handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionSignal>,
-) -> Result<(bool, Value, Option<Value>)> {
+) -> Result<(bool, Value, Option<Result<Value>>)> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
         bail!(

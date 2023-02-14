@@ -139,8 +139,7 @@ async fn handle_delivery(
                         .await
                         .context("Error awaiting the confirmation")?;
 
-                    if matches!(signal, SubmissionSignal::Completed(_) | SubmissionSignal::Error(_))
-                    {
+                    if matches!(signal, SubmissionSignal::Completed(_)) {
                         return delivery
                             .ack(Default::default())
                             .await
