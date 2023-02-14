@@ -16,7 +16,6 @@ const (
 	STATUS_NORMAL                   = "NORMAL"
 	STATUS_RUNTIME_ERROR            = "RUNTIME_ERROR"
 	STATUS_SIGNAL_TERMINATE         = "SIGNAL_TERMINATE"
-	STATUS_SIGNAL_STOP              = "SIGNAL_STOP"
 	STATUS_USER_TIME_LIMIT_EXCEEDED = "USER_TIME_LIMIT_EXCEEDED"
 	STATUS_WALL_TIME_LIMIT_EXCEEDED = "WALL_TIME_LIMIT_EXCEEDED"
 	STATUS_MEMORY_LIMIT_EXCEEDED    = "MEMORY_LIMIT_EXCEEDED"
@@ -76,11 +75,6 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 			default:
 				exitStatus = STATUS_SIGNAL_TERMINATE
 			}
-		case status.Stopped():
-			sig := status.StopSignal()
-			code = int(sig) + 128
-			signal = unix.SignalName(sig)
-			exitStatus = STATUS_SIGNAL_STOP
 		default:
 			return nil, fmt.Errorf("Unknown status: %v", status)
 		}
