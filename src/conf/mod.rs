@@ -119,6 +119,7 @@ fn default_runner_thread_count() -> usize {
 
 #[derive(Debug, Deserialize)]
 pub struct PathsConfig {
+    #[serde(default = "default_root_path")]
     pub root: PathBuf,
 
     #[serde(default = "default_tmp_path")]
@@ -135,23 +136,28 @@ pub struct PathsConfig {
 }
 
 #[inline]
+fn default_root_path() -> PathBuf {
+    "/etc/seele".into()
+}
+
+#[inline]
 fn default_tmp_path() -> PathBuf {
     "/tmp".into()
 }
 
 #[inline]
 fn default_runj_path() -> String {
-    "runj".to_string()
+    "/usr/local/bin/runj".to_string()
 }
 
 #[inline]
 fn default_skopeo_path() -> String {
-    "skopeo".to_string()
+    "/usr/local/bin/skopeo".to_string()
 }
 
 #[inline]
 fn default_umoci_path() -> String {
-    "umoci".to_string()
+    "/usr/local/bin/umoci".to_string()
 }
 
 #[derive(Debug, Deserialize)]
