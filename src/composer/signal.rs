@@ -1,5 +1,5 @@
 use serde::Serialize;
-use serde_yaml::Value;
+use serde_json::Value;
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]

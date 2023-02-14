@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
-use serde_yaml::Value;
+use serde_json::Value;
 use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, field, info_span, Instrument, Span};

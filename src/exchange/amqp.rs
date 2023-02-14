@@ -123,7 +123,7 @@ async fn handle_delivery(
 
                 let result = async {
                     let mut data = Vec::with_capacity(128);
-                    serde_yaml::to_writer(&mut data, &signal)
+                    serde_json::to_writer(&mut data, &signal)
                         .context("Error serializing the report")?;
 
                     channel

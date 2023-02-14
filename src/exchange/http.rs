@@ -72,6 +72,7 @@ async fn handle_submission_request(
     }
 
     let show_progress = matches!(request.uri().query(), Some(query) if query.contains("progress"));
+    let debug = matches!(request.uri().query(), Some(query) if query.contains("debug"));
     let config_yaml = {
         let body = body::to_bytes(request.into_body()).await?;
         String::from_utf8(body.into())?
@@ -86,16 +87,21 @@ async fn handle_submission_request(
             return CallbackResult::Ok("".to_string());
         }
 
-        fn serialize(signal: &SubmissionSignal) -> String {
-            match serde_yaml::to_string(signal) {
+        fn serialize(debug: bool, signal: &SubmissionSignal) -> String {
+            let result = if debug {
+                serde_json::to_string_pretty(signal)
+            } else {
+                serde_json::to_string(signal)
+            };
+            match result {
                 Err(err) => {
                     error!("Error serializing the value: {:#}", err);
                     "".to_string()
                 }
-                Ok(json) => format!("\n---\n{}\n...\n", json),
+                Ok(json) => format!("{}\n", json),
             }
         }
 
-        CallbackResult::Ok(serialize(&signal))
+        CallbackResult::Ok(serialize(debug, &signal))
     }))))
 }

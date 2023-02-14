@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
-use serde_yaml::Value;
+use serde_json::Value;
 use tokio::{sync::oneshot, time::Instant};
 use tracing::{debug, error, info_span, instrument, Instrument, Span};
 
@@ -52,7 +52,7 @@ pub async fn execute_submission(
     .await;
 
     let success = results.into_iter().all(|success| success);
-    let status = serde_yaml::to_value(&submission.config)
+    let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
     let report = match (&submission.config.reporter, success) {
         (None, _) | (Some(_), false) => None,
@@ -68,7 +68,7 @@ pub async fn execute_submission(
                     report_config.report.insert(field, content.into());
                 }
 
-                let report = serde_yaml::to_value(report_config.report)
+                let report = serde_json::to_value(report_config.report)
                     .context("Error serializing report returned by the reporter")?;
                 anyhow::Ok(report)
             }
@@ -169,7 +169,7 @@ async fn track_schedule_execution(
         *node.config.status.write().unwrap() = status;
     }
 
-    match serde_yaml::to_value(&node.config) {
+    match serde_json::to_value(&node.config) {
         Err(err) => {
             error!("Error serializing the task node config: {err:#}");
         }
