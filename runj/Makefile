@@ -6,11 +6,8 @@ BIN_PATH := "$(BIN_DIR)/$(BIN_NAME)"
 MAIN_ENTRYPOINT := cmd/runj/main.go
 
 GO_VERSION := $(shell go version | cut -d ' ' -f 3)
-GO_LDFLAGS += -X "$(PKG)/seele.Version=$(shell git describe --tags --dirty --always)"
 GO_LDFLAGS += -X "$(PKG)/seele.GoVersion=$(GO_VERSION)"
 GO_LDFLAGS += -X "$(PKG)/seele.BuildTime=$(shell date -u '+%Y-%m-%d_%H:%M:%S%Z')"
-GO_LDFLAGS += -X "$(PKG)/seele.GitCommitHash=$(shell git rev-parse HEAD)"
-GO_LDFLAGS += -X "$(PKG)/seele.GitBranch=$(shell git rev-parse --abbrev-ref HEAD)"
 
 lint:
 	@echo "Linting..."
