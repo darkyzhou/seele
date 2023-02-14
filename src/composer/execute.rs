@@ -1,7 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{iter, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
+use either::Either;
 use ring_channel::RingSender;
 use serde_json::Value;
 use tokio::{
@@ -247,9 +248,17 @@ fn resolve_sequence_status(
 }
 
 fn skip_task_node(node: &TaskNode) {
-    *node.config.status.write().unwrap() = TaskStatus::Skipped;
+    {
+        *node.config.status.write().unwrap() = TaskStatus::Skipped;
+    }
 
-    for node in &node.children {
+    let nodes = (if let TaskNodeExt::Schedule(tasks) = &node.ext {
+        Either::Left(tasks.iter())
+    } else {
+        Either::Right(iter::empty())
+    })
+    .chain(node.children.iter());
+    for node in nodes {
         {
             *node.config.status.write().unwrap() = TaskStatus::Skipped;
         }
