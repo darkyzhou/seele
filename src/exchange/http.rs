@@ -8,12 +8,13 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Server,
 };
+use ring_channel::ring_channel;
 use tokio::time::sleep;
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{error, info};
 
 use crate::{
-    composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal},
+    composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal, SubmissionSignalExt},
     conf::HttpExchangeConfig,
 };
 
@@ -77,13 +78,13 @@ async fn handle_submission_request(
         let body = body::to_bytes(request.into_body()).await?;
         String::from_utf8(body.into())?
     };
-    let (status_tx, status_rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
+    let (status_tx, status_rx) = ring_channel(NonZeroUsize::try_from(1).unwrap());
     tx.send(ComposerQueueItem { config_yaml, status_tx }).await?;
 
     Ok(Response::new(Body::wrap_stream(status_rx.map(move |signal| {
         type CallbackResult = Result<String, Infallible>;
 
-        if !show_progress && matches!(signal, SubmissionSignal::Progress(_)) {
+        if !show_progress && matches!(signal.ext, SubmissionSignalExt::Progress(_)) {
             return CallbackResult::Ok("".to_string());
         }
 

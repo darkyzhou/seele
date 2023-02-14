@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
+use ring_channel::RingSender;
 use serde_json::Value;
 use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{debug, error, field, info_span, Instrument, Span};
+use tracing::{debug, error, field, instrument, Span};
 
 pub use self::signal::*;
 use crate::{conf, entities::SubmissionConfig, shared::metrics, worker::WorkerQueueTx};
@@ -19,6 +20,10 @@ mod signal;
 pub type ComposerQueueTx = mpsc::Sender<ComposerQueueItem>;
 pub type ComposerQueueRx = mpsc::Receiver<ComposerQueueItem>;
 
+const SUBMISSION_ID: &str = "submission.id";
+const SUBMISSION_STATUS: &str = "submission.status";
+const SUBMISSION_ATTRIBUTE: &str = "submission.attribute";
+
 #[derive(Debug)]
 pub struct ComposerQueueItem {
     pub config_yaml: String,
@@ -30,103 +35,87 @@ pub async fn composer_main(
     mut composer_queue_rx: ComposerQueueRx,
     worker_queue_tx: WorkerQueueTx,
 ) -> Result<()> {
-    const SUBMISSION_ID: &str = "submission.id";
-    const SUBMISSION_ERROR_INTERNAL: &str = "submission.error.internal";
-    const SUBMISSION_ERROR_EXECUTION: &str = "submission.error.execution";
-    const SUBMISSION_ERROR_REPORTER: &str = "submission.error.reporter";
-    const SUBMISSION_ATTRIBUTE: &str = "submission.attribute";
-
-    while let Ok(Some(item)) = composer_queue_rx.recv().cancel_on_shutdown(&handle).await {
+    while let Ok(Some(mut item)) = composer_queue_rx.recv().cancel_on_shutdown(&handle).await {
         tokio::spawn({
-            let span = info_span!(
-                "submission_entry",
-                submission.id = field::Empty,
-                submission.attribute = field::Empty,
-                submission.error.internal = false,
-                submission.error.execution = false,
-                submission.error.reporter = false,
-            );
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
-                let ComposerQueueItem { config_yaml, status_tx } = item;
-                let mut outer_status_tx = status_tx.clone();
+                let begin = Instant::now();
+                let completed_signal =
+                    handle_submission(worker_queue_tx, item.config_yaml, item.status_tx.clone())
+                        .await;
+                let duration = {
+                    let end = Instant::now();
+                    end.duration_since(begin).as_secs_f64()
+                };
 
-                let result = async move {
-                    let submission: Arc<SubmissionConfig> = serde_yaml::from_str(&config_yaml)
-                        .context("Error parsing the submission config")?;
-                    Span::current().record(SUBMISSION_ID, &submission.id);
-                    Span::current().record(SUBMISSION_ATTRIBUTE, &submission.tracing_attribute);
-
-                    let begin = Instant::now();
-                    let result = handle_submission(submission, worker_queue_tx, status_tx).await;
-                    let duration = {
-                        let end = Instant::now();
-                        end.duration_since(begin).as_secs_f64()
-                    };
-
+                // Always true
+                if let SubmissionSignalExt::Completed(ext) = &completed_signal.ext {
                     metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
                         &OpenTelemetryCtx::current(),
                         duration,
-                        &vec![
-                            KeyValue::new(SUBMISSION_ERROR_INTERNAL, result.is_err()),
-                            KeyValue::new(
-                                SUBMISSION_ERROR_EXECUTION,
-                                matches!(result, Ok((false, _, _))),
-                            ),
-                        ],
+                        &vec![KeyValue::new(SUBMISSION_STATUS, ext.get_type())],
                     );
-
-                    result
                 }
-                .await;
 
-                match result {
-                    Err(err) => {
-                        Span::current().record(SUBMISSION_ERROR_INTERNAL, true);
-                        error!("Error executing the submission: {:#}", err);
-                        _ = outer_status_tx.send(SubmissionSignal::Completed(
-                            SubmissionCompletedSignal::InternalError {
-                                error: format!("{:#}", err),
-                            },
-                        ));
-                    }
-                    Ok((success, status, report)) => {
-                        let signal = match (success, report) {
-                            (false, _) => {
-                                Span::current().record(SUBMISSION_ERROR_EXECUTION, true);
-
-                                let message = "The execution returned a failed report".to_string();
-                                error!(message);
-                                SubmissionCompletedSignal::ExecutionError { error: message, status }
-                            }
-                            (true, Some(Err(err))) => {
-                                Span::current().record(SUBMISSION_ERROR_REPORTER, true);
-
-                                let message =
-                                    format!("The reporter of the submission failed: {:#}", err);
-                                error!(message);
-                                SubmissionCompletedSignal::ReporterError { error: message, status }
-                            }
-                            (true, Some(Ok(report))) => {
-                                SubmissionCompletedSignal::Success { status, report: Some(report) }
-                            }
-                            (true, None) => {
-                                SubmissionCompletedSignal::Success { status, report: None }
-                            }
-                        };
-
-                        _ = outer_status_tx.send(SubmissionSignal::Completed(signal));
-                    }
-                }
+                _ = item.status_tx.send(completed_signal);
             }
-            .instrument(span)
         });
     }
 
     Ok(())
 }
 
+#[instrument(skip_all, fields(submission.id = field::Empty, submission.attribute = field::Empty, submission.status = field::Empty))]
 async fn handle_submission(
+    worker_queue_tx: WorkerQueueTx,
+    config_yaml: String,
+    progress_tx: RingSender<SubmissionSignal>,
+) -> SubmissionSignal {
+    let submission: serde_yaml::Result<Arc<SubmissionConfig>> = serde_yaml::from_str(&config_yaml);
+    if let Err(err) = submission {
+        let message = format!("Error parsing the submission: {:#}", err);
+        error!(message);
+
+        let signal = SubmissionCompletedSignal::ParseError { error: message };
+        Span::current().record(SUBMISSION_STATUS, signal.get_type());
+
+        return SubmissionSignal { id: None, ext: SubmissionSignalExt::Completed(signal) };
+    }
+
+    let submission = submission.unwrap();
+    Span::current().record(SUBMISSION_ID, &submission.id);
+    Span::current().record(SUBMISSION_ATTRIBUTE, &submission.tracing_attribute);
+
+    let submission_id = submission.id.clone();
+    let signal = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
+        Err(err) => {
+            let message = format!("Error executing the submission: {:#}", err);
+            error!(message);
+            SubmissionCompletedSignal::InternalError { error: message }
+        }
+        Ok((success, status, report)) => match (success, report) {
+            (false, _) => {
+                let message = "The execution returned a failed report".to_string();
+                error!(message);
+                SubmissionCompletedSignal::ExecutionError { error: message, status }
+            }
+            (true, Some(Err(err))) => {
+                let message = format!("The reporter of the submission failed: {:#}", err);
+                error!(message);
+                SubmissionCompletedSignal::ReporterError { error: message, status }
+            }
+            (true, Some(Ok(report))) => {
+                SubmissionCompletedSignal::Success { status, report: Some(report) }
+            }
+            (true, None) => SubmissionCompletedSignal::Success { status, report: None },
+        },
+    };
+
+    Span::current().record(SUBMISSION_STATUS, signal.get_type());
+    SubmissionSignal { id: Some(submission_id), ext: SubmissionSignalExt::Completed(signal) }
+}
+
+async fn do_handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionSignal>,

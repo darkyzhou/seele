@@ -2,13 +2,17 @@ use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
-use lapin::{message::Delivery, Channel, Connection};
+use lapin::{message::Delivery, options::BasicNackOptions, Channel, Connection};
+use ring_channel::ring_channel;
 use tokio::time::sleep;
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info};
 
 use crate::{
-    composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal},
+    composer::{
+        ComposerQueueItem, ComposerQueueTx, SubmissionCompletedSignal, SubmissionSignal,
+        SubmissionSignalExt,
+    },
     conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
@@ -110,14 +114,15 @@ async fn handle_delivery(
     config: Arc<AmqpExchangeReportConfig>,
 ) -> Result<()> {
     let config_yaml = String::from_utf8(delivery.data.clone())?;
-    let (status_tx, mut status_rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
+    let (status_tx, mut status_rx) =
+        ring_channel::<SubmissionSignal>(NonZeroUsize::try_from(1).unwrap());
 
     tokio::spawn({
         let channel = channel.clone();
         async move {
             while let Some(signal) = status_rx.next().await {
-                let routing_key = match &signal {
-                    SubmissionSignal::Progress(_) => &config.progress_routing_key,
+                let routing_key = match &signal.ext {
+                    SubmissionSignalExt::Progress(_) => &config.progress_routing_key,
                     _ => &config.report_routing_key,
                 };
 
@@ -139,14 +144,18 @@ async fn handle_delivery(
                         .await
                         .context("Error awaiting the confirmation")?;
 
-                    if matches!(signal, SubmissionSignal::Completed(_)) {
-                        return delivery
-                            .ack(Default::default())
+                    match &signal.ext {
+                        SubmissionSignalExt::Completed(SubmissionCompletedSignal::ParseError {
+                            ..
+                        }) => delivery
+                            .nack(BasicNackOptions { requeue: false, ..Default::default() })
                             .await
-                            .context("Error sending the ack");
+                            .context("Error sending the nack"),
+                        SubmissionSignalExt::Completed(_) => {
+                            delivery.ack(Default::default()).await.context("Error sending the ack")
+                        }
+                        _ => Ok(()),
                     }
-
-                    anyhow::Ok(())
                 }
                 .await;
 

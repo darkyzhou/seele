@@ -2,14 +2,18 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
+use ring_channel::RingSender;
 use serde_json::Value;
-use tokio::{sync::oneshot, time::Instant};
+use tokio::{
+    sync::{oneshot, Mutex},
+    time::Instant,
+};
 use tracing::{debug, error, info_span, instrument, Instrument, Span};
 
 use super::{
     predicate,
     report::{apply_report_config, make_submission_report},
-    SubmissionProgressSignal, SubmissionSignal,
+    SubmissionProgressSignal, SubmissionSignal, SubmissionSignalExt,
 };
 use crate::{
     entities::{
@@ -20,34 +24,29 @@ use crate::{
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct ExecutionContext {
     submission_id: String,
     submission_root: PathBuf,
+    status_tx: Mutex<RingSender<SubmissionSignal>>,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<SubmissionSignal>,
 }
 
 #[instrument(skip_all)]
 pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) -> Result<(bool, Value, Option<Result<Value>>)> {
     let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
+        status_tx: Mutex::new(status_tx),
         worker_queue_tx,
-        status_tx,
     };
 
     let results = futures_util::future::join_all(
-        submission
-            .root_node
-            .tasks
-            .iter()
-            .cloned()
-            .map(|task| track_task_execution(ctx.clone(), task)),
+        submission.root_node.tasks.iter().cloned().map(|task| track_task_execution(&ctx, task)),
     )
     .await;
 
@@ -81,14 +80,12 @@ pub async fn execute_submission(
 }
 
 #[async_recursion]
-async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) -> bool {
+async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> bool {
     let success = match &node.ext {
         TaskNodeExt::Action(config) => {
-            track_action_execution(ctx.clone(), node.clone(), config.clone()).await
+            track_action_execution(ctx, node.clone(), config.clone()).await
         }
-        TaskNodeExt::Schedule(tasks) => {
-            track_schedule_execution(ctx.clone(), node.clone(), tasks).await
-        }
+        TaskNodeExt::Schedule(tasks) => track_schedule_execution(ctx, node.clone(), tasks).await,
     };
 
     let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
@@ -110,12 +107,12 @@ async fn track_task_execution(ctx: ExecutionContext, node: Arc<TaskNode>) -> boo
 
 #[instrument(skip_all, fields(task.name = node.name))]
 async fn track_action_execution(
-    ctx: ExecutionContext,
+    ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) -> bool {
     debug!("Submitting the action");
-    let result = submit_action(ctx.clone(), config.clone()).await;
+    let result = submit_action(ctx, config.clone()).await;
 
     let status = match result {
         Err(err) => TaskStatus::Failed {
@@ -139,7 +136,7 @@ async fn track_action_execution(
 
 #[instrument(skip_all, fields(task.name = node.name))]
 async fn track_schedule_execution(
-    mut ctx: ExecutionContext,
+    ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) -> bool {
@@ -174,10 +171,13 @@ async fn track_schedule_execution(
             error!("Error serializing the task node config: {err:#}");
         }
         Ok(status) => {
-            _ = ctx.status_tx.send(SubmissionSignal::Progress(SubmissionProgressSignal {
-                name: node.name.clone(),
-                status,
-            }));
+            _ = ctx.status_tx.lock().await.send(SubmissionSignal {
+                id: Some(ctx.submission_id.clone()),
+                ext: SubmissionSignalExt::Progress(SubmissionProgressSignal {
+                    name: node.name.clone(),
+                    status,
+                }),
+            });
         }
     }
 
@@ -258,15 +258,15 @@ fn skip_task_node(node: &TaskNode) {
 }
 
 async fn submit_action(
-    ctx: ExecutionContext,
+    ctx: &ExecutionContext,
     config: Arc<ActionTaskConfig>,
 ) -> Result<ActionReport> {
     let (tx, rx) = oneshot::channel();
     ctx.worker_queue_tx
         .send(WorkerQueueItem {
             parent_span: Span::current(),
-            submission_root: ctx.submission_root,
-            submission_id: ctx.submission_id,
+            submission_root: ctx.submission_root.clone(),
+            submission_id: ctx.submission_id.clone(),
             config,
             report_tx: tx,
         })
