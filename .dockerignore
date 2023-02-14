@@ -1,0 +1,9 @@
+.dockerignore
+Dockerfile
+.github/
+.vscode/
+root/
+runj/bin/
+runj/tests/
+target/
+config.toml
