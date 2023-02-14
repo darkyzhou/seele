@@ -35,6 +35,7 @@ pub struct SeeleConfig {
     #[serde(default)]
     pub thread_counts: ThreadCounts,
 
+    #[serde(default)]
     pub paths: PathsConfig,
 
     #[serde(default)]
@@ -89,7 +90,7 @@ pub enum SeeleWorkMode {
 
 #[inline]
 fn default_work_mode() -> SeeleWorkMode {
-    SeeleWorkMode::Bare
+    SeeleWorkMode::Containerized
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,6 +136,18 @@ pub struct PathsConfig {
     pub umoci: String,
 }
 
+impl Default for PathsConfig {
+    fn default() -> Self {
+        Self {
+            root: default_root_path(),
+            tmp: default_tmp_path(),
+            runj: default_runj_path(),
+            skopeo: default_skopeo_path(),
+            umoci: default_umoci_path(),
+        }
+    }
+}
+
 #[inline]
 fn default_root_path() -> PathBuf {
     "/etc/seele".into()
@@ -152,12 +165,12 @@ fn default_runj_path() -> String {
 
 #[inline]
 fn default_skopeo_path() -> String {
-    "/usr/local/bin/skopeo".to_string()
+    "/usr/bin/skopeo".to_string()
 }
 
 #[inline]
 fn default_umoci_path() -> String {
-    "/usr/local/bin/umoci".to_string()
+    "/usr/bin/umoci".to_string()
 }
 
 #[derive(Debug, Deserialize)]
