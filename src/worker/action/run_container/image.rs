@@ -78,8 +78,6 @@ async fn pull_image(image: &OciImage) -> Result<()> {
                 "3",
                 "--quiet"
             )
-            // Although this seems not working, cgroup cpuset can
-            // guarantee that `skopeo` can only leverage only one cpu core.
             .env("GOMAXPROCS", "1")
             .stdout_path(skopeo_log_file_path)
             .stderr_to_stdout()
@@ -97,6 +95,9 @@ async fn pull_image(image: &OciImage) -> Result<()> {
         )
         .await
         .context("Error reading log file")?;
+
+        _ = fs::remove_file(&skopeo_log_file_path).await;
+
         bail!(
             "The skopeo process failed, output file {}: {}",
             skopeo_log_file_path.display(),
@@ -107,6 +108,8 @@ async fn pull_image(image: &OciImage) -> Result<()> {
     fs::rename(&temp_target_path, target_path)
         .await
         .context("Error moving the image from temp directory")?;
+
+    _ = fs::remove_file(&skopeo_log_file_path).await;
 
     Ok(())
 }
@@ -171,6 +174,9 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
         )
         .await
         .context("Error reading log file")?;
+
+        _ = fs::remove_file(&umoci_log_file_path).await;
+
         bail!(
             "The umoci process failed, output file {}: {}",
             umoci_log_file_path.display(),
@@ -185,6 +191,8 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     fs::set_permissions(&unpacked_path, Permissions::from_mode(0o777))
         .await
         .context("Error setting the permission of unpacked directory")?;
+
+    _ = fs::remove_file(&umoci_log_file_path).await;
 
     Ok(())
 }
