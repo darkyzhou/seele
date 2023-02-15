@@ -7,9 +7,9 @@ pub struct RunjConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_namespace: Option<UserNamespaceConfig>,
 
-    pub cgroup_path: PathBuf,
+    pub overlayfs: OverlayfsConfig,
 
-    pub rootfs: PathBuf,
+    pub cgroup_path: PathBuf,
 
     pub cwd: PathBuf,
 
@@ -36,6 +36,14 @@ pub struct UserNamespaceConfig {
     pub root_gid: u32,
     pub gid_map_begin: u32,
     pub gid_map_count: u32,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct OverlayfsConfig {
+    pub lower_dir: PathBuf,
+    pub upper_dir: PathBuf,
+    pub work_dir: PathBuf,
+    pub merged_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

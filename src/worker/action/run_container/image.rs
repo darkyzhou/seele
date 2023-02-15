@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use duct::cmd;
@@ -137,7 +137,6 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     // TODO: Should be placed inside submission root
     let umoci_log_file_path =
         conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
-
     debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
     let output = spawn_blocking({
         let image = image.clone();
@@ -182,6 +181,10 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     fs::rename(temp_unpacked_path, &unpacked_path)
         .await
         .context("Error moving unpacked image from temp directory")?;
+
+    fs::set_permissions(&unpacked_path, Permissions::from_mode(0o777))
+        .await
+        .context("Error setting the permission of unpacked directory")?;
 
     Ok(())
 }

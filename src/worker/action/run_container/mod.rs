@@ -15,7 +15,7 @@ use triggered::Listener;
 pub use self::{entities::*, idmap::*};
 use self::{
     runj::ContainerExecutionStatus,
-    utils::{check_and_create_directories, convert_to_runj_config},
+    utils::{check_and_create_directories, make_runj_config},
 };
 use super::ActionContext;
 use crate::{
@@ -47,7 +47,7 @@ pub async fn execute(
         .context("Error preparing the container image")?;
 
     let config =
-        convert_to_runj_config(ctx, config.clone()).context("Error converting the config")?;
+        make_runj_config(ctx, config.clone()).await.context("Error converting the config")?;
     check_and_create_directories(&config).await?;
 
     let report = spawn_blocking({
