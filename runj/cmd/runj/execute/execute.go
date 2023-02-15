@@ -170,7 +170,9 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 	if err != nil {
 		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
 	}
-	// FIXME: dirty hack
+	// FIXME: Dirty hack
+	// There is almost no way to pass data to the runc child process
+	// except this one and patching runc itself.
 	os.Setenv("GOMAXPROCS", overlayfsConfig)
 
 	noNewPrivileges := true
