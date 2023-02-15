@@ -18,7 +18,7 @@ pub fn create_and_enter_cgroup() -> Result<PathBuf> {
 
     let version = systemd_version(&proxy)?;
     if version <= 243 {
-        bail!("Seele requires systemd version being greather than 243");
+        bail!("Seele requires systemd version being greater than 243");
     }
 
     start_transient_unit(&proxy)?;
