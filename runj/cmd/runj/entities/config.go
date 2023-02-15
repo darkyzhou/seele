@@ -4,7 +4,6 @@ type RunjConfig struct {
 	UserNamespace *UserNamespaceConfig `mapstructure:"user_namespace"`
 	Overlayfs     *OverlayfsConfig     `mapstructure:"overlayfs" validate:"required"`
 	CgroupPath    string               `mapstructure:"cgroup_path"`
-	Rootfs        string               `mapstructure:"rootfs" validate:"required"`
 	Cwd           string               `mapstructure:"cwd" validate:"required"`
 	Command       []string             `mapstructure:"command" validate:"required,dive,required"`
 	Paths         []string             `mapstructure:"paths" validate:"dive,required"`
