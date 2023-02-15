@@ -13,6 +13,7 @@ import (
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/darkyzhou/seele/runj/cmd/runj/execute"
+	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/runc/libcontainer"
@@ -25,6 +26,12 @@ func init() {
 
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		runtime.LockOSThread()
+
+		if err := utils.SetupOverlayfs(); err != nil {
+			// FIXME: Find a way to pass the error message
+			os.Exit(1)
+		}
+
 		factory, _ := libcontainer.New("")
 		if err := factory.StartInitialization(); err != nil {
 			os.Exit(1)

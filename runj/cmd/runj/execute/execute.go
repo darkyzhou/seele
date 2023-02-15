@@ -166,12 +166,18 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		}
 	}
 
-	noNewPrivileges := true
+	overlayfsConfig, err := prepareOverlayfs(config.Overlayfs)
+	if err != nil {
+		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
+	}
+	// FIXME: dirty hack
+	os.Setenv("GOMAXPROCS", overlayfsConfig)
 
-	path := "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" + lo.Ternary(len(config.Paths) <= 0, "", ":"+strings.Join(config.Paths, ":"))
+	noNewPrivileges := true
+	pathEnv := "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" + lo.Ternary(len(config.Paths) <= 0, "", ":"+strings.Join(config.Paths, ":"))
 	process := &libcontainer.Process{
 		Args:            config.Command,
-		Env:             []string{path},
+		Env:             []string{pathEnv},
 		Cwd:             config.Cwd,
 		User:            "65534:65534",
 		Stdin:           stdInFile,

@@ -1,12 +1,14 @@
 package execute
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
+	"github.com/darkyzhou/seele/runj/cmd/runj/utils"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
@@ -71,6 +73,30 @@ func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping
 				Size:        config.GidMapCount,
 			},
 		}
+}
+
+func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
+	// FIXME: In seele bare work mode, 'others' bits are not important
+	if err := utils.CheckPermission(config.LowerDirectory, 0b000_101_101); err != nil {
+		return "", fmt.Errorf("Error checking lower directory's permissions: %w", err)
+	}
+	if err := utils.CheckPermission(config.UpperDirectory, 0b000_111_111); err != nil {
+		return "", fmt.Errorf("Error checking upper directory's permissions: %w", err)
+	}
+
+	workdirEmpty, err := utils.DirectoryEmpty(config.WorkDirectory)
+	if err != nil {
+		return "", fmt.Errorf("Error checking work directory: %w", err)
+	}
+	if !workdirEmpty {
+		return "", fmt.Errorf("The workdir is not empty")
+	}
+
+	data, err := json.Marshal(config)
+	if err != nil {
+		return "", fmt.Errorf("Error serializing the config: %w", err)
+	}
+	return string(data), nil
 }
 
 func prepareOutFile(path string) (*os.File, error) {

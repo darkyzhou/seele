@@ -2,6 +2,7 @@ package entities
 
 type RunjConfig struct {
 	UserNamespace *UserNamespaceConfig `mapstructure:"user_namespace"`
+	Overlayfs     *OverlayfsConfig     `mapstructure:"overlayfs" validate:"required"`
 	CgroupPath    string               `mapstructure:"cgroup_path"`
 	Rootfs        string               `mapstructure:"rootfs" validate:"required"`
 	Cwd           string               `mapstructure:"cwd" validate:"required"`
@@ -20,6 +21,13 @@ type UserNamespaceConfig struct {
 	RootGid     uint32 `mapstructure:"root_gid" validate:"required"`
 	GidMapBegin uint32 `mapstructure:"gid_map_begin" validate:"required"`
 	GidMapCount uint32 `mapstructure:"gid_map_count" validate:"required"`
+}
+
+type OverlayfsConfig struct {
+	LowerDirectory  string `mapstructure:"lower_dir" validate:"required"`
+	UpperDirectory  string `mapstructure:"upper_dir" validate:"required"`
+	WorkDirectory   string `mapstructure:"work_dir" validate:"required"`
+	MergedDirectory string `mapstructure:"merged_dir" validate:"required"`
 }
 
 type FdConfig struct {
