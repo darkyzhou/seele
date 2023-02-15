@@ -83,6 +83,9 @@ func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
 	if err := utils.CheckPermission(config.UpperDirectory, 0b000_111_111); err != nil {
 		return "", fmt.Errorf("Error checking upper directory's permissions: %w", err)
 	}
+	if err := utils.CheckPermission(config.MergedDirectory, 0b111_000_000); err != nil {
+		return "", fmt.Errorf("Error checking merged directory's permissions: %w", err)
+	}
 
 	workdirEmpty, err := utils.DirectoryEmpty(config.WorkDirectory)
 	if err != nil {
