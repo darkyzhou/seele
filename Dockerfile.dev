@@ -16,9 +16,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-RUN cargo build --release --bin seele
+RUN cargo build --bin seele
 
 FROM bitnami/minideb:bullseye AS runtime
 WORKDIR /etc/seele
@@ -27,5 +27,5 @@ RUN install_packages ca-certificates curl gpg gpg-agent umoci uidmap pkg-config 
     curl -fsSL https://download.opensuse.org/repositories/home:alvistack/Debian_11/Release.key | apt-key add - > /dev/null && \
     install_packages skopeo
 COPY --from=runj /usr/src/app/bin/runj /usr/local/bin
-COPY --from=builder /app/target/release/seele /usr/local/bin
+COPY --from=builder /app/target/debug/seele /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/seele"]
