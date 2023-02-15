@@ -76,30 +76,28 @@ pub async fn execute(
             run_container_config
         };
 
-        match run_container::execute(handle, ctx, &run_container_config).await {
-            Err(err) => Err(err),
-            Ok(report) => {
-                for file in &config.save {
-                    let source = mount_directory.join(file);
-                    let target = ctx.submission_root.join(file);
-                    let metadata = fs::metadata(&source)
-                        .await
-                        .with_context(|| format!("The file `{file}` to save does not exist"))?;
+        let report = run_container::execute(handle, ctx, &run_container_config).await?;
 
-                    if metadata.is_file() {
-                        fs::copy(source, target).await.context("Error copying the file")?;
-                        continue;
-                    } else if metadata.is_dir() {
-                        bail!("Saving a directory is currently unsupported: {}", file);
-                    } else if metadata.is_symlink() {
-                        bail!("Saving a symlink is currently unsupported: {}", file);
-                    }
-                    bail!("Unknown file type: {}", file);
-                }
+        for file in &config.save {
+            let source = mount_directory.join(file);
+            let target = ctx.submission_root.join(file);
+            let metadata = fs::metadata(&source)
+                .await
+                .with_context(|| format!("The file {file} to save does not exist"))?;
 
-                Ok(report)
+            if metadata.is_file() {
+                fs::copy(source, target).await.context("Error copying the file")?;
+                continue;
+            } else if metadata.is_dir() {
+                bail!("Saving a directory is currently unsupported: {}", file);
+            } else if metadata.is_symlink() {
+                bail!("Saving a symlink is currently unsupported: {}", file);
             }
+
+            bail!("Unknown file type: {}", file);
         }
+
+        Ok(report)
     }
     .await;
 
