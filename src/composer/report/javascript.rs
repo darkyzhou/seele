@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, bail, Context, Result};
 use quick_js::JsValue;
 use serde_json::Value;
+use tokio::task::spawn_blocking;
 
 use crate::{
     composer::report::utils::get_oj_status, entities::SubmissionReportConfig, worker::run_container,
@@ -12,26 +13,21 @@ pub async fn execute_javascript_reporter(
     config: String,
     source: String,
 ) -> Result<SubmissionReportConfig> {
-    tokio::task::spawn_blocking(move || {
-        fn run(config: String, source: String) -> Result<SubmissionReportConfig> {
-            let context = init_context(config).context("Error initializing the context")?;
-            let source = format!("( function(DATA){{{source}}} )( JSON.parse(DATA) )");
-            match context.eval(&source).context("Error executing the script")? {
-                JsValue::Object(report) => Ok({
-                    serde_json::from_value(
-                        QuickJsObject(report)
-                            .try_into()
-                            .context("Error converting the returned object")?,
-                    )
-                    .context("Error deserializing the returned the object")?
-                }),
-                _ => bail!("Unknown return value by the reporter script"),
-            }
-        }
+    spawn_blocking(move || run(config, source)).await?
+}
 
-        run(config, source)
-    })
-    .await?
+fn run(config: String, source: String) -> Result<SubmissionReportConfig> {
+    let context = init_context(config).context("Error initializing the context")?;
+    let source = format!("( function(DATA){{{source}}} )( JSON.parse(DATA) )");
+    match context.eval(&source).context("Error executing the script")? {
+        JsValue::Object(report) => Ok({
+            serde_json::from_value(
+                QuickJsObject(report).try_into().context("Error converting the returned object")?,
+            )
+            .context("Error deserializing the returned the object")?
+        }),
+        _ => bail!("Unknown return value by the reporter script"),
+    }
 }
 
 fn init_context(config: String) -> Result<quick_js::Context> {
