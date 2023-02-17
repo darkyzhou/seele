@@ -29,8 +29,8 @@ pub struct SubmissionConfig {
     #[serde(rename = "steps")]
     pub tasks: SequenceTasks,
 
-    #[serde(skip_serializing)]
-    pub reporter: Option<SubmissionReporter>,
+    #[serde(default, skip_serializing)]
+    pub reporter: ReporterConfig,
 }
 
 #[inline]
@@ -41,6 +41,12 @@ fn make_submitted_at() -> UtcTimestamp {
 #[inline]
 fn random_submission_id() -> String {
     nano_id::base62::<16>()
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct ReporterConfig {
+    pub success: Option<SubmissionReporter>,
+    pub failure: Option<SubmissionReporter>,
 }
 
 #[derive(Debug, Clone)]

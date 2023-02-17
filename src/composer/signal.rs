@@ -26,11 +26,30 @@ pub struct SubmissionProgressSignal {
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubmissionCompletedSignal {
-    ParseError { error: String },
-    InternalError { error: String },
-    ExecutionError { error: String, status: Value },
-    ReporterError { error: String, status: Value },
-    Success { status: Value, report: Option<Value> },
+    ParseError {
+        error: String,
+    },
+    InternalError {
+        error: String,
+    },
+    ExecutionError {
+        status: Value,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report: Option<Value>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report_error: Option<String>,
+    },
+    Success {
+        status: Value,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report: Option<Value>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report_error: Option<String>,
+    },
 }
 
 impl SubmissionCompletedSignal {
@@ -39,7 +58,6 @@ impl SubmissionCompletedSignal {
             Self::ParseError { .. } => "PARSE_ERROR",
             Self::InternalError { .. } => "INTERNAL_ERROR",
             Self::ExecutionError { .. } => "EXECUTION_ERROR",
-            Self::ReporterError { .. } => "REPORTER_ERROR",
             Self::Success { .. } => "SUCCESS",
         }
     }

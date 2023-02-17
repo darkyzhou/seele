@@ -16,10 +16,10 @@ pub async fn make_submission_report(
     reporter: &SubmissionReporter,
 ) -> Result<SubmissionReportConfig> {
     match reporter {
-        SubmissionReporter::JavaScript { source } => {
+        SubmissionReporter::JavaScript { javascript } => {
             javascript::execute_javascript_reporter(
                 serde_json::to_string(&config)?,
-                source.to_string(),
+                javascript.to_string(),
             )
             .await
         }

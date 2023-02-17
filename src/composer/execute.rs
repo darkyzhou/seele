@@ -54,28 +54,33 @@ pub async fn execute_submission(
     let success = results.into_iter().all(|success| success);
     let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
-    let report = match (&submission.config.reporter, success) {
-        (None, _) | (Some(_), false) => None,
-        (Some(reporter), true) => Some({
-            let span = info_span!(parent: Span::current(), "handle_reporter");
-            async {
-                let mut report_config =
-                    make_submission_report(submission.config.clone(), reporter).await?;
+    let report = {
+        match (&submission.config.reporter.success, &submission.config.reporter.failure, success) {
+            (Some(reporter), _, true) | (_, Some(reporter), false) => Some({
+                let span = info_span!(
+                    parent: Span::current(),
+                    "handle_reporter",
+                    seele.is_success_reporter = success
+                );
+                async {
+                    let mut report_config =
+                        make_submission_report(submission.config.clone(), reporter).await?;
 
-                let result = apply_report_config(&report_config, &submission).await?;
+                    let result = apply_report_config(&report_config, &submission).await?;
 
-                for (field, content) in result.embeds {
-                    report_config.report.insert(field, content.into());
+                    for (field, content) in result.embeds {
+                        report_config.report.insert(field, content.into());
+                    }
+
+                    serde_json::to_value(report_config.report)
+                        .context("Error serializing report returned by the reporter")
                 }
-
-                let report = serde_json::to_value(report_config.report)
-                    .context("Error serializing report returned by the reporter")?;
-                anyhow::Ok(report)
-            }
-            .instrument(span)
-            .await
-            .context("Error executing the reporter")
-        }),
+                .instrument(span)
+                .await
+                .context("Error executing the reporter")
+            }),
+            _ => None,
+        }
     };
     Ok((success, status, report))
 }

@@ -88,27 +88,19 @@ async fn handle_submission(
 
     let submission_id = submission.id.clone();
     let signal = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
-        Err(err) => {
-            let message = format!("Error executing the submission: {:#}", err);
-            error!(message);
-            SubmissionCompletedSignal::InternalError { error: message }
+        Err(err) => SubmissionCompletedSignal::InternalError { error: format!("{err:#}") },
+        Ok((success, status, report)) => {
+            let (report, report_error) = match report {
+                None => (None, None),
+                Some(Ok(report)) => (Some(report), None),
+                Some(Err(err)) => (None, Some(format!("{err:#}"))),
+            };
+            if success {
+                SubmissionCompletedSignal::Success { status, report, report_error }
+            } else {
+                SubmissionCompletedSignal::ExecutionError { status, report, report_error }
+            }
         }
-        Ok((success, status, report)) => match (success, report) {
-            (false, _) => {
-                let message = "The execution returned a failed report".to_string();
-                error!(message);
-                SubmissionCompletedSignal::ExecutionError { error: message, status }
-            }
-            (true, Some(Err(err))) => {
-                let message = format!("The reporter of the submission failed: {:#}", err);
-                error!(message);
-                SubmissionCompletedSignal::ReporterError { error: message, status }
-            }
-            (true, Some(Ok(report))) => {
-                SubmissionCompletedSignal::Success { status, report: Some(report) }
-            }
-            (true, None) => SubmissionCompletedSignal::Success { status, report: None },
-        },
     };
 
     Span::current().record(SUBMISSION_STATUS, signal.get_type());
@@ -138,7 +130,25 @@ async fn do_handle_submission(
         .context("Failed to resolve the submission")?;
 
     debug!("Executing the submission");
-    execute::execute_submission(submission, worker_queue_tx, status_tx)
+    let result = execute::execute_submission(submission, worker_queue_tx, status_tx)
         .await
-        .context("Error executing the submission")
+        .context("Error executing the submission");
+
+    match &result {
+        Ok((false, _, Some(Err(err)))) => {
+            error!("The execution returned a failed report and the reporter failed: {err:#}");
+        }
+        Ok((false, _, None)) => {
+            error!("The execution returned a failed report");
+        }
+        Ok((true, _, Some(Err(err)))) => {
+            error!("The execution succeeded but the reporter failed: {err:#}");
+        }
+        Err(err) => {
+            error!("{err:#}");
+        }
+        _ => {}
+    }
+
+    result
 }

@@ -6,10 +6,9 @@ use serde::{Deserialize, Serialize};
 pub type SubmissionReport = IndexMap<String, serde_yaml::Value>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum SubmissionReporter {
-    #[serde(rename = "javascript")]
-    JavaScript { source: String },
+    JavaScript { javascript: String },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
