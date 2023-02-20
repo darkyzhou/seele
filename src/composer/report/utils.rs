@@ -49,7 +49,7 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
         return OjStatus::OutputLimitExceeded;
     }
 
-    if run_report.is_oom {
+    if matches!(run_report.status, ExecutionStatus::MemoryLimitExceeded) {
         return OjStatus::MemoryLimitExceeded;
     }
 
