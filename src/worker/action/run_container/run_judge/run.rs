@@ -24,7 +24,7 @@ pub struct Config {
     pub run_container_config: run_container::Config,
 
     #[serde(default)]
-    pub executable: Vec<String>,
+    pub files: Vec<String>,
 }
 
 #[instrument(skip_all, name = "action_run_judge_run_execute")]
@@ -36,18 +36,18 @@ pub async fn execute(
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
-        if !config.executable.is_empty() {
+        if !config.files.is_empty() {
             if let Some(paths) = run_container_config.paths.as_mut() {
                 paths.push(MOUNT_DIRECTORY.to_string());
             } else {
                 run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
             }
 
-            for file in &config.executable {
+            for file in &config.files {
                 let path = ctx.submission_root.join(file);
 
                 if let Err(err) = metadata(&path).await {
-                    bail!("The executable {file} does not exist: {err:#}")
+                    bail!("The file {file} does not exist: {err:#}")
                 }
 
                 set_permissions(path, Permissions::from_mode(0o777))
@@ -57,11 +57,12 @@ pub async fn execute(
 
             run_container_config.mounts.extend(
                 config
-                    .executable
+                    .files
                     .iter()
                     .map(|file| runj::MountConfig {
                         from: ctx.submission_root.join(file),
                         to: [MOUNT_DIRECTORY, file].iter().collect(),
+                        // TODO: Should provide an option to configure exec
                         options: Some(vec!["exec".to_string()]),
                     })
                     .map(run_container::MountConfig::Full),
