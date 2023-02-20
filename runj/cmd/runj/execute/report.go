@@ -138,6 +138,5 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		CpuUserTimeMs:   cpuUserMs,
 		CpuKernelTimeMs: cpuKernelMs,
 		MemoryUsageKiB:  memoryUsageKib,
-		IsOOM:           isOOM,
 	}, nil
 }
