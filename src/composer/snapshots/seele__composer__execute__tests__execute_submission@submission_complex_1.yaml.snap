@@ -4,27 +4,27 @@ expression: results
 input_file: src/composer/stubs/submission_complex_1.yaml
 ---
 [
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 1,
   ),
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 201,
   ),
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 202,
   ),
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 301,
   ),
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 302,
   ),
-  ActionNoopConfig(
+  Config(
     action: "seele/noop@1",
     test: 303,
   ),

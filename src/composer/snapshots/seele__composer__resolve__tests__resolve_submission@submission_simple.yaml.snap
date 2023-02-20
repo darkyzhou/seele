@@ -5,45 +5,51 @@ input_file: src/composer/stubs/submission_simple.yaml
 ---
 Submission(
   id: "[id]",
+  root_directory: "test",
   config: SubmissionConfig(
     id: "[id]",
     steps: {
       "one": {
-        "status": "pending",
+        "status": "PENDING",
       },
       "two": {
-        "status": "pending",
+        "status": "PENDING",
       },
       "three": {
-        "status": "pending",
+        "status": "PENDING",
       },
     },
+    report: None,
+    report_error: None,
   ),
-  root: RootTaskNode(
+  root_node: RootTaskNode(
     id: "[id]",
     tasks: [
       TaskNode(
+        name: ".one",
         id: "[id]",
         children: [
           TaskNode(
+            name: ".two",
             id: "[id]",
             children: [
               TaskNode(
+                name: ".three",
                 id: "[id]",
                 children: [],
-                ext: ActionNoopConfig(
+                ext: Config(
                   action: "seele/noop@1",
                   test: 3,
                 ),
               ),
             ],
-            ext: ActionNoopConfig(
+            ext: Config(
               action: "seele/noop@1",
               test: 2,
             ),
           ),
         ],
-        ext: ActionNoopConfig(
+        ext: Config(
           action: "seele/noop@1",
           test: 1,
         ),

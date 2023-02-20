@@ -5,83 +5,93 @@ input_file: src/composer/stubs/submission_complex_1.yaml
 ---
 Submission(
   id: "[id]",
+  root_directory: "test",
   config: SubmissionConfig(
     id: "[id]",
     steps: {
       "prepare_sources": {
-        "status": "pending",
+        "status": "PENDING",
       },
       "compile": {
-        "status": "pending",
+        "status": "PENDING",
         "parallel": [
           {
-            "status": "pending",
+            "status": "PENDING",
           },
           {
-            "status": "pending",
+            "status": "PENDING",
           },
         ],
       },
       "standard": {
-        "status": "pending",
+        "status": "PENDING",
         "parallel": [
           {
-            "status": "pending",
+            "status": "PENDING",
             "steps": {
               "prepare": {
-                "status": "pending",
+                "status": "PENDING",
               },
               "run": {
-                "status": "pending",
+                "status": "PENDING",
               },
               "compare": {
-                "status": "pending",
+                "status": "PENDING",
               },
             },
           },
         ],
       },
     },
+    report: None,
+    report_error: None,
   ),
-  root: RootTaskNode(
+  root_node: RootTaskNode(
     id: "[id]",
     tasks: [
       TaskNode(
+        name: ".prepare_sources",
         id: "[id]",
         children: [
           TaskNode(
+            name: ".compile",
             id: "[id]",
             children: [
               TaskNode(
+                name: ".standard",
                 id: "[id]",
                 children: [],
                 ext: [
                   TaskNode(
+                    name: ".standard.0",
                     id: "[id]",
                     children: [],
                     ext: [
                       TaskNode(
+                        name: ".standard.0.prepare",
                         id: "[id]",
                         children: [
                           TaskNode(
+                            name: ".standard.0.run",
                             id: "[id]",
                             children: [
                               TaskNode(
+                                name: ".standard.0.compare",
                                 id: "[id]",
                                 children: [],
-                                ext: ActionNoopConfig(
+                                ext: Config(
                                   action: "seele/noop@1",
                                   test: 303,
                                 ),
                               ),
                             ],
-                            ext: ActionNoopConfig(
+                            ext: Config(
                               action: "seele/noop@1",
                               test: 302,
                             ),
                           ),
                         ],
-                        ext: ActionNoopConfig(
+                        ext: Config(
                           action: "seele/noop@1",
                           test: 301,
                         ),
@@ -93,17 +103,19 @@ Submission(
             ],
             ext: [
               TaskNode(
+                name: ".compile.0",
                 id: "[id]",
                 children: [],
-                ext: ActionNoopConfig(
+                ext: Config(
                   action: "seele/noop@1",
                   test: 201,
                 ),
               ),
               TaskNode(
+                name: ".compile.1",
                 id: "[id]",
                 children: [],
-                ext: ActionNoopConfig(
+                ext: Config(
                   action: "seele/noop@1",
                   test: 202,
                 ),
@@ -111,7 +123,7 @@ Submission(
             ],
           ),
         ],
-        ext: ActionNoopConfig(
+        ext: Config(
           action: "seele/noop@1",
           test: 1,
         ),
