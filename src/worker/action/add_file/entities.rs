@@ -19,12 +19,12 @@ pub struct FileItem {
 #[serde(untagged)]
 pub enum FileItemExt {
     Http { url: String },
-    Inline { content: String },
+    PlainText { plain: String },
+    Base64 { base64: String },
 }
 
 impl Display for FileItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use either::Either;
         use ellipse::Ellipse;
 
         write!(
@@ -32,9 +32,11 @@ impl Display for FileItem {
             "{}({})",
             self.path.display(),
             match &self.ext {
-                FileItemExt::Http { url } => Either::Left(url),
-                FileItemExt::Inline { content } =>
-                    Either::Right(format!("{}...", content.as_str().truncate_ellipse(30))),
+                FileItemExt::Http { url } => url.to_string(),
+                FileItemExt::PlainText { plain } =>
+                    format!("{}...", plain.as_str().truncate_ellipse(30)),
+                FileItemExt::Base64 { base64 } =>
+                    format!("{}...", base64.as_str().truncate_ellipse(50)),
             }
         )
     }

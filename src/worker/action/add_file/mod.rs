@@ -4,11 +4,12 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use base64::{engine, Engine};
 use bytes::Bytes;
 pub use entities::*;
 use futures_util::{future, FutureExt};
 use once_cell::sync::Lazy;
-use tokio::io;
+use tokio::{io, task::spawn_blocking};
 use tracing::instrument;
 use triggered::Listener;
 
@@ -21,6 +22,72 @@ use crate::{
 };
 
 mod entities;
+
+#[instrument(skip_all, name = "action_add_file_execute")]
+pub async fn execute(
+    handle: Listener,
+    ctx: &ActionContext,
+    config: &Config,
+) -> Result<ActionSuccessReportExt> {
+    let results = future::join_all(config.files.iter().map(|item| {
+        let handle = handle.clone();
+        async move {
+            match &item.ext {
+                FileItemExt::PlainText { plain } => {
+                    handle_plain_text_file(ctx, &item.path, &plain).await
+                }
+                FileItemExt::Base64 { base64 } => {
+                    handle_base64_file(ctx, &item.path, base64.clone()).await
+                }
+                FileItemExt::Http { url } => handle_http_file(handle, ctx, &item.path, url).await,
+            }
+        }
+    }))
+    .await;
+
+    let failed_items: Vec<_> = results
+        .iter()
+        .enumerate()
+        .filter_map(|(i, result)| {
+            result.as_ref().err().map(|err| format!("{}: {:#}", config.files[i], err))
+        })
+        .collect();
+
+    if !failed_items.is_empty() {
+        bail!(ActionErrorWithReport::new(ActionFailedReportExt::AddFile(FailedReport {
+            files: failed_items
+        })));
+    }
+
+    Ok(ActionSuccessReportExt::AddFile)
+}
+
+async fn handle_plain_text_file(ctx: &ActionContext, path: &Path, text: &str) -> Result<()> {
+    let mut file = {
+        let path: PathBuf = ctx.submission_root.join(path);
+        shared::file::create_file(&path).await.context("Error creating the file")?
+    };
+
+    let mut text = text.as_bytes();
+    io::copy_buf(&mut text, &mut file).await.context("Error writing the data")?;
+
+    Ok(())
+}
+
+async fn handle_base64_file(ctx: &ActionContext, path: &Path, base64: String) -> Result<()> {
+    let mut file = {
+        let path: PathBuf = ctx.submission_root.join(path);
+        shared::file::create_file(&path).await.context("Error creating the file")?
+    };
+
+    let data = spawn_blocking(|| -> Result<Vec<_>> {
+        engine::general_purpose::STANDARD.decode(base64).context("Error decoding the base64")
+    })
+    .await??;
+    io::copy_buf(&mut &data[..], &mut file).await.context("Error writing the data")?;
+
+    Ok(())
+}
 
 static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|| {
     use std::time::Duration;
@@ -60,54 +127,6 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     }))
     .build()
 });
-
-#[instrument(skip_all, name = "action_add_file_execute")]
-pub async fn execute(
-    handle: Listener,
-    ctx: &ActionContext,
-    config: &Config,
-) -> Result<ActionSuccessReportExt> {
-    let results = future::join_all(config.files.iter().map(|item| {
-        let handle = handle.clone();
-        async move {
-            match &item.ext {
-                FileItemExt::Inline { content } => {
-                    handle_inline_file(ctx, &item.path, content).await
-                }
-                FileItemExt::Http { url } => handle_http_file(handle, ctx, &item.path, url).await,
-            }
-        }
-    }))
-    .await;
-
-    let failed_items: Vec<_> = results
-        .iter()
-        .enumerate()
-        .filter_map(|(i, result)| {
-            result.as_ref().err().map(|err| format!("{}: {:#}", config.files[i], err))
-        })
-        .collect();
-
-    if !failed_items.is_empty() {
-        bail!(ActionErrorWithReport::new(ActionFailedReportExt::AddFile(FailedReport {
-            files: failed_items
-        })));
-    }
-
-    Ok(ActionSuccessReportExt::AddFile)
-}
-
-async fn handle_inline_file(ctx: &ActionContext, path: &Path, text: &str) -> Result<()> {
-    let mut file = {
-        let path: PathBuf = ctx.submission_root.join(path);
-        shared::file::create_file(&path).await.context("Error creating the file")?
-    };
-
-    let mut text = text.as_bytes();
-    io::copy_buf(&mut text, &mut file).await.context("Error writing the data")?;
-
-    Ok(())
-}
 
 static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
@@ -163,7 +182,7 @@ mod tests {
         fs::create_dir_all(&submission_root).await.unwrap();
 
         let text = "EXAMPLE 测试".to_string();
-        super::handle_inline_file(
+        super::handle_plain_text_file(
             &ActionContext { submission_root: submission_root.clone() },
             &target_path,
             &text,
@@ -171,7 +190,30 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(text, fs::read_to_string(submission_root.join(target_path)).await.unwrap());
+        assert_eq!(fs::read_to_string(submission_root.join(target_path)).await.unwrap(), text);
+
+        fs::remove_dir_all(submission_root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_base64_file() {
+        let submission_root: PathBuf = iter::once("./test_base64").collect();
+        let target_path: PathBuf = iter::once("foo/bar.txt").collect();
+        fs::create_dir_all(&submission_root).await.unwrap();
+
+        let text = "5rWL6K+VIHRlc3Q=".to_string();
+        super::handle_base64_file(
+            &ActionContext { submission_root: submission_root.clone() },
+            &target_path,
+            text.clone(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            fs::read_to_string(submission_root.join(target_path)).await.unwrap(),
+            "测试 test"
+        );
 
         fs::remove_dir_all(submission_root).await.unwrap();
     }
@@ -193,8 +235,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            "{\"success\":\"true\"}\n",
-            fs::read_to_string(submission_root.join(target_path)).await.unwrap()
+            fs::read_to_string(submission_root.join(target_path)).await.unwrap(),
+            "{\"success\":\"true\"}\n"
         );
 
         fs::remove_dir_all(submission_root).await.unwrap();
