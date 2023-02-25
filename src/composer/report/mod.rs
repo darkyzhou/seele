@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{bail, Context, Result};
+use futures_util::future;
 use tokio::{
     fs::{self, File},
     io::{AsyncReadExt, BufReader},
@@ -39,31 +40,27 @@ pub async fn apply_report_config(
     }
 
     let embeds = HashMap::from_iter({
-        futures_util::future::try_join_all(config.embeds.iter().map(|embed| async move {
+        future::try_join_all(config.embeds.iter().map(|embed| async move {
             // TODO: Should we check for malicious paths?
             let path = submission.root_directory.join(&embed.path);
 
-            match fs::metadata(&path).await {
-                Err(err) => {
-                    bail!("Error opening the file {} to embed: {err:#}", path.display());
-                }
-                Ok(metadata) => {
-                    let truncate_bytes = embed.truncate_kib * 1024;
-                    let content = if metadata.len() as usize <= truncate_bytes {
-                        fs::read_to_string(&path).await?
-                    } else {
-                        let file = File::open(path).await?;
-                        let mut reader = BufReader::new(file);
+            async {
+                let metadata = fs::metadata(&path).await.context("Error checking metadata")?;
+                let truncate_bytes = embed.truncate_kib * 1024;
+                let content = if metadata.len() as usize <= truncate_bytes {
+                    fs::read_to_string(&path).await.context("Error reading the file")?
+                } else {
+                    let mut reader =
+                        BufReader::new(File::open(&path).await.context("Error opening the file")?);
+                    let mut buffer = Vec::with_capacity(truncate_bytes);
+                    reader.read_exact(&mut buffer).await.context("Error reading the file")?;
+                    String::from_utf8_lossy(&buffer).to_string()
+                };
 
-                        let mut buffer = Vec::with_capacity(truncate_bytes);
-                        reader.read_exact(&mut buffer).await?;
-
-                        String::from_utf8_lossy(&buffer).to_string()
-                    };
-
-                    Ok((embed.field.clone(), content))
-                }
+                anyhow::Ok((embed.field.clone(), content))
             }
+            .await
+            .with_context(|| format!("Error handling the file: {}", path.display()))
         }))
         .await
         .context("Error applying embeds config")?
