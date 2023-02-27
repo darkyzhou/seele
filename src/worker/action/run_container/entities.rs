@@ -110,7 +110,6 @@ impl Into<runj::LimitsConfig> for LimitsConfig {
     fn into(self) -> runj::LimitsConfig {
         const DEFAULT_TIME_MS: u64 = 30 * 1000; // 30 seconds
         const DEFAULT_MEMORY_LIMIT_BYTES: i64 = 256 * 1024 * 1024; // 256 MiB
-        const DEFAULT_MEMORY_SWAPPINESS: u64 = 0; // Disable swap
         const DEFAULT_PIDS_LIMIT: i64 = 32;
         const DEFAULT_CORE: u64 = 0; // Disable core dump
         const DEFAULT_NO_FILE: u64 = 64;
@@ -123,11 +122,6 @@ impl Into<runj::LimitsConfig> for LimitsConfig {
                     .memory_kib
                     .map(|memory_kib| memory_kib * 1024)
                     .unwrap_or(DEFAULT_MEMORY_LIMIT_BYTES),
-                memory_swap: self
-                    .memory_kib
-                    .map(|memory_kib| memory_kib * 1024)
-                    .unwrap_or(DEFAULT_MEMORY_LIMIT_BYTES),
-                memory_swappiness: DEFAULT_MEMORY_SWAPPINESS,
                 pids_limit: self.pids_count.unwrap_or(DEFAULT_PIDS_LIMIT),
                 ..Default::default()
             },

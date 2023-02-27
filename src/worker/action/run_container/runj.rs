@@ -70,23 +70,12 @@ pub struct MountConfig {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LimitsConfig {
     pub time_ms: u64,
-
     pub cgroup: CgroupConfig,
-
     pub rlimit: RlimitConfig,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct CgroupConfig {
-    pub memory: i64,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory_reservation: Option<i64>,
-
-    pub memory_swap: i64,
-
-    pub memory_swappiness: u64,
-
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_shares: Option<u64>,
 
@@ -98,6 +87,8 @@ pub struct CgroupConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpuset_mems: Option<String>,
+
+    pub memory: i64,
 
     pub pids_limit: i64,
 }
