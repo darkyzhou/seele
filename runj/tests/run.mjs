@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { chmod, mkdir, rm, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const RUNJ_PATH = resolve(fileURLToPath(import.meta.url), "../../bin/runj");
@@ -16,21 +17,20 @@ try {
   await stat(RUNJ_PATH);
   await stat(IMAGE_ROOTFS_PATH);
 } catch (e) {
-  throw new Error(`Missing required files: ${e.message}`);
+  throw `Missing required files: ${e.message}`;
 }
 
-for (const name of (await readdir("./stubs")).sort()) {
-  console.log(`>>> Testing ${name}`);
-
-  const path = resolve("stubs", name);
-  const stubPath = resolve(path, "stub.mjs");
-
-  const stub = (await import(stubPath)).default;
-  try {
-    await runTest(stub, true);
-    console.log("OK\n");
-  } catch (e) {
-    console.error(`ERR: ${e.message ?? e}\n`);
+const stubs = await readdir("./stubs");
+const specifiedStub = argv[2];
+if (specifiedStub) {
+  const stub = stubs.find((stub) => stub === specifiedStub);
+  if (!stub) {
+    throw `Specified stub not found: ${specifiedStub}`;
+  }
+  await testStub(stub);
+} else {
+  for (const name of stubs.sort()) {
+    await testStub(name);
   }
 }
 
@@ -38,6 +38,20 @@ await rm(TEMP_PATH, {
   recursive: true,
   force: true,
 });
+
+async function testStub(name) {
+  console.log(`>>> Testing ${name}`);
+
+  const path = resolve("stubs", name);
+  const stubPath = resolve(path, "stub.mjs");
+  try {
+    const stub = (await import(stubPath)).default;
+    await runTest(stub, true);
+    console.log("PASS\n");
+  } catch (e) {
+    console.error(`ERR: ${e.message ?? e}\n`);
+  }
+}
 
 async function runTest(stub, rootless = true) {
   const report = await executeRunj(stub.config, rootless);
