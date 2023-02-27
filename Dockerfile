@@ -26,6 +26,10 @@ RUN install_packages ca-certificates curl gpg gpg-agent umoci uidmap pkg-config 
     echo 'deb http://download.opensuse.org/repositories/home:/alvistack/Debian_11/ /' | tee /etc/apt/sources.list.d/home:alvistack.list && \
     curl -fsSL https://download.opensuse.org/repositories/home:alvistack/Debian_11/Release.key | apt-key add - > /dev/null && \
     install_packages skopeo
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-amd64 /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
 COPY --from=runj /usr/src/app/bin/runj /usr/local/bin
 COPY --from=builder /app/target/release/seele /usr/local/bin
-ENTRYPOINT ["/usr/local/bin/seele"]
+CMD ["/usr/local/bin/seele"]
