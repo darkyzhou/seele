@@ -8,7 +8,7 @@ use nix::{
 };
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
-use tokio::{sync::oneshot, task::spawn_blocking};
+use tokio::sync::oneshot;
 use tracing::{error, info, info_span, instrument, warn, Span};
 use triggered::Listener;
 
@@ -21,6 +21,7 @@ use super::ActionContext;
 use crate::{
     cgroup, conf,
     entities::{ActionFailedReportExt, ActionSuccessReportExt},
+    shared::{runner, ABORTED_MESSAGE},
     worker::{
         run_container::runj::{ContainerExecutionReport, RunjConfig},
         ActionErrorWithReport,
@@ -50,7 +51,7 @@ pub async fn execute(
         make_runj_config(ctx, config.clone()).await.context("Error converting the config")?;
     check_and_create_directories(&config).await?;
 
-    let report = spawn_blocking({
+    let report = runner::spawn_blocking({
         let local = RUNNER_THREAD_LOCAL.clone();
         let span = info_span!(parent: Span::current(), "execute_runj");
         move || span.in_scope(move || prepare_and_execute_runj(abort, &local, config))
@@ -119,7 +120,7 @@ fn prepare_and_execute_runj(
     let result = reader.read_to_end(&mut output);
 
     if abort.is_triggered() {
-        bail!("Aborted");
+        bail!(ABORTED_MESSAGE);
     }
 
     _ = cancel_tx.send(());

@@ -4,16 +4,13 @@ use anyhow::{bail, Context, Result};
 use duct::cmd;
 use futures_util::FutureExt;
 use once_cell::sync::Lazy;
-use tokio::{
-    fs::{self, create_dir_all, metadata, remove_dir_all},
-    task::spawn_blocking,
-};
+use tokio::fs::{self, create_dir_all, metadata, remove_dir_all};
 use tracing::{debug, instrument, warn};
 use triggered::Listener;
 
 use crate::{
     conf,
-    shared::{self, cond::CondGroup, image::OciImage},
+    shared::{self, cond::CondGroup, image::OciImage, runner},
 };
 
 static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =
@@ -62,7 +59,7 @@ async fn pull_image(image: &OciImage) -> Result<()> {
         conf::PATHS.temp.join(&format!("skopeo-{}.log", nano_id::base62::<12>()));
 
     debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.paths.skopeo, "Pulling the image using skopeo");
-    let output = spawn_blocking({
+    let output = runner::spawn_blocking({
         let image = image.clone();
         let temp_target_path = temp_target_path.clone();
         let skopeo_log_file_path = skopeo_log_file_path.clone();
@@ -141,7 +138,7 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     let umoci_log_file_path =
         conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
     debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
-    let output = spawn_blocking({
+    let output = runner::spawn_blocking({
         let image = image.clone();
         let image_path = get_oci_image_path(&image);
         let temp_unpacked_path = temp_unpacked_path.clone();

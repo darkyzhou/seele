@@ -10,6 +10,7 @@ pub mod cond;
 pub mod file;
 pub mod image;
 pub mod metrics;
+pub mod runner;
 
 pub static ABORTED_MESSAGE: &str = "Aborted due to shutting down";
 
