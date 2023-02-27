@@ -3,12 +3,15 @@ package execute
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/samber/lo"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -47,9 +50,29 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 
 	// Since `process.Wait()` could return an error, both `state` and `stats` may be nil
 	if props.stats != nil && props.stats.CgroupStats != nil {
-		memoryUsageKib = lo.Max([]uint64{props.stats.CgroupStats.MemoryStats.SwapUsage.Usage, props.stats.CgroupStats.MemoryStats.SwapUsage.MaxUsage}) / 1024
 		cpuKernelMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInKernelmode / 1e6
 		cpuUserMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInUsermode / 1e6
+
+		memoryUsageData, err := cgroups.ReadFile(props.cgroupPath, "memory.peak")
+		if err != nil {
+			return nil, fmt.Errorf("Error reading memory.peak: %w", err)
+		}
+		memoryUsage, err := strconv.Atoi(memoryUsageData)
+		if memoryUsage <= 0 || err != nil {
+			return nil, fmt.Errorf("Unexpected memory.peak value: %s", memoryUsageData)
+		}
+		memoryUsageKib = uint64(memoryUsage) / 1024
+
+		{
+			rusage, ok := props.state.SysUsage().(*syscall.Rusage)
+			if !ok {
+				logrus.Warn("Error getting Rusage of the process")
+			}
+
+			if ok && rusage.Maxrss > 0 {
+				memoryUsageKib = lo.Max([]uint64{uint64(rusage.Maxrss), memoryUsageKib})
+			}
+		}
 	}
 
 	if props.state != nil {
