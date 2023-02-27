@@ -4,7 +4,6 @@ import assert from "node:assert";
 
 export default {
   config: {
-    rootfs: "$IMAGE_ROOTFS_PATH",
     cwd: "/",
     command: ["main"],
     mounts: [
@@ -15,13 +14,12 @@ export default {
       },
     ],
     limits: {
-      rlimit: [
-        {
-          type: "RLIMIT_FSIZE",
+      rlimit: {
+        fsize: {
           hard: 1024,
           soft: 1024,
         },
-      ],
+      },
     },
     fd: {
       stdout: "$TEMP_PATH/stdout.txt",

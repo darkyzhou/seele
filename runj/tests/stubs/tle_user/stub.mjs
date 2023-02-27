@@ -4,7 +4,6 @@ import assert from "node:assert";
 
 export default {
   config: {
-    rootfs: "$IMAGE_ROOTFS_PATH",
     cwd: "/",
     command: ["main"],
     mounts: [

@@ -4,7 +4,6 @@ import assert from "node:assert";
 
 export default {
   config: {
-    rootfs: "$IMAGE_ROOTFS_PATH",
     cwd: "/seele",
     command: ["gcc", "main.c"],
     mounts: [
@@ -20,16 +19,8 @@ export default {
     ],
     limits: {
       time_ms: 1000,
-      rlimit: [
-        {
-          type: "RLIMIT_FSIZE",
-          hard: 102400,
-          soft: 102400,
-        },
-      ],
       cgroup: {
         memory: 32 * 1024 * 1024,
-        memory_swap: 32 * 1024 * 1024,
       },
     },
   },

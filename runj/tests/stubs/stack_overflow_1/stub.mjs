@@ -4,7 +4,6 @@ import assert from "node:assert";
 
 export default {
   config: {
-    rootfs: "$IMAGE_ROOTFS_PATH",
     cwd: "/",
     command: ["main"],
     mounts: [
@@ -17,7 +16,6 @@ export default {
     limits: {
       cgroup: {
         memory: 32 * 1024 * 1024,
-        memory_swap: 32 * 1024 * 1024,
       },
     },
   },

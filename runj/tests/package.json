@@ -1,0 +1,9 @@
+{
+    "name": "runj-tests",
+    "scripts": {
+        "test": "node run.mjs"
+    },
+    "dependencies": {
+        "lodash-es": "^4.17.21"
+    }
+}

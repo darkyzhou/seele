@@ -1,3 +1,4 @@
+import { merge } from "lodash-es";
 import { spawn } from "node:child_process";
 import { chmod, mkdir, rm, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,6 +6,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const RUNJ_PATH = resolve(fileURLToPath(import.meta.url), "../../bin/runj");
+const TEMP_PATH = resolve(tmpdir(), "runj-test");
 const IMAGE_ROOTFS_PATH = resolve(
   fileURLToPath(import.meta.url),
   "../image/rootfs"
@@ -32,6 +34,11 @@ for (const name of (await readdir("./stubs")).sort()) {
   }
 }
 
+await rm(TEMP_PATH, {
+  recursive: true,
+  force: true,
+});
+
 async function runTest(stub, rootless = true) {
   const report = await executeRunj(stub.config, rootless);
   try {
@@ -43,22 +50,53 @@ async function runTest(stub, rootless = true) {
 }
 
 async function executeRunj(config, rootless = true) {
-  config.user_namespace = {
-    enabled: true,
-    map_to_user: "seele",
-    map_to_group: "seele",
-  };
-
-  const tempPath = resolve(
-    tmpdir(),
-    `runj-test-${Math.round(Math.random() * 100000)}`
+  const mergedConfig = merge(
+    {
+      overlayfs: {
+        lower_dir: IMAGE_ROOTFS_PATH,
+        upper_dir: await makeTempPath("upperdir"),
+        work_dir: await makeTempPath("workdir"),
+        merged_dir: await makeTempPath("merged"),
+      },
+      // FIXME: adapt to ci/cd
+      user_namespace: {
+        enabled: true,
+        root_uid: 1000,
+        uid_map_begin: 100000,
+        uid_map_count: 65536,
+        root_gid: 1000,
+        gid_map_begin: 100000,
+        gid_map_count: 65536,
+      },
+      limits: {
+        time_ms: 3000,
+        cgroup: {
+          memory: 128 * 1024 * 1024, // 128 MiB
+          pids_limit: 16,
+        },
+        rlimit: {
+          fsize: {
+            hard: 1 * 1024 * 1024, // 1 MiB
+            soft: 1 * 1024 * 1024,
+          },
+          core: {
+            hard: 0,
+            soft: 0,
+          },
+          no_file: {
+            hard: 64,
+            soft: 64,
+          },
+        },
+      },
+    },
+    config
   );
-  await mkdir(tempPath);
-  await chmod(tempPath, 0o777);
 
-  const json = JSON.stringify(config)
+  const json = JSON.stringify(mergedConfig)
     .replaceAll("$IMAGE_ROOTFS_PATH", IMAGE_ROOTFS_PATH)
-    .replaceAll("$TEMP_PATH", tempPath);
+    .replaceAll("$TEMP_PATH", await makeTempPath("mount"));
+
   return new Promise((resolve, reject) => {
     try {
       const runj = spawn(RUNJ_PATH, {
@@ -101,10 +139,16 @@ async function executeRunj(config, rootless = true) {
     } catch (err) {
       reject(err);
     }
-  }).finally(() => {
-    rm(tempPath, {
-      recursive: true,
-      force: true,
-    });
   });
+}
+
+async function makeTempPath(prefix) {
+  const tempPath = resolve(
+    TEMP_PATH,
+    prefix,
+    `${Math.round(Math.random() * 100000)}`
+  );
+  await mkdir(tempPath, { recursive: true });
+  await chmod(tempPath, 0o777);
+  return tempPath;
 }
