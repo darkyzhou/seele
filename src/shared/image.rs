@@ -11,7 +11,7 @@ pub struct OciImage {
 
 impl Display for OciImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "image({}/{}:{})", self.registry, self.name, self.tag)
+        write!(f, "{}/{}:{}", self.registry, self.name, self.tag)
     }
 }
 
