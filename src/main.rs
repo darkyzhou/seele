@@ -42,6 +42,38 @@ fn main() {
         .expect("Error building tokio runtime");
     runtime
         .block_on(async move {
+            {
+                spawn_blocking(|| -> Result<()> {
+                    cgroup::check_cgroup_setup().context("Error checking cgroup setup")?;
+                    cgroup::initialize_cgroup_subtrees()
+                        .context("Error initializing cgroup subtrees")?;
+                    anyhow::Ok(())
+                })
+                .await??;
+
+                let count = conf::CONFIG.thread_counts.worker + conf::CONFIG.thread_counts.runner;
+                let begin_barrier = Arc::new(Barrier::new(count));
+                let end_barrier = Arc::new(Barrier::new(count));
+
+                for _ in 0..(count - 1) {
+                    let begin_barrier = begin_barrier.clone();
+                    let end_barrier = end_barrier.clone();
+                    spawn_blocking(move || {
+                        begin_barrier.wait();
+                        end_barrier.wait();
+                    });
+                }
+
+                spawn_blocking(move || {
+                    begin_barrier.wait();
+                    let result = cgroup::bind_application_threads();
+                    end_barrier.wait();
+                    result
+                })
+                .await?
+                .context("Error binding application threads")?;
+            }
+
             match &conf::CONFIG.telemetry {
                 None => {
                     tracing::subscriber::set_global_default(
@@ -51,9 +83,11 @@ fn main() {
                             .with_max_level(conf::CONFIG.log_level)
                             .finish(),
                     )
-                    .expect("Failed to initialize the logger");
+                    .context("Failed to initialize the tracing subscriber")?;
                 }
                 Some(telemetry) => {
+                    info!("Initializing telemetry");
+
                     let tracer = opentelemetry_otlp::new_pipeline()
                         .tracing()
                         .with_exporter(
@@ -67,7 +101,7 @@ fn main() {
                         )
                         .with_trace_config(trace::config().with_resource(METRICS_RESOURCE.clone()))
                         .install_batch(opentelemetry::runtime::Tokio)
-                        .expect("Error initializing the tracer");
+                        .context("Failed to initialize the tracer")?;
 
                     let metrics = opentelemetry_otlp::new_pipeline()
                         .metrics(
@@ -87,7 +121,7 @@ fn main() {
                         .with_resource(METRICS_RESOURCE.clone())
                         .with_period(Duration::from_secs(5))
                         .build()
-                        .expect("Error initializing the metrics");
+                        .context("Failed to initialize the metrics")?;
 
                     _ = shared::metrics::METRICS_CONTROLLER.set(metrics);
 
@@ -105,9 +139,7 @@ fn main() {
                                     .with_filter(LevelFilter::INFO),
                             ),
                     )
-                    .expect("Error initializing the tracing subscriber");
-
-                    info!("Telemetry initialized successfully");
+                    .context("Failed to initialize the tracing subscriber")?;
                 }
             }
 
@@ -140,13 +172,6 @@ fn main() {
                     }
                 }
 
-                info!("Checking cgroup setup");
-                cgroup::check_cgroup_setup().context("Error checking cgroup setup")?;
-
-                info!("Initializing cgroup subtrees");
-                cgroup::initialize_cgroup_subtrees()
-                    .context("Error initializing cgroup subtrees")?;
-
                 info!("Creating necessary directories in {}", conf::PATHS.root.display());
                 for path in [
                     &conf::PATHS.images,
@@ -159,38 +184,13 @@ fn main() {
                     })?;
                 }
 
+                info!("Registering metrics");
                 shared::metrics::register_gauge_metrics()
                     .context("Error registering gauge metrics")?;
 
                 Ok(())
             })
             .await??;
-
-            {
-                info!("Binding application threads to cpus");
-                let count = conf::CONFIG.thread_counts.worker + conf::CONFIG.thread_counts.runner;
-                let begin_barrier = Arc::new(Barrier::new(count));
-                let end_barrier = Arc::new(Barrier::new(count));
-
-                for _ in 0..(count - 1) {
-                    let begin_barrier = begin_barrier.clone();
-                    let end_barrier = end_barrier.clone();
-                    spawn_blocking(move || {
-                        begin_barrier.wait();
-                        end_barrier.wait();
-                    });
-                }
-
-                spawn_blocking(move || {
-                    begin_barrier.wait();
-                    let result = cgroup::bind_application_threads();
-                    end_barrier.wait();
-                    result
-                })
-                .await
-                .unwrap()
-                .expect("Error binding application threads");
-            }
 
             let result = Toplevel::new()
                 .start("seele", |handle| async move {
@@ -254,5 +254,5 @@ fn main() {
 
             anyhow::Ok(())
         })
-        .expect("Error initializing runtime");
+        .unwrap();
 }
