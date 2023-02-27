@@ -64,7 +64,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		}
 		memoryUsageKib = uint64(memoryUsage) / 1024
 
-		{
+		if props.state != nil {
 			rusage, ok := props.state.SysUsage().(*syscall.Rusage)
 			if !ok {
 				logrus.Warn("Error getting Rusage of the process")
