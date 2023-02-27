@@ -108,7 +108,7 @@ pub struct LimitsConfig {
 
 impl Into<runj::LimitsConfig> for LimitsConfig {
     fn into(self) -> runj::LimitsConfig {
-        const DEFAULT_TIME_MS: u64 = 30 * 1000; // 30 seconds
+        const DEFAULT_TIME_MS: u64 = 10 * 1000; // 10 seconds
         const DEFAULT_MEMORY_LIMIT_BYTES: i64 = 256 * 1024 * 1024; // 256 MiB
         const DEFAULT_PIDS_LIMIT: i64 = 32;
         const DEFAULT_CORE: u64 = 0; // Disable core dump
