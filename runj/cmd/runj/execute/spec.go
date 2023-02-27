@@ -71,14 +71,10 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 			cgroupCpuRules.Mems = config.Limits.Cgroup.CpusetMems
 		}
 
+		// Limit = Swap means always disable swap
 		cgroupMemRules.Limit = &config.Limits.Cgroup.Memory
+		cgroupMemRules.Swap = &config.Limits.Cgroup.Memory
 
-		if config.Limits.Cgroup.MemoryReservation != 0 {
-			cgroupMemRules.Reservation = &config.Limits.Cgroup.MemoryReservation
-		}
-
-		cgroupMemRules.Swap = &config.Limits.Cgroup.MemorySwap
-		cgroupMemRules.Swappiness = &config.Limits.Cgroup.MemorySwappiness
 		cgroupPidRules.Limit = config.Limits.Cgroup.PidsLimit
 	}
 

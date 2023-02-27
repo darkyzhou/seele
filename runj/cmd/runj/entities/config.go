@@ -48,15 +48,12 @@ type LimitsConfig struct {
 }
 
 type CgroupConfig struct {
-	Memory            int64  `mapstructure:"memory" validate:"required"`
-	MemoryReservation int64  `mapstructure:"memory_reservation"`
-	MemorySwap        int64  `mapstructure:"memory_swap" validate:"required"`
-	MemorySwappiness  uint64 `mapstructure:"memory_swappiness"`
-	CpuShares         uint64 `mapstructure:"cpu_shares"`
-	CpuQuota          int64  `mapstructure:"cpu_quota"`
-	CpusetCpus        string `mapstructure:"cpuset_cpus"`
-	CpusetMems        string `mapstructure:"cpuset_mems"`
-	PidsLimit         int64  `mapstructure:"pids_limit" validate:"required"`
+	CpuShares  uint64 `mapstructure:"cpu_shares"`
+	CpuQuota   int64  `mapstructure:"cpu_quota"`
+	CpusetCpus string `mapstructure:"cpuset_cpus"`
+	CpusetMems string `mapstructure:"cpuset_mems"`
+	Memory     int64  `mapstructure:"memory" validate:"required"`
+	PidsLimit  int64  `mapstructure:"pids_limit" validate:"required"`
 }
 
 type RlimitConfig struct {
