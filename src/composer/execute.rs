@@ -296,6 +296,7 @@ mod tests {
 
     use chrono::Utc;
     use insta::glob;
+    use tokio::sync::mpsc;
 
     use crate::{
         composer::resolve::resolve_submission,
@@ -314,14 +315,15 @@ mod tests {
                     )
                     .expect("Error resolving the submission");
 
-                    let (worker_tx, worker_rx) = async_channel::unbounded();
+                    let (worker_tx, mut worker_rx) = mpsc::channel(114);
                     let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
                     let handle = tokio::spawn(async move {
                         super::execute_submission(submission, worker_tx, tx).await.unwrap();
                     });
 
                     let mut results = vec![];
-                    while let Ok(WorkerQueueItem { config, report_tx, .. }) = worker_rx.recv().await
+                    while let Some(WorkerQueueItem { config, report_tx, .. }) =
+                        worker_rx.recv().await
                     {
                         results.push(config);
 

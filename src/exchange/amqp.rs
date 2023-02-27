@@ -117,6 +117,8 @@ async fn handle_delivery(
     let (status_tx, mut status_rx) =
         ring_channel::<SubmissionSignal>(NonZeroUsize::try_from(1).unwrap());
 
+    tx.send(ComposerQueueItem { config_yaml, status_tx }).await?;
+
     tokio::spawn({
         let channel = channel.clone();
         async move {
@@ -127,7 +129,7 @@ async fn handle_delivery(
                 };
 
                 let result = async {
-                    let mut data = Vec::with_capacity(128);
+                    let mut data = Vec::with_capacity(4096);
                     serde_json::to_writer(&mut data, &signal)
                         .context("Error serializing the report")?;
 
@@ -165,8 +167,6 @@ async fn handle_delivery(
             }
         }
     });
-
-    tx.send(ComposerQueueItem { config_yaml, status_tx }).await?;
 
     Ok(())
 }

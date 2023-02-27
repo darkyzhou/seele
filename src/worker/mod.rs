@@ -2,7 +2,10 @@ use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use chrono::Utc;
-use tokio::{sync::oneshot, time::Instant};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::Instant,
+};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{error, info_span, Instrument, Span};
 use triggered::Listener;
@@ -42,10 +45,10 @@ impl Display for ActionErrorWithReport {
     }
 }
 
-pub type WorkerQueueTx = async_channel::Sender<WorkerQueueItem>;
-pub type WorkerQueueRx = async_channel::Receiver<WorkerQueueItem>;
+pub type WorkerQueueTx = mpsc::Sender<WorkerQueueItem>;
+pub type WorkerQueueRx = mpsc::Receiver<WorkerQueueItem>;
 
-pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Result<()> {
+pub async fn worker_main(handle: SubsystemHandle, mut queue_rx: WorkerQueueRx) -> Result<()> {
     let (trigger, abort_handle) = triggered::trigger();
 
     tokio::spawn(async move {
@@ -58,8 +61,8 @@ pub async fn worker_main(handle: SubsystemHandle, queue_rx: WorkerQueueRx) -> Re
         tokio::select! {
             _ = outer_handle => break,
             item = queue_rx.recv() => match item {
-                Err(_) => break,
-                Ok(item) => {
+                None => break,
+                Some(item) => {
                     tokio::spawn({
                         let abort_handle = abort_handle.clone();
                         let span = info_span!(parent: item.parent_span, "worker_handle_submission");
