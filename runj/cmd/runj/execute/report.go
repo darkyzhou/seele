@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -57,7 +58,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		if err != nil {
 			return nil, fmt.Errorf("Error reading memory.peak: %w", err)
 		}
-		memoryUsage, err := strconv.Atoi(memoryUsageData)
+		memoryUsage, err := strconv.Atoi(strings.Trim(memoryUsageData, "\n "))
 		if memoryUsage <= 0 || err != nil {
 			return nil, fmt.Errorf("Unexpected memory.peak value: %s", memoryUsageData)
 		}
