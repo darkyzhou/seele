@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct OciImage {
     pub registry: String,
@@ -39,21 +41,20 @@ impl From<&str> for OciImage {
     }
 }
 
-pub mod serde_format {
-    use super::OciImage;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(image: &OciImage, serializer: S) -> Result<S::Ok, S::Error>
+impl Serialize for OciImage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer,
+        S: serde::Serializer,
     {
-        let s = format!("{}/{}:{}", image.registry, image.name, image.tag);
-        serializer.serialize_str(&s)
+        let str = format!("{}/{}:{}", self.registry, self.name, self.tag);
+        serializer.serialize_str(&str)
     }
+}
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<OciImage, D::Error>
+impl<'de> Deserialize<'de> for OciImage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>,
+        D: serde::Deserializer<'de>,
     {
         let str = String::deserialize(deserializer)?;
         Ok(str.as_str().into())

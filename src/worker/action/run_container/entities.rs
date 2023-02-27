@@ -11,7 +11,6 @@ pub type ExecutionStatus = runj::ContainerExecutionStatus;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(with = "crate::shared::image::serde_format")]
     pub image: OciImage,
 
     #[serde(default = "default_cwd")]
