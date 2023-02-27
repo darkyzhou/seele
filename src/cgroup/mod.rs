@@ -11,7 +11,10 @@ use once_cell::sync::Lazy;
 use tracing::debug;
 
 pub use self::utils::*;
-use crate::conf::{self, SeeleWorkMode};
+use crate::{
+    conf::{self, SeeleWorkMode},
+    shared,
+};
 
 mod systemd;
 mod systemd_api;
@@ -48,6 +51,10 @@ pub fn initialize_cgroup_subtrees() -> Result<()> {
 
     let process_id = process::id();
     write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.procs"), &format!("{}", process_id))?;
+    if *shared::TINI_PRESENTS {
+        write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.procs"), "1")?;
+    }
+
     write_cgroup_file_str(CGROUP_PATH.join("cgroup.subtree_control"), MANDATORY_CONTROLLERS)?;
     write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.subtree_control"), "+cpuset")?;
     write_cgroup_file_str(
@@ -89,8 +96,13 @@ pub fn bind_application_threads() -> Result<()> {
         let pids = BufReader::new(content.as_bytes())
             .lines()
             .flatten()
-            .map(|line| {
-                line.trim().parse::<u32>().with_context(|| format!("Error parsing line: {line}"))
+            .filter_map(|line| {
+                let line = line.trim();
+                if *shared::TINI_PRESENTS && line == "1" {
+                    return None;
+                }
+
+                Some(line.parse::<u32>().with_context(|| format!("Error parsing line: {line}")))
             })
             .collect::<Result<Vec<_>>>()?;
 
