@@ -12,7 +12,7 @@ use tokio::sync::oneshot;
 use tracing::{error, info, info_span, instrument, warn, Span};
 use triggered::Listener;
 
-pub use self::{entities::*, idmap::*};
+pub use self::{entities::*, idmap::*, image::prepare_image};
 use self::{
     runj::ContainerExecutionStatus,
     utils::{check_and_create_directories, make_runj_config},

@@ -1,18 +1,23 @@
 use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chrono::Utc;
+use futures_util::{future, TryFutureExt};
 use tokio::{
     sync::{mpsc, oneshot},
     time::Instant,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing::{error, info_span, Instrument, Span};
+use tracing::{error, info, info_span, Instrument, Span};
 use triggered::Listener;
 
 pub use self::action::*;
-use crate::entities::{
-    ActionFailedReport, ActionFailedReportExt, ActionReport, ActionSuccessReport, ActionTaskConfig,
+use crate::{
+    conf,
+    entities::{
+        ActionFailedReport, ActionFailedReportExt, ActionReport, ActionSuccessReport,
+        ActionTaskConfig,
+    },
 };
 
 pub mod action;
@@ -47,6 +52,37 @@ impl Display for ActionErrorWithReport {
 
 pub type WorkerQueueTx = mpsc::Sender<WorkerQueueItem>;
 pub type WorkerQueueRx = mpsc::Receiver<WorkerQueueItem>;
+
+pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<()>) -> Result<()> {
+    let preload_images = &conf::CONFIG.worker.action.run_container.preload_images;
+    if preload_images.is_empty() {
+        _ = tx.send(());
+        return Ok(());
+    }
+
+    let (trigger, abort) = triggered::trigger();
+    tokio::spawn(async move {
+        handle.on_shutdown_requested().await;
+        trigger.trigger();
+    });
+
+    info!(
+        "Preloading container images: {}",
+        preload_images.iter().map(|image| format!("{image}")).collect::<Vec<_>>().join(", ")
+    );
+    let results = future::join_all(preload_images.into_iter().map(|image| {
+        action::run_container::prepare_image(abort.clone(), image.clone())
+            .map_err(move |err| format!("{image}: {err:#}"))
+    }))
+    .await;
+    let messages = results.into_iter().filter_map(|item| item.err()).collect::<Vec<_>>().join("\n");
+    if !messages.is_empty() {
+        bail!("Error preloading following container images:\n{messages}");
+    }
+
+    _ = tx.send(());
+    Ok(())
+}
 
 pub async fn worker_main(handle: SubsystemHandle, mut queue_rx: WorkerQueueRx) -> Result<()> {
     let (trigger, abort_handle) = triggered::trigger();

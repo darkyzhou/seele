@@ -13,7 +13,12 @@ use opentelemetry::{
     Context as OpenTelemetryCtx,
 };
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
-use tokio::{runtime, sync::mpsc, task::spawn_blocking, time::sleep};
+use tokio::{
+    runtime,
+    sync::{mpsc, oneshot},
+    task::spawn_blocking,
+    time::sleep,
+};
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
 use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
@@ -187,16 +192,33 @@ fn main() {
                 .expect("Error binding application threads");
             }
 
-            let (composer_queue_tx, composer_queue_rx) =
-                mpsc::channel(conf::CONFIG.thread_counts.runner);
-            let (worker_queue_tx, worker_queue_rx) =
-                mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
             let result = Toplevel::new()
-                .start("exchange", |handle| exchange::exchange_main(handle, composer_queue_tx))
-                .start("composer", |handle| {
-                    composer::composer_main(handle, composer_queue_rx, worker_queue_tx)
+                .start("seele", |handle| async move {
+                    info!("Worker started bootstrap");
+                    let (tx, rx) = oneshot::channel();
+                    handle.start("bootstrap", |handle| worker::worker_bootstrap(handle, tx));
+
+                    _ = rx.await;
+                    if handle.is_shutdown_requested() {
+                        return anyhow::Ok(());
+                    }
+
+                    info!("Initializing seele components");
+                    let (composer_queue_tx, composer_queue_rx) =
+                        mpsc::channel(conf::CONFIG.thread_counts.runner);
+                    let (worker_queue_tx, worker_queue_rx) =
+                        mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
+                    handle.start("exchange", |handle| {
+                        exchange::exchange_main(handle, composer_queue_tx)
+                    });
+                    handle.start("composer", |handle| {
+                        composer::composer_main(handle, composer_queue_rx, worker_queue_tx)
+                    });
+                    handle.start("worker", |handle| worker::worker_main(handle, worker_queue_rx));
+
+                    handle.on_shutdown_requested().await;
+                    anyhow::Ok(())
                 })
-                .start("worker", |handle| worker::worker_main(handle, worker_queue_rx))
                 .catch_signals()
                 .handle_shutdown_requests(Duration::from_secs(10))
                 .await;

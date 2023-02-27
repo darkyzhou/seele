@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::shared::image::OciImage;
+
 #[derive(Debug, Default, Deserialize)]
 pub struct ActionConfig {
     #[serde(default)]
@@ -47,6 +49,9 @@ pub struct ActionRunContainerConfig {
 
     #[serde(default = "default_userns_group")]
     pub userns_group: String,
+
+    #[serde(default)]
+    pub preload_images: Vec<OciImage>,
 }
 
 impl Default for ActionRunContainerConfig {
@@ -56,6 +61,7 @@ impl Default for ActionRunContainerConfig {
             userns_user: default_userns_user(),
             userns_gid: default_userns_gid(),
             userns_group: default_userns_group(),
+            preload_images: Default::default(),
         }
     }
 }
