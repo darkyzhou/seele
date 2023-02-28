@@ -1,10 +1,14 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use ring_channel::RingSender;
 use serde_json::Value;
-use tokio::{fs, sync::mpsc, time::Instant};
+use tokio::{
+    fs,
+    sync::mpsc,
+    time::{sleep, Instant},
+};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, field, instrument, Span};
 
@@ -126,7 +130,7 @@ async fn do_handle_submission(
         .context("Error creating the submission directory")?;
 
     debug!("Resolving the submission");
-    let submission = resolve::resolve_submission(submission, submission_root)
+    let submission = resolve::resolve_submission(submission, submission_root.clone())
         .context("Failed to resolve the submission")?;
 
     debug!("Executing the submission");
@@ -149,6 +153,12 @@ async fn do_handle_submission(
         }
         _ => {}
     }
+
+    // TODO: Design a better mechanism for cleaning the submission files
+    tokio::spawn(async move {
+        sleep(Duration::from_secs(60)).await;
+        _ = fs::remove_dir_all(submission_root).await;
+    });
 
     result
 }
