@@ -5,10 +5,11 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
-use self::worker::WorkerConfig;
 pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
+use self::{composer::ComposerConfig, worker::WorkerConfig};
 
 mod action;
+mod composer;
 mod env;
 mod exchange;
 mod path;
@@ -42,10 +43,10 @@ pub struct SeeleConfig {
     pub telemetry: Option<TelemetryConfig>,
 
     #[serde(default)]
-    pub report_progress: bool,
+    pub exchange: IndexMap<String, ExchangeConfig>,
 
     #[serde(default)]
-    pub exchange: IndexMap<String, ExchangeConfig>,
+    pub composer: ComposerConfig,
 
     #[serde(default)]
     pub worker: WorkerConfig,

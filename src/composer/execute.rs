@@ -17,6 +17,7 @@ use super::{
     SubmissionProgressSignal, SubmissionSignal, SubmissionSignalExt,
 };
 use crate::{
+    conf,
     entities::{
         ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
         SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig, TaskConfigExt,
@@ -172,18 +173,20 @@ async fn track_schedule_execution(
         *node.config.status.write().unwrap() = status;
     }
 
-    match serde_json::to_value(&node.config) {
-        Err(err) => {
-            error!("Error serializing the task node config: {err:#}");
-        }
-        Ok(status) => {
-            _ = ctx.status_tx.lock().await.send(SubmissionSignal {
-                id: Some(ctx.submission_id.clone()),
-                ext: SubmissionSignalExt::Progress(SubmissionProgressSignal {
-                    name: node.name.clone(),
-                    status,
-                }),
-            });
+    if conf::CONFIG.composer.report_progress {
+        match serde_json::to_value(&node.config) {
+            Err(err) => {
+                error!("Error serializing the task node config: {err:#}");
+            }
+            Ok(status) => {
+                _ = ctx.status_tx.lock().await.send(SubmissionSignal {
+                    id: Some(ctx.submission_id.clone()),
+                    ext: SubmissionSignalExt::Progress(SubmissionProgressSignal {
+                        name: node.name.clone(),
+                        status,
+                    }),
+                });
+            }
         }
     }
 
