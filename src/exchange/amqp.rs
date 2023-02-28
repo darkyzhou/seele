@@ -9,7 +9,7 @@ use tokio::{
     sync::{mpsc, Mutex},
     time::sleep,
 };
-use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
+use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::{error, info, warn};
 use triggered::Listener;
 
@@ -38,56 +38,7 @@ pub async fn run(
         bail!("report_progress is enabled but progress_routing_key is not specified");
     }
 
-    {
-        info!(name = name, "Preparing exchanges and queues");
-
-        let (channel, _) =
-            create_channel(config.url.as_str()).cancel_on_shutdown(&handle).await??;
-
-        channel
-            .exchange_declare(
-                &config.submission.exchange.name,
-                config.submission.exchange.kind.clone(),
-                config.submission.exchange.options.clone(),
-                Default::default(),
-            )
-            .cancel_on_shutdown(&handle)
-            .await?
-            .context("Error declaring the submission exchange")?;
-
-        channel
-            .queue_declare(
-                &config.submission.queue,
-                config.submission.queue_options.clone(),
-                Default::default(),
-            )
-            .cancel_on_shutdown(&handle)
-            .await?
-            .context("Error declaring the queue")?;
-
-        channel
-            .queue_bind(
-                &config.submission.queue,
-                &config.submission.exchange.name,
-                &config.submission.routing_key,
-                Default::default(),
-                Default::default(),
-            )
-            .cancel_on_shutdown(&handle)
-            .await?
-            .context("Error binding the queue to the exchange")?;
-
-        channel
-            .exchange_declare(
-                &config.report.exchange.name,
-                config.report.exchange.kind.clone(),
-                config.report.exchange.options.clone(),
-                Default::default(),
-            )
-            .cancel_on_shutdown(&handle)
-            .await?
-            .context("Error declaring the report exchange")?;
-    }
+    info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
 
     let (trigger, shutdown) = triggered::trigger();
     tokio::spawn(async move {
@@ -104,7 +55,11 @@ pub async fn run(
         tokio::select! {
             _ = shutdown.clone() => break,
             result = create_channel(config.url.as_str()) => {
-                let (channel, connection) = result?;
+                let Ok((channel, connection)) = result else {
+                    error!("Failed to create channel, will reconnect soon: {:#}", result.err().unwrap());
+                    sleep(Duration::from_secs(3)).await;
+                    continue;
+                };
 
                 let (tx, mut rx) = mpsc::channel(1);
                 connection.on_error({
@@ -115,13 +70,15 @@ pub async fn run(
                 tokio::select! {
                     result = rx.recv() => {
                         if let Some(err) = result {
-                            error!("Amqp connection failed, will reconnect now: {err:#}");
+                            error!("Amqp connection failed, will reconnect soon: {err:#}");
                         }
+                        sleep(Duration::from_secs(3)).await;
                         continue;
                     }
                     result = do_consume(name, shutdown.clone(), channel, composer_tx.clone(), config) => {
                         if let Err(err) = result {
                             error!("Error consuming the channel, will restart now: {err:#}");
+                            sleep(Duration::from_secs(3)).await;
                             continue;
                         }
                     }
@@ -150,7 +107,45 @@ async fn do_consume(
     tx: ComposerQueueTx,
     config: &AmqpExchangeConfig,
 ) -> Result<()> {
-    info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
+    channel
+        .exchange_declare(
+            &config.submission.exchange.name,
+            config.submission.exchange.kind.clone(),
+            config.submission.exchange.options.clone(),
+            Default::default(),
+        )
+        .await
+        .context("Error declaring the submission exchange")?;
+
+    channel
+        .queue_declare(
+            &config.submission.queue,
+            config.submission.queue_options.clone(),
+            Default::default(),
+        )
+        .await
+        .context("Error declaring the queue")?;
+
+    channel
+        .queue_bind(
+            &config.submission.queue,
+            &config.submission.exchange.name,
+            &config.submission.routing_key,
+            Default::default(),
+            Default::default(),
+        )
+        .await
+        .context("Error binding the queue to the exchange")?;
+
+    channel
+        .exchange_declare(
+            &config.report.exchange.name,
+            config.report.exchange.kind.clone(),
+            config.report.exchange.options.clone(),
+            Default::default(),
+        )
+        .await
+        .context("Error declaring the report exchange")?;
 
     let channel = Arc::new(channel);
 
