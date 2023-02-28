@@ -7,6 +7,7 @@ use ring_channel::ring_channel;
 use tokio::time::sleep;
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info};
+use triggered::Listener;
 
 use crate::{
     composer::{
@@ -22,57 +23,102 @@ pub async fn run(
     tx: ComposerQueueTx,
     config: &AmqpExchangeConfig,
 ) -> Result<()> {
-    info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
-
-    if conf::CONFIG.report_progress && config.report.progress_routing_key.is_empty() {
+    if conf::CONFIG.composer.report_progress && config.report.progress_routing_key.is_empty() {
         bail!("report_progress is enabled but progress_routing_key is not specified");
     }
 
-    let connection = Connection::connect(config.url.as_str(), Default::default())
+    {
+        info!(name = name, "Preparing exchanges and queues");
+
+        let channel = create_channel(config.url.as_str()).cancel_on_shutdown(&handle).await??;
+
+        channel
+            .exchange_declare(
+                &config.submission.exchange.name,
+                config.submission.exchange.kind.clone(),
+                config.submission.exchange.options.clone(),
+                Default::default(),
+            )
+            .cancel_on_shutdown(&handle)
+            .await?
+            .context("Error declaring the submission exchange")?;
+
+        channel
+            .queue_declare(
+                &config.submission.queue,
+                config.submission.queue_options.clone(),
+                Default::default(),
+            )
+            .cancel_on_shutdown(&handle)
+            .await?
+            .context("Error declaring the queue")?;
+
+        channel
+            .queue_bind(
+                &config.submission.queue,
+                &config.submission.exchange.name,
+                &config.submission.routing_key,
+                Default::default(),
+                Default::default(),
+            )
+            .cancel_on_shutdown(&handle)
+            .await?
+            .context("Error binding the queue to the exchange")?;
+
+        channel
+            .exchange_declare(
+                &config.report.exchange.name,
+                config.report.exchange.kind.clone(),
+                config.report.exchange.options.clone(),
+                Default::default(),
+            )
+            .cancel_on_shutdown(&handle)
+            .await?
+            .context("Error declaring the report exchange")?;
+    }
+
+    let (trigger, shutdown) = triggered::trigger();
+    tokio::spawn(async move {
+        handle.on_shutdown_requested().await;
+        trigger.trigger();
+    });
+
+    loop {
+        tokio::select! {
+            _ = shutdown.clone() => break,
+            channel = create_channel(config.url.as_str()) => {
+                if let Err(err) = do_consume(name, shutdown.clone(), channel?, tx.clone(), config).await {
+                    error!("Error consuming the channel, will restart soon: {err:#}");
+                    sleep(Duration::from_secs(3)).await;
+                    continue;
+                }
+
+                break;
+            }
+        }
+    }
+
+    shutdown.await;
+    Ok(())
+}
+
+async fn create_channel(url: &str) -> Result<Channel> {
+    let connection = Connection::connect(url, Default::default())
         .await
         .context("Error creating an amqp connection")?;
-    let channel =
-        Arc::new(connection.create_channel().await.context("Error creating an amqp channel")?);
+    connection.create_channel().await.context("Error creating an amqp channel")
+}
 
-    channel
-        .exchange_declare(
-            &config.submission.exchange.name,
-            config.submission.exchange.kind.clone(),
-            config.submission.exchange.options.clone(),
-            Default::default(),
-        )
-        .await
-        .context("Error declaring the submission exchange")?;
+async fn do_consume(
+    name: &str,
+    shutdown: Listener,
+    channel: Channel,
+    tx: ComposerQueueTx,
+    config: &AmqpExchangeConfig,
+) -> Result<()> {
+    info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
 
-    channel
-        .queue_declare(
-            &config.submission.queue,
-            config.submission.queue_options.clone(),
-            Default::default(),
-        )
-        .await
-        .context("Error declaring the queue")?;
-
-    channel
-        .queue_bind(
-            &config.submission.queue,
-            &config.submission.exchange.name,
-            &config.submission.routing_key,
-            Default::default(),
-            Default::default(),
-        )
-        .await
-        .context("Error binding the queue to the exchange")?;
-
-    channel
-        .exchange_declare(
-            &config.report.exchange.name,
-            config.report.exchange.kind.clone(),
-            config.report.exchange.options.clone(),
-            Default::default(),
-        )
-        .await
-        .context("Error declaring the report exchange")?;
+    let channel = Arc::new(channel);
 
     let mut consumer = channel
         .basic_consume(
@@ -85,16 +131,16 @@ pub async fn run(
         .context("Error consuming the channel")?;
 
     let report_config = Arc::new(config.report.clone());
-    while let Ok(Some(delivery)) = consumer.next().cancel_on_shutdown(&handle).await {
-        match delivery {
-            Err(err) => {
-                error!("Error in the delivery: {err:#}");
-            }
-            Ok(delivery) => {
-                if let Err(err) =
-                    handle_delivery(&tx, delivery, channel.clone(), report_config.clone()).await
-                {
-                    error!("Error handling the delivery: {err:#}");
+    loop {
+        tokio::select! {
+            _ = shutdown.clone() => break,
+            result = consumer.next() => match result {
+                None => break,
+                Some(Err(err)) => bail!("Failed to consume from the queue: {err:#}"),
+                Some(Ok(delivery)) => {
+                    if let Err(err) = handle_delivery(&tx, delivery, channel.clone(), report_config.clone()).await {
+                        error!("Error handling the delivery: {err:#}");
+                    }
                 }
             }
         }
