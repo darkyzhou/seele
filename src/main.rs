@@ -174,12 +174,7 @@ fn main() {
                 }
 
                 info!("Creating necessary directories in {}", conf::PATHS.root.display());
-                for path in [
-                    &conf::PATHS.images,
-                    &conf::PATHS.submissions,
-                    &conf::PATHS.evicted,
-                    &conf::PATHS.temp,
-                ] {
+                for path in [&conf::PATHS.images, &conf::PATHS.submissions, &conf::PATHS.temp] {
                     create_dir_all(path).with_context(|| {
                         format!("Error creating the directory: {}", path.display())
                     })?;
