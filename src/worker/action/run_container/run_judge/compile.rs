@@ -44,8 +44,7 @@ pub async fn execute(
     ctx: &ActionContext,
     config: &Config,
 ) -> Result<ActionSuccessReportExt> {
-    let mount_directory = conf::PATHS.temp.join(format!("run-judge-{}", nano_id::base62::<8>()));
-    fs::create_dir(&mount_directory).await?;
+    let mount_directory = conf::PATHS.new_temp_directory().await?;
     // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
     // bit is for rootful case.
     fs::set_permissions(&mount_directory, Permissions::from_mode(0o777)).await?;
