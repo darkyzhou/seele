@@ -2,11 +2,11 @@ use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
-use lapin::{message::Delivery, options::BasicNackOptions, Channel, Connection};
+use lapin::{message::Delivery, options::BasicNackOptions, Channel, ChannelState, Connection};
 use ring_channel::ring_channel;
 use tokio::{sync::mpsc, time::sleep};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use triggered::Listener;
 
 use crate::{
@@ -187,6 +187,14 @@ async fn handle_delivery(
         let channel = channel.clone();
         async move {
             while let Some(signal) = status_rx.next().await {
+                {
+                    let state = channel.status().state();
+                    if !matches!(state, ChannelState::Connected) {
+                        warn!("Ignoring the signal due to unexpected channel state: {state:?}");
+                        continue;
+                    }
+                }
+
                 let routing_key = match &signal.ext {
                     SubmissionSignalExt::Progress(_) => &config.progress_routing_key,
                     _ => &config.report_routing_key,
