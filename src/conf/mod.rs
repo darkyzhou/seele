@@ -6,12 +6,13 @@ use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
 pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
-use self::{composer::ComposerConfig, worker::WorkerConfig};
+use self::{composer::ComposerConfig, healthz::HealthzConfig, worker::WorkerConfig};
 
 mod action;
 mod composer;
 mod env;
 mod exchange;
+mod healthz;
 mod path;
 mod worker;
 
@@ -41,6 +42,9 @@ pub struct SeeleConfig {
 
     #[serde(default)]
     pub telemetry: Option<TelemetryConfig>,
+
+    #[serde(default)]
+    pub healthz: HealthzConfig,
 
     #[serde(default)]
     pub exchange: IndexMap<String, ExchangeConfig>,

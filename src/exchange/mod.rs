@@ -3,6 +3,7 @@ use tokio::sync::mpsc;
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::info;
 
+pub use self::amqp::is_amqp_healthy;
 use crate::{composer::ComposerQueueItem, conf, conf::ExchangeConfig};
 
 mod amqp;

@@ -30,6 +30,7 @@ mod composer;
 mod conf;
 mod entities;
 mod exchange;
+mod healthz;
 mod shared;
 mod worker;
 
@@ -208,6 +209,7 @@ fn main() {
                         mpsc::channel(conf::CONFIG.thread_counts.runner);
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
+                    handle.start("healthz", |handle| healthz::healthz_main(handle));
                     handle.start("exchange", |handle| {
                         exchange::exchange_main(handle, composer_queue_tx)
                     });

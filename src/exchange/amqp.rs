@@ -1,10 +1,14 @@
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
 use lapin::{message::Delivery, options::BasicNackOptions, Channel, ChannelState, Connection};
+use once_cell::sync::Lazy;
 use ring_channel::ring_channel;
-use tokio::{sync::mpsc, time::sleep};
+use tokio::{
+    sync::{mpsc, Mutex},
+    time::sleep,
+};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info, warn};
 use triggered::Listener;
@@ -16,6 +20,13 @@ use crate::{
     },
     conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
+
+static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(|| Default::default());
+
+pub async fn is_amqp_healthy() -> bool {
+    let map = STATUS_MAP.lock().await;
+    map.values().all(|ok| *ok)
+}
 
 pub async fn run(
     name: &str,
@@ -85,6 +96,11 @@ pub async fn run(
     });
 
     loop {
+        {
+            let mut map = STATUS_MAP.lock().await;
+            map.insert(name.to_owned(), false);
+        }
+
         tokio::select! {
             _ = shutdown.clone() => break,
             result = create_channel(config.url.as_str()) => {
@@ -93,7 +109,7 @@ pub async fn run(
                 let (tx, mut rx) = mpsc::channel(1);
                 connection.on_error({
                     let tx = tx.clone();
-                    move |err| { tx.send(err); }
+                    move |err| { _ = tx.blocking_send(err); }
                 });
 
                 tokio::select! {
@@ -147,6 +163,11 @@ async fn do_consume(
         )
         .await
         .context("Error consuming the channel")?;
+
+    {
+        let mut map = STATUS_MAP.lock().await;
+        map.insert(name.to_owned(), true);
+    }
 
     let report_config = Arc::new(config.report.clone());
     loop {
