@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
 use lapin::{message::Delivery, options::BasicNackOptions, Channel, Connection};
 use ring_channel::ring_channel;
-use tokio::time::sleep;
+use tokio::{sync::mpsc, time::sleep};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{error, info};
 use triggered::Listener;
@@ -20,7 +20,7 @@ use crate::{
 pub async fn run(
     name: &str,
     handle: SubsystemHandle,
-    tx: ComposerQueueTx,
+    composer_tx: ComposerQueueTx,
     config: &AmqpExchangeConfig,
 ) -> Result<()> {
     if conf::CONFIG.composer.report_progress && config.report.progress_routing_key.is_empty() {
@@ -30,7 +30,8 @@ pub async fn run(
     {
         info!(name = name, "Preparing exchanges and queues");
 
-        let channel = create_channel(config.url.as_str()).cancel_on_shutdown(&handle).await??;
+        let (channel, _) =
+            create_channel(config.url.as_str()).cancel_on_shutdown(&handle).await??;
 
         channel
             .exchange_declare(
@@ -86,11 +87,28 @@ pub async fn run(
     loop {
         tokio::select! {
             _ = shutdown.clone() => break,
-            channel = create_channel(config.url.as_str()) => {
-                if let Err(err) = do_consume(name, shutdown.clone(), channel?, tx.clone(), config).await {
-                    error!("Error consuming the channel, will restart soon: {err:#}");
-                    sleep(Duration::from_secs(3)).await;
-                    continue;
+            result = create_channel(config.url.as_str()) => {
+                let (channel, connection) = result?;
+
+                let (tx, mut rx) = mpsc::channel(1);
+                connection.on_error({
+                    let tx = tx.clone();
+                    move |err| { tx.send(err); }
+                });
+
+                tokio::select! {
+                    result = rx.recv() => {
+                        if let Some(err) = result {
+                            error!("Amqp connection failed, will reconnect now: {err:#}");
+                        }
+                        continue;
+                    }
+                    result = do_consume(name, shutdown.clone(), channel, composer_tx.clone(), config) => {
+                        if let Err(err) = result {
+                            error!("Error consuming the channel, will restart now: {err:#}");
+                            continue;
+                        }
+                    }
                 }
 
                 break;
@@ -102,11 +120,11 @@ pub async fn run(
     Ok(())
 }
 
-async fn create_channel(url: &str) -> Result<Channel> {
+async fn create_channel(url: &str) -> Result<(Channel, Connection)> {
     let connection = Connection::connect(url, Default::default())
         .await
         .context("Error creating an amqp connection")?;
-    connection.create_channel().await.context("Error creating an amqp channel")
+    Ok((connection.create_channel().await.context("Error creating an amqp channel")?, connection))
 }
 
 async fn do_consume(
