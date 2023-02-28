@@ -52,6 +52,9 @@ pub struct ActionRunContainerConfig {
 
     #[serde(default)]
     pub preload_images: Vec<OciImage>,
+
+    #[serde(default)]
+    pub tmp_noexec: bool,
 }
 
 impl Default for ActionRunContainerConfig {
@@ -62,6 +65,7 @@ impl Default for ActionRunContainerConfig {
             userns_gid: default_userns_gid(),
             userns_group: default_userns_group(),
             preload_images: Default::default(),
+            tmp_noexec: Default::default(),
         }
     }
 }
