@@ -38,6 +38,12 @@ fn default_cache_ttl_hour() -> u64 {
 
 #[derive(Debug, Deserialize)]
 pub struct ActionRunContainerConfig {
+    #[serde(default = "default_pull_image_timeout_seconds")]
+    pub pull_image_timeout_seconds: u64,
+
+    #[serde(default = "default_unpack_image_timeout_seconds")]
+    pub unpack_image_timeout_seconds: u64,
+
     #[serde(default = "default_userns_uid")]
     pub userns_uid: u32,
 
@@ -60,6 +66,8 @@ pub struct ActionRunContainerConfig {
 impl Default for ActionRunContainerConfig {
     fn default() -> Self {
         Self {
+            pull_image_timeout_seconds: default_pull_image_timeout_seconds(),
+            unpack_image_timeout_seconds: default_unpack_image_timeout_seconds(),
             userns_uid: default_userns_uid(),
             userns_user: default_userns_user(),
             userns_gid: default_userns_gid(),
@@ -68,6 +76,16 @@ impl Default for ActionRunContainerConfig {
             tmp_noexec: Default::default(),
         }
     }
+}
+
+#[inline]
+fn default_pull_image_timeout_seconds() -> u64 {
+    600
+}
+
+#[inline]
+fn default_unpack_image_timeout_seconds() -> u64 {
+    600
 }
 
 #[inline]
