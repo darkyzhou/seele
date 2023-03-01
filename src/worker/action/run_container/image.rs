@@ -1,11 +1,21 @@
-use std::{fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf};
+use std::{
+    fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf, sync::Arc, time::Duration,
+};
 
 use anyhow::{bail, Context, Result};
-use duct::cmd;
+use duct::{cmd, Handle};
 use futures_util::FutureExt;
+use nix::{
+    sys::signal::{self, Signal},
+    unistd::Pid,
+};
 use once_cell::sync::Lazy;
-use tokio::fs::{self, create_dir_all, metadata, remove_dir_all};
-use tracing::{debug, instrument, warn};
+use tokio::{
+    fs::{self, create_dir_all, metadata, remove_dir_all},
+    sync::oneshot,
+    time::sleep,
+};
+use tracing::{debug, error, instrument, warn, Span};
 use triggered::Listener;
 
 use crate::{
@@ -33,8 +43,6 @@ async fn prepare_image_impl(image: OciImage) -> Result<(), String> {
 
 #[instrument(skip_all)]
 async fn pull_image(image: &OciImage) -> Result<()> {
-    const PULL_TIMEOUT_SECOND: u64 = 180;
-
     let target_path = get_oci_image_path(image);
     if metadata(&target_path).await.is_ok() {
         debug!(path = %target_path.display(), "The image directory already presents, skip pulling");
@@ -58,19 +66,26 @@ async fn pull_image(image: &OciImage) -> Result<()> {
     let skopeo_log_file_path =
         conf::PATHS.temp.join(&format!("skopeo-{}.log", nano_id::base62::<12>()));
 
+    let (handle_tx, cancel_tx) = make_timeout_killer(
+        1 + conf::CONFIG.worker.action.run_container.pull_image_timeout_seconds,
+    );
+
     debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.paths.skopeo, "Pulling the image using skopeo");
-    let output = runner::spawn_blocking({
+    let success = runner::spawn_blocking({
         let image = image.clone();
         let temp_target_path = temp_target_path.clone();
         let skopeo_log_file_path = skopeo_log_file_path.clone();
         move || {
-            cmd!(
+            let Ok(handle) = cmd!(
                 &conf::CONFIG.paths.skopeo,
                 "copy",
                 &format!("docker://{}/{}:{}", image.registry, image.name, image.tag),
                 &format!("oci:{}:{}", temp_target_path.display(), image.tag),
                 "--command-timeout",
-                &format!("{PULL_TIMEOUT_SECOND}s"),
+                &format!(
+                    "{}s",
+                    conf::CONFIG.worker.action.run_container.pull_image_timeout_seconds
+                ),
                 "--retry-times",
                 "3",
                 "--quiet"
@@ -79,13 +94,23 @@ async fn pull_image(image: &OciImage) -> Result<()> {
             .stdout_path(skopeo_log_file_path)
             .stderr_to_stdout()
             .unchecked()
-            .run()
+            .start() else {
+                _ = cancel_tx.send(());
+                bail!("Error starting umoci process");
+            };
+
+            let handle = Arc::new(handle);
+            _ = handle_tx.send(handle.clone());
+
+            let result = handle.wait();
+            _ = cancel_tx.send(());
+            Ok(result?.status.success())
         }
     })
     .await?
     .context("Error running skopeo")?;
 
-    if !output.status.success() {
+    if !success {
         let content = shared::tail(
             fs::File::open(&skopeo_log_file_path).await.context("Error opening log file")?,
             1024,
@@ -113,8 +138,6 @@ async fn pull_image(image: &OciImage) -> Result<()> {
 
 #[instrument(skip_all)]
 async fn unpack_image(image: &OciImage) -> Result<()> {
-    const UNPACK_TIMEOUT_SECOND: u64 = 120;
-
     let unpacked_path = get_unpacked_image_path(image);
     if metadata(&unpacked_path).await.is_ok() {
         debug!(path = %unpacked_path.display(), "The image directory already presents, skip ");
@@ -137,14 +160,18 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     // TODO: Should be placed inside submission root
     let umoci_log_file_path =
         conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
+
+    let (handle_tx, cancel_tx) =
+        make_timeout_killer(conf::CONFIG.worker.action.run_container.unpack_image_timeout_seconds);
+
     debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
-    let output = runner::spawn_blocking({
+    let success = runner::spawn_blocking({
         let image = image.clone();
         let image_path = get_oci_image_path(&image);
         let temp_unpacked_path = temp_unpacked_path.clone();
         let umoci_log_file_path = umoci_log_file_path.clone();
         move || {
-            cmd!(
+            let Ok(handle) = cmd!(
                 &conf::CONFIG.paths.umoci,
                 "--log",
                 "error",
@@ -158,13 +185,23 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
             .stdout_path(umoci_log_file_path)
             .stderr_to_stdout()
             .unchecked()
-            .run()
+            .start() else {
+                _ = cancel_tx.send(());
+                bail!("Error starting umoci process");
+            };
+
+            let handle = Arc::new(handle);
+            _ = handle_tx.send(handle.clone());
+
+            let result = handle.wait();
+            _ = cancel_tx.send(());
+            Ok(result?.status.success())
         }
     })
     .await?
     .context("Error running umoci")?;
 
-    if !output.status.success() {
+    if !success {
         let content = shared::tail(
             fs::File::open(&umoci_log_file_path).await.context("Error opening log file")?,
             1024,
@@ -192,6 +229,35 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     _ = fs::remove_file(&umoci_log_file_path).await;
 
     Ok(())
+}
+
+pub fn make_timeout_killer(
+    timeout_seconds: u64,
+) -> (oneshot::Sender<Arc<Handle>>, oneshot::Sender<()>) {
+    let (handle_tx, handle_rx) = oneshot::channel::<Arc<Handle>>();
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+
+    tokio::spawn({
+        let span = Span::current();
+        async move {
+            let wait = handle_rx
+                .then(|handle| sleep(Duration::from_secs(timeout_seconds)).map(move |_| handle));
+            tokio::select! {
+                _ = cancel_rx => return,
+                handle = wait => match handle {
+                    Err(_) => return,
+                    Ok(handle) => {
+                        error!(parent: span, "Execution timeout, killing the process");
+                        for pid in handle.pids() {
+                            _ = signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    (handle_tx, cancel_tx)
 }
 
 #[inline]
