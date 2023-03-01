@@ -47,8 +47,7 @@ fn main() {
                 spawn_blocking(|| -> Result<()> {
                     cgroup::check_cgroup_setup().context("Error checking cgroup setup")?;
                     cgroup::initialize_cgroup_subtrees()
-                        .context("Error initializing cgroup subtrees")?;
-                    anyhow::Ok(())
+                        .context("Error initializing cgroup subtrees")
                 })
                 .await??;
 
@@ -191,6 +190,7 @@ fn main() {
             let result = Toplevel::new()
                 .start("seele", |handle| async move {
                     let (tx, rx) = oneshot::channel();
+                    info!("Worker started bootstrap");
                     handle.start("bootstrap", |handle| worker::worker_bootstrap(handle, tx));
 
                     if !rx.await? {

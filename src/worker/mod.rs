@@ -54,8 +54,6 @@ pub type WorkerQueueTx = mpsc::Sender<WorkerQueueItem>;
 pub type WorkerQueueRx = mpsc::Receiver<WorkerQueueItem>;
 
 pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>) -> Result<()> {
-    info!("Worker started bootstrap");
-
     let preload_images = &conf::CONFIG.worker.action.run_container.preload_images;
     if preload_images.is_empty() {
         _ = tx.send(true);
