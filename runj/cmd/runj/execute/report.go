@@ -3,15 +3,11 @@ package execute
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/entities"
 	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
-	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -54,26 +50,33 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		cpuKernelMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInKernelmode / 1e6
 		cpuUserMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInUsermode / 1e6
 
-		memoryUsageData, err := cgroups.ReadFile(props.cgroupPath, "memory.peak")
-		if err != nil {
-			return nil, fmt.Errorf("Error reading memory.peak: %w", err)
-		}
-		memoryUsage, err := strconv.Atoi(strings.Trim(memoryUsageData, "\n "))
-		if memoryUsage <= 0 || err != nil {
-			return nil, fmt.Errorf("Unexpected memory.peak value: %s", memoryUsageData)
-		}
-		memoryUsageKib = uint64(memoryUsage) / 1024
-
 		if props.state != nil {
 			rusage, ok := props.state.SysUsage().(*syscall.Rusage)
 			if !ok {
-				logrus.Warn("Error getting Rusage of the process")
+				logrus.Warn("Failed to get rusage of the process")
 			}
 
 			if ok && rusage.Maxrss > 0 {
-				memoryUsageKib = lo.Max([]uint64{uint64(rusage.Maxrss), memoryUsageKib})
+				memoryUsageKib = uint64(rusage.Maxrss)
 			}
 		}
+
+		{
+			peak, err := readMemoryPeak(props.cgroupPath)
+			if err != nil {
+				// Linux kernel first introduced `memory.peak` in v5.19.
+				// On distributions like Ubuntu 22.04, `memory.peak` does not present.
+				logrus.Warnf("Error reading memory.peak: %s", err)
+			} else {
+				usageKib := peak / 1024
+				if usageKib > memoryUsageKib {
+					memoryUsageKib = usageKib
+				}
+			}
+		}
+
+		// We accept the fact that `memoryUsageKib` maybe `0` since
+		// it's not used to determine if the process ran out of memory.
 	}
 
 	if props.state != nil {

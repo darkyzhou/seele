@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/darkyzhou/seele/runj/cmd/runj/cgroup"
@@ -125,4 +126,17 @@ func checkIsOOM(cgroupPath string) (bool, error) {
 	index := strings.LastIndex(memoryEvents, "oom_kill")
 	// TODO: should handle the case when index+9 is out of bounds
 	return index > 0 && memoryEvents[index+9] != '0', nil
+}
+
+func readMemoryPeak(cgroupPath string) (uint64, error) {
+	data, err := cgroups.ReadFile(cgroupPath, "memory.peak")
+	if err != nil {
+		return 0, fmt.Errorf("Error reading memory.peak: %w", err)
+	}
+	memoryUsage, err := strconv.Atoi(strings.Trim(data, "\n "))
+	if err != nil || memoryUsage <= 0 {
+		return 0, fmt.Errorf("Unexpected memory.peak value: %s", data)
+	}
+
+	return uint64(memoryUsage), nil
 }
