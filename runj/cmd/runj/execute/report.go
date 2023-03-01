@@ -49,35 +49,35 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 	if props.stats != nil && props.stats.CgroupStats != nil {
 		cpuKernelMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInKernelmode / 1e6
 		cpuUserMs = props.stats.CgroupStats.CpuStats.CpuUsage.UsageInUsermode / 1e6
-
-		if props.state != nil {
-			rusage, ok := props.state.SysUsage().(*syscall.Rusage)
-			if !ok {
-				logrus.Warn("Failed to get rusage of the process")
-			}
-
-			if ok && rusage.Maxrss > 0 {
-				memoryUsageKib = uint64(rusage.Maxrss)
-			}
-		}
-
-		{
-			peak, err := readMemoryPeak(props.cgroupPath)
-			if err != nil {
-				// Linux kernel first introduced `memory.peak` in v5.19.
-				// On distributions like Ubuntu 22.04, `memory.peak` does not present.
-				logrus.Warnf("Error reading memory.peak: %s", err)
-			} else {
-				usageKib := peak / 1024
-				if usageKib > memoryUsageKib {
-					memoryUsageKib = usageKib
-				}
-			}
-		}
-
-		// We accept the fact that `memoryUsageKib` maybe `0` since
-		// it's not used to determine if the process ran out of memory.
 	}
+
+	if props.state != nil {
+		rusage, ok := props.state.SysUsage().(*syscall.Rusage)
+		if !ok {
+			logrus.Warn("Failed to get rusage of the process")
+		}
+
+		if ok && rusage.Maxrss > 0 {
+			memoryUsageKib = uint64(rusage.Maxrss)
+		}
+	}
+
+	{
+		peak, err := readMemoryPeak(props.cgroupPath)
+		if err != nil {
+			// Linux kernel first introduced `memory.peak` in v5.19.
+			// On distributions like Ubuntu 22.04, `memory.peak` does not present.
+			logrus.Warnf("Error reading memory.peak: %s", err)
+		} else {
+			usageKib := peak / 1024
+			if usageKib > memoryUsageKib {
+				memoryUsageKib = usageKib
+			}
+		}
+	}
+
+	// We accept the fact that `memoryUsageKib` maybe `0` since
+	// it's not used to determine if the process ran out of memory.
 
 	if props.state != nil {
 		status := props.state.Sys().(syscall.WaitStatus)
