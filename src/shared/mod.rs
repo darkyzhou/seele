@@ -22,9 +22,12 @@ pub fn random_task_id() -> String {
     nano_id::base62::<8>()
 }
 
-pub async fn tail(file: File, count: i64) -> Result<Vec<u8>> {
+pub async fn tail(file: File, count: u64) -> Result<Vec<u8>> {
+    let metadata = file.metadata().await?;
     let mut reader = BufReader::new(file);
-    reader.seek(SeekFrom::End(-count)).await?;
+    if metadata.len() > count {
+        reader.seek(SeekFrom::End((count as i64).wrapping_neg())).await?;
+    }
 
     let mut buffer = vec![];
     reader.read_to_end(&mut buffer).await?;
