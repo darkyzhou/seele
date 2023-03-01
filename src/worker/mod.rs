@@ -53,10 +53,12 @@ impl Display for ActionErrorWithReport {
 pub type WorkerQueueTx = mpsc::Sender<WorkerQueueItem>;
 pub type WorkerQueueRx = mpsc::Receiver<WorkerQueueItem>;
 
-pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<()>) -> Result<()> {
+pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>) -> Result<()> {
+    info!("Worker started bootstrap");
+
     let preload_images = &conf::CONFIG.worker.action.run_container.preload_images;
     if preload_images.is_empty() {
-        _ = tx.send(());
+        _ = tx.send(true);
         return Ok(());
     }
 
@@ -77,10 +79,11 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<()>) 
     .await;
     let messages = results.into_iter().filter_map(|item| item.err()).collect::<Vec<_>>().join("\n");
     if !messages.is_empty() {
+        _ = tx.send(false);
         bail!("Error preloading following container images:\n{messages}");
     }
 
-    _ = tx.send(());
+    _ = tx.send(true);
     Ok(())
 }
 

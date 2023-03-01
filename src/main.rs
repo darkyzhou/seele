@@ -190,12 +190,11 @@ fn main() {
 
             let result = Toplevel::new()
                 .start("seele", |handle| async move {
-                    info!("Worker started bootstrap");
                     let (tx, rx) = oneshot::channel();
                     handle.start("bootstrap", |handle| worker::worker_bootstrap(handle, tx));
 
-                    _ = rx.await;
-                    if handle.is_shutdown_requested() {
+                    if !rx.await? {
+                        handle.on_shutdown_requested().await;
                         return anyhow::Ok(());
                     }
 
