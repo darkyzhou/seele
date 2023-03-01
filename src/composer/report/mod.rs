@@ -47,13 +47,15 @@ pub async fn apply_report_config(
             async {
                 let metadata = fs::metadata(&path).await.context("Error checking metadata")?;
                 let truncate_bytes = embed.truncate_kib * 1024;
-                let content = if metadata.len() as usize <= truncate_bytes {
-                    fs::read_to_string(&path).await.context("Error reading the file")?
-                } else {
+                let content = {
                     let mut reader =
                         BufReader::new(File::open(&path).await.context("Error opening the file")?);
                     let mut buffer = Vec::with_capacity(truncate_bytes);
-                    reader.read_exact(&mut buffer).await.context("Error reading the file")?;
+                    if metadata.len() as usize <= truncate_bytes {
+                        reader.read_to_end(&mut buffer).await?;
+                    } else {
+                        reader.read_exact(&mut buffer).await?;
+                    }
                     String::from_utf8_lossy(&buffer).to_string()
                 };
 
