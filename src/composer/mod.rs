@@ -52,14 +52,12 @@ pub async fn composer_main(
                     end.duration_since(begin).as_secs_f64()
                 };
 
-                // Always true
-                if let SubmissionSignalExt::Completed(ext) = &completed_signal.ext {
-                    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
-                        &OpenTelemetryCtx::current(),
-                        duration,
-                        &vec![KeyValue::new(SUBMISSION_STATUS, ext.get_type())],
-                    );
-                }
+                let SubmissionSignalExt::Completed(ext) = &completed_signal.ext else { unreachable!() };
+                metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
+                    &OpenTelemetryCtx::current(),
+                    duration,
+                    &vec![KeyValue::new(SUBMISSION_STATUS, ext.get_type())],
+                );
 
                 _ = item.status_tx.send(completed_signal);
             }
