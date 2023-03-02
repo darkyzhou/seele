@@ -1,13 +1,15 @@
 ---
 source: src/composer/resolve.rs
+assertion_line: 139
 expression: submission
-input_file: src/composer/stubs/submission_nested_sequence_2.yaml
+input_file: src/composer/tests/submission_nested_sequence_2.yaml
 ---
 Submission(
   id: "[id]",
   root_directory: "test",
   config: SubmissionConfig(
     id: "[id]",
+    tracing_attribute: None,
     steps: {
       "one": {
         "status": "PENDING",
@@ -57,8 +59,6 @@ Submission(
         },
       },
     },
-    report: None,
-    report_error: None,
   ),
   root_node: RootTaskNode(
     id: "[id]",

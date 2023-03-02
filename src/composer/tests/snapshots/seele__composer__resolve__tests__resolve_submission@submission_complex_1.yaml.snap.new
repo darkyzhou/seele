@@ -1,13 +1,15 @@
 ---
 source: src/composer/resolve.rs
+assertion_line: 139
 expression: submission
-input_file: src/composer/stubs/submission_complex_1.yaml
+input_file: src/composer/tests/submission_complex_1.yaml
 ---
 Submission(
   id: "[id]",
   root_directory: "test",
   config: SubmissionConfig(
     id: "[id]",
+    tracing_attribute: None,
     steps: {
       "prepare_sources": {
         "status": "PENDING",
@@ -43,8 +45,6 @@ Submission(
         ],
       },
     },
-    report: None,
-    report_error: None,
   ),
   root_node: RootTaskNode(
     id: "[id]",

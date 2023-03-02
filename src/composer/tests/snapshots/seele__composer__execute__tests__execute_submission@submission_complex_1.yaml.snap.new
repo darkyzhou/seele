@@ -1,7 +1,8 @@
 ---
 source: src/composer/execute.rs
+assertion_line: 348
 expression: results
-input_file: src/composer/stubs/submission_nested_sequence_2.yaml
+input_file: src/composer/tests/submission_complex_1.yaml
 ---
 [
   Config(
@@ -10,34 +11,22 @@ input_file: src/composer/stubs/submission_nested_sequence_2.yaml
   ),
   Config(
     action: "seele/noop@1",
-    test: 21,
+    test: 201,
   ),
   Config(
     action: "seele/noop@1",
-    test: 22,
+    test: 202,
   ),
   Config(
     action: "seele/noop@1",
-    test: 3,
+    test: 301,
   ),
   Config(
     action: "seele/noop@1",
-    test: 41,
+    test: 302,
   ),
   Config(
     action: "seele/noop@1",
-    test: 421,
-  ),
-  Config(
-    action: "seele/noop@1",
-    test: 422,
-  ),
-  Config(
-    action: "seele/noop@1",
-    test: 423,
-  ),
-  Config(
-    action: "seele/noop@1",
-    test: 431,
+    test: 303,
   ),
 ]

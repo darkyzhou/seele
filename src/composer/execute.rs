@@ -303,7 +303,7 @@ mod tests {
 
     use chrono::Utc;
     use insta::glob;
-    use tokio::sync::mpsc;
+    use tokio::{runtime::Builder, sync::mpsc};
 
     use crate::{
         composer::resolve::resolve_submission,
@@ -313,43 +313,41 @@ mod tests {
 
     #[test]
     fn test_execute_submission() {
-        glob!("stubs/*.yaml", |path| {
-            tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap().block_on(
-                async {
-                    let submission = resolve_submission(
-                        serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
-                        "test".into(),
-                    )
-                    .expect("Error resolving the submission");
+        glob!("tests/*.yaml", |path| {
+            Builder::new_multi_thread().enable_all().build().unwrap().block_on(async {
+                let submission = resolve_submission(
+                    serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+                    "test".into(),
+                )
+                .expect("Error resolving the submission");
 
-                    let (worker_tx, mut worker_rx) = mpsc::channel(114);
-                    let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
-                    let handle = tokio::spawn(async move {
-                        super::execute_submission(submission, worker_tx, tx).await.unwrap();
-                    });
+                let (worker_tx, mut worker_rx) = mpsc::channel(114);
+                let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
+                let handle = tokio::spawn(async move {
+                    super::execute_submission(submission, worker_tx, tx).await.unwrap();
+                });
 
-                    let mut results = vec![];
-                    while let Some(WorkerQueueItem { config, report_tx, .. }) =
-                        worker_rx.recv().await
-                    {
-                        results.push(config);
+                let mut results = vec![];
+                while let Some(WorkerQueueItem { config, report_tx, .. }) = worker_rx.recv().await {
+                    results.push(config);
 
-                        report_tx
-                            .send(ActionReport::Success(ActionSuccessReport {
-                                run_at: Utc::now(),
-                                time_elapsed_ms: 0,
-                                ext: ActionSuccessReportExt::Noop(action::noop::ExecutionReport {
-                                    test: 0,
-                                }),
-                            }))
-                            .unwrap();
-                    }
+                    report_tx
+                        .send(ActionReport::Success(ActionSuccessReport {
+                            run_at: Utc::now(),
+                            time_elapsed_ms: 0,
+                            ext: ActionSuccessReportExt::Noop(action::noop::ExecutionReport {
+                                test: 0,
+                            }),
+                        }))
+                        .unwrap();
+                }
 
-                    handle.await.unwrap();
+                handle.await.unwrap();
 
+                insta::with_settings!({snapshot_path => "tests/snapshots"}, {
                     insta::assert_ron_snapshot!(results);
-                },
-            );
+                });
+            });
         })
     }
 }

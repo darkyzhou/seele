@@ -129,14 +129,16 @@ mod tests {
 
     #[test]
     fn test_resolve_submission() {
-        glob!("stubs/*.yaml", |path| {
+        glob!("tests/*.yaml", |path| {
             let submission = super::resolve_submission(
                 serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
                 "test".into(),
             )
             .expect("Error resolving the submission");
-            insta::assert_ron_snapshot!(submission, {
-                ".**.id" => "[id]"
+            insta::with_settings!({snapshot_path => "tests/snapshots"}, {
+                insta::assert_ron_snapshot!(submission, {
+                    ".**.id" => "[id]"
+                });
             });
         });
     }
