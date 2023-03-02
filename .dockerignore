@@ -7,3 +7,4 @@ runj/bin/
 runj/tests/
 target/
 config.toml
+docs/

@@ -16,3 +16,5 @@ config.toml
 /root
 
 **/node_modules
+
+**/.next
