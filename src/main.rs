@@ -23,7 +23,13 @@ use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
 use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
 
-use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
+use crate::{
+    conf::SeeleWorkMode,
+    shared::metrics::{
+        METER, METRICS_RESOURCE, PENDING_ACTION_COUNT_GAUGE, PENDING_SUBMISSION_COUNT_GAUGE,
+    },
+    worker::action,
+};
 
 mod cgroup;
 mod composer;
@@ -203,6 +209,29 @@ fn main() {
                         mpsc::channel(conf::CONFIG.thread_counts.runner);
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
+
+                    METER.register_callback({
+                        let tx = composer_queue_tx.clone();
+                        move |ctx| {
+                            PENDING_SUBMISSION_COUNT_GAUGE.observe(
+                                ctx,
+                                (tx.max_capacity() - tx.capacity()) as u64,
+                                &[],
+                            )
+                        }
+                    })?;
+
+                    METER.register_callback({
+                        let tx = worker_queue_tx.clone();
+                        move |ctx| {
+                            PENDING_ACTION_COUNT_GAUGE.observe(
+                                ctx,
+                                (tx.max_capacity() - tx.capacity()) as u64,
+                                &[],
+                            )
+                        }
+                    })?;
+
                     handle.start("healthz", |handle| healthz::healthz_main(handle));
                     handle.start("exchange", |handle| {
                         exchange::exchange_main(handle, composer_queue_tx)

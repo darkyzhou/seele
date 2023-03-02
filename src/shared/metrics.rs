@@ -51,6 +51,20 @@ pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
         .init()
 });
 
+pub static PENDING_SUBMISSION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+    METER
+        .u64_observable_gauge("submission.pending.count")
+        .with_description("Count of pending submissions in the composer queue")
+        .init()
+});
+
+pub static PENDING_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+    METER
+        .u64_observable_gauge("action.pending.count")
+        .with_description("Count of pending actions in the worker queue")
+        .init()
+});
+
 pub fn register_gauge_metrics() -> Result<()> {
     METER.register_callback(|ctx| {
         RUNNER_COUNT_GAUGE.observe(ctx, conf::CONFIG.thread_counts.runner as u64, &[])
