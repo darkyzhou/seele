@@ -191,6 +191,7 @@ pub struct SequenceFailedReport {
 pub struct ParallelFailedReport {
     pub time_elapsed_ms: u64,
     pub failed_count: usize,
+    pub failed_indexes: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]

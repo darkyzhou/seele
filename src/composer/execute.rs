@@ -203,15 +203,19 @@ fn resolve_parallel_status(time_elapsed_ms: u64, tasks: Vec<Arc<TaskConfig>>) ->
                 status = TaskStatus::Pending;
             }
             TaskStatus::Failed { .. } => {
+                let failed_indexes = tasks
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, task)| match *task.status.read().unwrap() {
+                        TaskStatus::Failed { .. } => Some(index),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
                 status = TaskStatus::Failed {
                     report: TaskFailedReport::Parallel(ParallelFailedReport {
                         time_elapsed_ms,
-                        failed_count: tasks
-                            .iter()
-                            .filter(|task| {
-                                matches!(*task.status.read().unwrap(), TaskStatus::Failed { .. })
-                            })
-                            .count(),
+                        failed_count: failed_indexes.len(),
+                        failed_indexes,
                     }),
                 };
                 break;
