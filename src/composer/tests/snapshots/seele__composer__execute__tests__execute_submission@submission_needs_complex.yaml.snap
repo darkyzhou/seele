@@ -1,0 +1,35 @@
+---
+source: src/composer/execute.rs
+expression: results
+input_file: src/composer/tests/submission_needs_complex.yaml
+---
+[
+  Config(
+    action: "seele/noop@1",
+    test: 1,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2111,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 3,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2112,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2113,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2115,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2114,
+  ),
+]

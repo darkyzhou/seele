@@ -1,0 +1,31 @@
+id: needs_complex
+steps:
+  one:
+    action: seele/noop@1
+    test: 1
+  two:
+    steps:
+      two-one:
+        parallel:
+          - steps:
+              two-one-one:
+                action: seele/noop@1
+                test: 2111
+              two-one-two:
+                action: seele/noop@1
+                test: 2112
+              two-one-three:
+                needs: two-one-one
+                action: seele/noop@1
+                test: 2113
+              two-one-four:
+                needs: two-one-three
+                action: seele/noop@1
+                test: 2114
+              two-one-five:
+                action: seele/noop@1
+                test: 2115
+  three:
+    needs: one
+    action: seele/noop@1
+    test: 3

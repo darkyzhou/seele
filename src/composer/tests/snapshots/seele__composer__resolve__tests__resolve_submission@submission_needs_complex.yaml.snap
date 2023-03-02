@@ -1,0 +1,133 @@
+---
+source: src/composer/resolve.rs
+expression: submission
+input_file: src/composer/tests/submission_needs_complex.yaml
+---
+Submission(
+  id: "needs_complex",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "needs_complex",
+    tracing_attribute: None,
+    steps: {
+      "one": {
+        "status": "PENDING",
+      },
+      "two": {
+        "status": "PENDING",
+        "steps": {
+          "two-one": {
+            "status": "PENDING",
+            "parallel": [
+              {
+                "status": "PENDING",
+                "steps": {
+                  "two-one-one": {
+                    "status": "PENDING",
+                  },
+                  "two-one-two": {
+                    "status": "PENDING",
+                  },
+                  "two-one-three": {
+                    "status": "PENDING",
+                  },
+                  "two-one-four": {
+                    "status": "PENDING",
+                  },
+                  "two-one-five": {
+                    "status": "PENDING",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      "three": {
+        "status": "PENDING",
+      },
+    },
+  ),
+  root_node: RootTaskNode(
+    tasks: [
+      TaskNode(
+        name: ".one",
+        children: [
+          TaskNode(
+            name: ".two",
+            children: [],
+            ext: [
+              TaskNode(
+                name: ".two.two-one",
+                children: [],
+                ext: [
+                  TaskNode(
+                    name: ".two.two-one.0",
+                    children: [],
+                    ext: [
+                      TaskNode(
+                        name: ".two.two-one.0.two-one-one",
+                        children: [
+                          TaskNode(
+                            name: ".two.two-one.0.two-one-two",
+                            children: [
+                              TaskNode(
+                                name: ".two.two-one.0.two-one-five",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 2115,
+                                ),
+                              ),
+                            ],
+                            ext: Config(
+                              action: "seele/noop@1",
+                              test: 2112,
+                            ),
+                          ),
+                          TaskNode(
+                            name: ".two.two-one.0.two-one-three",
+                            children: [
+                              TaskNode(
+                                name: ".two.two-one.0.two-one-four",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 2114,
+                                ),
+                              ),
+                            ],
+                            ext: Config(
+                              action: "seele/noop@1",
+                              test: 2113,
+                            ),
+                          ),
+                        ],
+                        ext: Config(
+                          action: "seele/noop@1",
+                          test: 2111,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          TaskNode(
+            name: ".three",
+            children: [],
+            ext: Config(
+              action: "seele/noop@1",
+              test: 3,
+            ),
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

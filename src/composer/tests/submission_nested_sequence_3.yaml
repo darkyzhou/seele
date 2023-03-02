@@ -1,0 +1,46 @@
+id: nested_sequence_3
+steps:
+  one:
+    action: seele/noop@1
+    test: 1
+  two:
+    steps:
+      two-one:
+        action: seele/noop@1
+        test: 21
+      two-two:
+        action: seele/noop@1
+        test: 22
+  three:
+    action: seele/noop@1
+    test: 3
+  four:
+    steps:
+      four-one:
+        steps:
+          four-one-one:
+            steps:
+              four-one-one-one:
+                steps:
+                  four-one-one-one-one:
+                    steps:
+                      four-one-one-one-one-one:
+                        action: seele/noop@1
+                        test: 4111111
+      four-two:
+        parallel:
+          - action: seele/noop@1
+            test: 421
+          - parallel:
+              - parallel:
+                  - parallel:
+                      - parallel:
+                          - action: seele/noop@1
+                            test: 422
+          - action: seele/noop@1
+            test: 423
+      four-three:
+        steps:
+          four-three-one:
+            action: seele/noop@1
+            test: 431

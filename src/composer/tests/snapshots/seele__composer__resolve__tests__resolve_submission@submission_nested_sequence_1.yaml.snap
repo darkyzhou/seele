@@ -1,14 +1,13 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 139
 expression: submission
 input_file: src/composer/tests/submission_nested_sequence_1.yaml
 ---
 Submission(
-  id: "[id]",
+  id: "nested_sequence_1",
   root_directory: "test",
   config: SubmissionConfig(
-    id: "[id]",
+    id: "nested_sequence_1",
     tracing_attribute: None,
     steps: {
       "one": {
@@ -31,19 +30,15 @@ Submission(
     },
   ),
   root_node: RootTaskNode(
-    id: "[id]",
     tasks: [
       TaskNode(
         name: ".one",
-        id: "[id]",
         children: [
           TaskNode(
             name: ".two",
-            id: "[id]",
             children: [
               TaskNode(
                 name: ".three",
-                id: "[id]",
                 children: [],
                 ext: Config(
                   action: "seele/noop@1",
@@ -54,11 +49,9 @@ Submission(
             ext: [
               TaskNode(
                 name: ".two.two-one",
-                id: "[id]",
                 children: [
                   TaskNode(
                     name: ".two.two-two",
-                    id: "[id]",
                     children: [],
                     ext: Config(
                       action: "seele/noop@1",

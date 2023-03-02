@@ -17,11 +17,6 @@ pub static TINI_PRESENTS: Lazy<bool> = Lazy::new(|| env::var_os("TINI_VERSION").
 
 pub static ABORTED_MESSAGE: &str = "Aborted due to shutting down";
 
-#[inline]
-pub fn random_task_id() -> String {
-    nano_id::base62::<8>()
-}
-
 pub async fn tail(file: File, count: u64) -> Result<Vec<u8>> {
     let metadata = file.metadata().await?;
     let mut reader = BufReader::new(file);

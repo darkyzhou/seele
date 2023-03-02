@@ -1,14 +1,13 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 139
 expression: submission
-input_file: src/composer/tests/submission_nested_sequence_2.yaml
+input_file: src/composer/tests/submission_nested_sequence_3.yaml
 ---
 Submission(
-  id: "[id]",
+  id: "nested_sequence_3",
   root_directory: "test",
   config: SubmissionConfig(
-    id: "[id]",
+    id: "nested_sequence_3",
     tracing_attribute: None,
     steps: {
       "one": {
@@ -33,6 +32,26 @@ Submission(
         "steps": {
           "four-one": {
             "status": "PENDING",
+            "steps": {
+              "four-one-one": {
+                "status": "PENDING",
+                "steps": {
+                  "four-one-one-one": {
+                    "status": "PENDING",
+                    "steps": {
+                      "four-one-one-one-one": {
+                        "status": "PENDING",
+                        "steps": {
+                          "four-one-one-one-one-one": {
+                            "status": "PENDING",
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           "four-two": {
             "status": "PENDING",
@@ -42,6 +61,26 @@ Submission(
               },
               {
                 "status": "PENDING",
+                "parallel": [
+                  {
+                    "status": "PENDING",
+                    "parallel": [
+                      {
+                        "status": "PENDING",
+                        "parallel": [
+                          {
+                            "status": "PENDING",
+                            "parallel": [
+                              {
+                                "status": "PENDING",
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
               },
               {
                 "status": "PENDING",
@@ -61,41 +100,32 @@ Submission(
     },
   ),
   root_node: RootTaskNode(
-    id: "[id]",
     tasks: [
       TaskNode(
         name: ".one",
-        id: "[id]",
         children: [
           TaskNode(
             name: ".two",
-            id: "[id]",
             children: [
               TaskNode(
                 name: ".three",
-                id: "[id]",
                 children: [
                   TaskNode(
                     name: ".four",
-                    id: "[id]",
                     children: [],
                     ext: [
                       TaskNode(
                         name: ".four.four-one",
-                        id: "[id]",
                         children: [
                           TaskNode(
                             name: ".four.four-two",
-                            id: "[id]",
                             children: [
                               TaskNode(
                                 name: ".four.four-three",
-                                id: "[id]",
                                 children: [],
                                 ext: [
                                   TaskNode(
                                     name: ".four.four-three.four-three-one",
-                                    id: "[id]",
                                     children: [],
                                     ext: Config(
                                       action: "seele/noop@1",
@@ -108,7 +138,6 @@ Submission(
                             ext: [
                               TaskNode(
                                 name: ".four.four-two.0",
-                                id: "[id]",
                                 children: [],
                                 ext: Config(
                                   action: "seele/noop@1",
@@ -117,16 +146,38 @@ Submission(
                               ),
                               TaskNode(
                                 name: ".four.four-two.1",
-                                id: "[id]",
                                 children: [],
-                                ext: Config(
-                                  action: "seele/noop@1",
-                                  test: 422,
-                                ),
+                                ext: [
+                                  TaskNode(
+                                    name: ".four.four-two.1.0",
+                                    children: [],
+                                    ext: [
+                                      TaskNode(
+                                        name: ".four.four-two.1.0.0",
+                                        children: [],
+                                        ext: [
+                                          TaskNode(
+                                            name: ".four.four-two.1.0.0.0",
+                                            children: [],
+                                            ext: [
+                                              TaskNode(
+                                                name: ".four.four-two.1.0.0.0.0",
+                                                children: [],
+                                                ext: Config(
+                                                  action: "seele/noop@1",
+                                                  test: 422,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               TaskNode(
                                 name: ".four.four-two.2",
-                                id: "[id]",
                                 children: [],
                                 ext: Config(
                                   action: "seele/noop@1",
@@ -136,10 +187,34 @@ Submission(
                             ],
                           ),
                         ],
-                        ext: Config(
-                          action: "seele/noop@1",
-                          test: 41,
-                        ),
+                        ext: [
+                          TaskNode(
+                            name: ".four.four-one.four-one-one",
+                            children: [],
+                            ext: [
+                              TaskNode(
+                                name: ".four.four-one.four-one-one.four-one-one-one",
+                                children: [],
+                                ext: [
+                                  TaskNode(
+                                    name: ".four.four-one.four-one-one.four-one-one-one.four-one-one-one-one",
+                                    children: [],
+                                    ext: [
+                                      TaskNode(
+                                        name: ".four.four-one.four-one-one.four-one-one-one.four-one-one-one-one.four-one-one-one-one-one",
+                                        children: [],
+                                        ext: Config(
+                                          action: "seele/noop@1",
+                                          test: 4111111,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -153,11 +228,9 @@ Submission(
             ext: [
               TaskNode(
                 name: ".two.two-one",
-                id: "[id]",
                 children: [
                   TaskNode(
                     name: ".two.two-two",
-                    id: "[id]",
                     children: [],
                     ext: Config(
                       action: "seele/noop@1",

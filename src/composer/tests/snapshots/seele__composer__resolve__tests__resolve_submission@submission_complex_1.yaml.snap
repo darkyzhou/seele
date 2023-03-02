@@ -1,14 +1,13 @@
 ---
 source: src/composer/resolve.rs
-assertion_line: 139
 expression: submission
 input_file: src/composer/tests/submission_complex_1.yaml
 ---
 Submission(
-  id: "[id]",
+  id: "complex_1",
   root_directory: "test",
   config: SubmissionConfig(
-    id: "[id]",
+    id: "complex_1",
     tracing_attribute: None,
     steps: {
       "prepare_sources": {
@@ -47,37 +46,29 @@ Submission(
     },
   ),
   root_node: RootTaskNode(
-    id: "[id]",
     tasks: [
       TaskNode(
         name: ".prepare_sources",
-        id: "[id]",
         children: [
           TaskNode(
             name: ".compile",
-            id: "[id]",
             children: [
               TaskNode(
                 name: ".standard",
-                id: "[id]",
                 children: [],
                 ext: [
                   TaskNode(
                     name: ".standard.0",
-                    id: "[id]",
                     children: [],
                     ext: [
                       TaskNode(
                         name: ".standard.0.prepare",
-                        id: "[id]",
                         children: [
                           TaskNode(
                             name: ".standard.0.run",
-                            id: "[id]",
                             children: [
                               TaskNode(
                                 name: ".standard.0.compare",
-                                id: "[id]",
                                 children: [],
                                 ext: Config(
                                   action: "seele/noop@1",
@@ -104,7 +95,6 @@ Submission(
             ext: [
               TaskNode(
                 name: ".compile.0",
-                id: "[id]",
                 children: [],
                 ext: Config(
                   action: "seele/noop@1",
@@ -113,7 +103,6 @@ Submission(
               ),
               TaskNode(
                 name: ".compile.1",
-                id: "[id]",
                 children: [],
                 ext: Config(
                   action: "seele/noop@1",

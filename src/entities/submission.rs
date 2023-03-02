@@ -217,7 +217,6 @@ impl From<String> for ActionFailedReport {
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct RootTaskNode {
-    pub id: String,
     pub tasks: Vec<Arc<TaskNode>>,
 }
 
@@ -227,7 +226,6 @@ pub struct TaskNode {
     pub name: String,
     #[cfg_attr(test, serde(skip_serializing))]
     pub config: Arc<TaskConfig>,
-    pub id: String,
     pub children: Vec<Arc<TaskNode>>,
     pub ext: TaskNodeExt,
 }
