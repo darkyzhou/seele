@@ -156,7 +156,7 @@ fn main() {
                 if physical_cpu_count < logical_cpu_count {
                     // TODO: Add link to document
                     warn!(
-                        "Seele does not recommand enabling the cpu's SMT technology, current \
+                        "Seele does not recommend enabling the cpu's SMT technology, current \
                          logical cpu count: {}, physical cpu count: {}",
                         logical_cpu_count, physical_cpu_count
                     )
