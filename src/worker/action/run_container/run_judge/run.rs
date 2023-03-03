@@ -85,55 +85,59 @@ pub async fn execute(
     ctx: &ActionContext,
     config: &Config,
 ) -> Result<ActionSuccessReportExt> {
+    if config.files.is_empty() {
+        bail!("Unexpected empty `files`");
+    }
+
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
-        if !config.files.is_empty() {
-            if let Some(paths) = run_container_config.paths.as_mut() {
-                paths.push(MOUNT_DIRECTORY.to_string());
-            } else {
-                run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
+        run_container_config.cwd = MOUNT_DIRECTORY.into();
+
+        if let Some(paths) = run_container_config.paths.as_mut() {
+            paths.push(MOUNT_DIRECTORY.to_string());
+        } else {
+            run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
+        }
+
+        for file in &config.files {
+            let from_path = ctx.submission_root.join(&file.name);
+            let to_path = [MOUNT_DIRECTORY, &file.name].iter().collect::<PathBuf>();
+
+            if let Err(err) = fs::metadata(&from_path).await {
+                bail!("The file {file} does not exist: {err:#}");
             }
 
-            for file in &config.files {
-                let from_path = ctx.submission_root.join(&file.name);
-                let to_path = [MOUNT_DIRECTORY, &file.name].iter().collect::<PathBuf>();
+            run_container_config.mounts.push(run_container::MountConfig::Full({
+                if !file.exec {
+                    runj::MountConfig { from: from_path, to: to_path, options: None }
+                } else {
+                    fs::set_permissions(&from_path, Permissions::from_mode(0o777))
+                        .await
+                        .with_context(|| {
+                            format!("Error setting the permission of the executable {file}")
+                        })?;
 
-                if let Err(err) = fs::metadata(&from_path).await {
-                    bail!("The file {file} does not exist: {err:#}");
-                }
-
-                run_container_config.mounts.push(run_container::MountConfig::Full({
-                    if !file.exec {
-                        runj::MountConfig { from: from_path, to: to_path, options: None }
+                    if !conf::CONFIG.worker.action.run_container.tmp_noexec {
+                        runj::MountConfig {
+                            from: from_path,
+                            to: to_path,
+                            options: Some(vec!["exec".to_owned()]),
+                        }
                     } else {
-                        fs::set_permissions(&from_path, Permissions::from_mode(0o777))
+                        let new_from_path =
+                            conf::PATHS.new_temp_directory().await?.join(&file.name);
+                        fs::copy(&from_path, &new_from_path)
                             .await
-                            .with_context(|| {
-                                format!("Error setting the permission of the executable {file}")
-                            })?;
-
-                        if !conf::CONFIG.worker.action.run_container.tmp_noexec {
-                            runj::MountConfig {
-                                from: from_path,
-                                to: to_path,
-                                options: Some(vec!["exec".to_owned()]),
-                            }
-                        } else {
-                            let new_from_path =
-                                conf::PATHS.new_temp_directory().await?.join(&file.name);
-                            fs::copy(&from_path, &new_from_path)
-                                .await
-                                .with_context(|| format!("Error copying the file: {file}"))?;
-                            runj::MountConfig {
-                                from: new_from_path,
-                                to: to_path,
-                                options: Some(vec!["exec".to_owned()]),
-                            }
+                            .with_context(|| format!("Error copying the file: {file}"))?;
+                        runj::MountConfig {
+                            from: new_from_path,
+                            to: to_path,
+                            options: Some(vec!["exec".to_owned()]),
                         }
                     }
-                }));
-            }
+                }
+            }));
         }
 
         run_container_config
