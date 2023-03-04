@@ -250,8 +250,7 @@ pub struct TaskNode {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(Serialize))]
-#[cfg_attr(test, serde(untagged))]
+#[cfg_attr(test, derive(Serialize), serde(untagged))]
 pub enum TaskNodeExt {
     Schedule(Vec<Arc<TaskNode>>),
     Action(Arc<ActionTaskConfig>),
