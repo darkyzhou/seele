@@ -56,13 +56,10 @@ pub async fn execute_submission(
     let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
     let report = {
-        match (&submission.config.reporter.success, &submission.config.reporter.failure, success) {
-            (Some(reporter), _, true) | (_, Some(reporter), false) => Some({
-                let span = info_span!(
-                    parent: Span::current(),
-                    "handle_reporter",
-                    seele.is_success_reporter = success
-                );
+        match &submission.config.reporter {
+            None => None,
+            Some(reporter) => Some({
+                let span = info_span!(parent: Span::current(), "handle_reporter");
                 async {
                     let mut report_config =
                         make_submission_report(submission.config.clone(), reporter).await?;
@@ -80,7 +77,6 @@ pub async fn execute_submission(
                 .await
                 .context("Error executing the reporter")
             }),
-            _ => None,
         }
     };
     Ok((success, status, report))

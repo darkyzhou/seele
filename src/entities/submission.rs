@@ -52,7 +52,7 @@ pub struct SubmissionConfig {
     pub tasks: SequenceTasks,
 
     #[serde(default, skip_serializing)]
-    pub reporter: ReporterConfig,
+    pub reporter: Option<SubmissionReporter>,
 }
 
 #[inline]
@@ -63,12 +63,6 @@ fn make_submitted_at() -> UtcTimestamp {
 #[inline]
 fn random_submission_id() -> String {
     nano_id::base62::<16>()
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ReporterConfig {
-    pub success: Option<SubmissionReporter>,
-    pub failure: Option<SubmissionReporter>,
 }
 
 #[derive(Debug, Clone)]
