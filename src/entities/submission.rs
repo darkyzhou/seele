@@ -4,14 +4,36 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
+use either::Either;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReporter};
 
-pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
-pub type ParallelTasks = Vec<Arc<TaskConfig>>;
 pub type UtcTimestamp = DateTime<Utc>;
+
+pub type SequenceTasks = IndexMap<String, Arc<TaskConfig>>;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ParallelTasks {
+    Anonymous(Vec<Arc<TaskConfig>>),
+    Named(IndexMap<String, Arc<TaskConfig>>),
+}
+
+impl<'a> ParallelTasks {
+    pub fn iter(
+        &'a self,
+    ) -> Either<
+        impl Iterator<Item = Arc<TaskConfig>> + 'a,
+        impl Iterator<Item = Arc<TaskConfig>> + 'a,
+    > {
+        match self {
+            Self::Anonymous(tasks) => Either::Left(tasks.iter().cloned()),
+            Self::Named(tasks) => Either::Right(tasks.values().cloned()),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

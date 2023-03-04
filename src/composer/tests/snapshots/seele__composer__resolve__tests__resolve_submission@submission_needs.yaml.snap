@@ -11,12 +11,15 @@ Submission(
     tracing_attribute: None,
     steps: {
       "one": {
+        "tags": None,
         "status": "PENDING",
       },
       "two": {
+        "tags": None,
         "status": "PENDING",
       },
       "three": {
+        "tags": None,
         "status": "PENDING",
       },
     },

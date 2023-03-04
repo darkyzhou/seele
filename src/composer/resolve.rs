@@ -3,8 +3,8 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use anyhow::{bail, Context, Result};
 
 use crate::entities::{
-    RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig, TaskConfigExt, TaskNode,
-    TaskNodeExt,
+    ParallelTasks, RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig,
+    TaskConfigExt, TaskNode, TaskNodeExt,
 };
 
 pub fn resolve_submission(
@@ -66,7 +66,7 @@ fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<Task
 fn resolve_task(name: String, config: Arc<TaskConfig>) -> Result<TaskNode> {
     Ok(match &config.ext {
         TaskConfigExt::Sequence(ext) => {
-            let prefix = format!("{}.", name);
+            let prefix = format!("{name}.");
             let ext = TaskNodeExt::Schedule({
                 vec![
                     resolve_sequence(&prefix, &ext.tasks)
@@ -76,16 +76,23 @@ fn resolve_task(name: String, config: Arc<TaskConfig>) -> Result<TaskNode> {
             TaskNode { name, config, children: vec![], ext }
         }
         TaskConfigExt::Parallel(ext) => {
-            let ext = TaskNodeExt::Schedule(
-                ext.tasks
+            let ext = TaskNodeExt::Schedule(match &ext.tasks {
+                ParallelTasks::Anonymous(tasks) => tasks
                     .iter()
                     .enumerate()
                     .map(|(i, task)| {
-                        resolve_task(format!("{}.{}", name, i), task.clone()).map(Arc::new)
+                        resolve_task(format!("{name}.{i}"), task.clone()).map(Arc::new)
                     })
                     .collect::<Result<_>>()
-                    .context("Error resolving parallel tasks")?,
-            );
+                    .context("Error resolving anonymous parallel tasks")?,
+                ParallelTasks::Named(tasks) => tasks
+                    .iter()
+                    .map(|(task_name, task)| {
+                        resolve_task(format!("{name}.{task_name}"), task.clone()).map(Arc::new)
+                    })
+                    .collect::<Result<_>>()
+                    .context("Error resolving named parallel tasks")?,
+            });
             TaskNode { name, config, children: vec![], ext }
         }
         TaskConfigExt::Action(ext) => {

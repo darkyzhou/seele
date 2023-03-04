@@ -20,8 +20,8 @@ use crate::{
     conf,
     entities::{
         ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
-        SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig, TaskConfigExt,
-        TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
+        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
+        TaskConfigExt, TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -159,9 +159,7 @@ async fn track_schedule_execution(
 
     let status = match &node.config.ext {
         TaskConfigExt::Action(_) => panic!("Unexpected schedule task"),
-        TaskConfigExt::Parallel(config) => {
-            resolve_parallel_status(time_elapsed_ms, config.tasks.iter().cloned().collect())
-        }
+        TaskConfigExt::Parallel(config) => resolve_parallel_status(time_elapsed_ms, config),
         TaskConfigExt::Sequence(config) => resolve_sequence_status(
             time_elapsed_ms,
             config.tasks.iter().map(|(key, value)| (key.to_string(), value.to_owned())),
@@ -193,17 +191,19 @@ async fn track_schedule_execution(
     success
 }
 
-fn resolve_parallel_status(time_elapsed_ms: u64, tasks: Vec<Arc<TaskConfig>>) -> TaskStatus {
+fn resolve_parallel_status(time_elapsed_ms: u64, config: &ParallelTaskConfig) -> TaskStatus {
     let mut status = TaskStatus::Success {
         report: TaskSuccessReport::Parallel(ParallelSuccessReport { time_elapsed_ms }),
     };
-    for task in tasks.iter() {
+
+    for task in config.tasks.iter() {
         match *task.status.read().unwrap() {
             TaskStatus::Pending => {
                 status = TaskStatus::Pending;
             }
             TaskStatus::Failed { .. } => {
-                let failed_indexes = tasks
+                let failed_indexes = config
+                    .tasks
                     .iter()
                     .enumerate()
                     .filter_map(|(index, task)| match *task.status.read().unwrap() {
