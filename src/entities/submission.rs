@@ -60,6 +60,9 @@ pub struct Submission {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TaskConfig {
+    #[serde(default)]
+    pub tags: Option<IndexMap<String, String>>,
+
     #[serde(skip_deserializing, default, flatten)]
     pub status: RwLock<TaskStatus>,
 
