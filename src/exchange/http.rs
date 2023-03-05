@@ -84,7 +84,7 @@ async fn handle_submission_request(
     Ok(Response::new(Body::wrap_stream(status_rx.map(move |signal| {
         type CallbackResult = Result<String, Infallible>;
 
-        if !show_progress && matches!(signal.ext, SubmissionSignalExt::Progress(_)) {
+        if !show_progress && matches!(signal.ext, SubmissionSignalExt::Progress { .. }) {
             return CallbackResult::Ok("".to_string());
         }
 

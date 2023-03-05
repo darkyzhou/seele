@@ -44,7 +44,7 @@ pub async fn composer_main(
             let worker_queue_tx = worker_queue_tx.clone();
             async move {
                 let begin = Instant::now();
-                let completed_signal =
+                let signal =
                     handle_submission(worker_queue_tx, item.config_yaml, item.status_tx.clone())
                         .await;
                 let duration = {
@@ -52,14 +52,13 @@ pub async fn composer_main(
                     end.duration_since(begin).as_secs_f64()
                 };
 
-                let SubmissionSignalExt::Completed(ext) = &completed_signal.ext else { unreachable!() };
                 metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
                     &OpenTelemetryCtx::current(),
                     duration,
-                    &vec![KeyValue::new(SUBMISSION_STATUS, ext.get_type())],
+                    &vec![KeyValue::new(SUBMISSION_STATUS, signal.ext.get_type())],
                 );
 
-                _ = item.status_tx.send(completed_signal);
+                _ = item.status_tx.send(signal);
             }
         });
     }
@@ -78,10 +77,9 @@ async fn handle_submission(
         let message = format!("Error parsing the submission: {:#}", err);
         error!(message);
 
-        let signal = SubmissionCompletedSignal::ParseError { error: message };
-        Span::current().record(SUBMISSION_STATUS, signal.get_type());
-
-        return SubmissionSignal { id: None, ext: SubmissionSignalExt::Completed(signal) };
+        let ext = SubmissionSignalExt::Error { error: message };
+        Span::current().record(SUBMISSION_STATUS, ext.get_type());
+        return SubmissionSignal { id: None, ext };
     }
 
     let submission = submission.unwrap();
@@ -89,20 +87,20 @@ async fn handle_submission(
     Span::current().record(SUBMISSION_ATTRIBUTE, &submission.tracing_attribute);
 
     let submission_id = submission.id.clone();
-    let signal = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
-        Err(err) => SubmissionCompletedSignal::InternalError { error: format!("{err:#}") },
+    let ext = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
+        Err(err) => SubmissionSignalExt::Error { error: format!("{err:#}") },
         Ok((status, report)) => {
             let (report, report_error) = match report {
                 None => (None, None),
                 Some(Ok(report)) => (Some(report), None),
                 Some(Err(err)) => (None, Some(format!("{err:#}"))),
             };
-            SubmissionCompletedSignal::Done { status, report, report_error }
+            SubmissionSignalExt::Completed { status, report, report_error }
         }
     };
 
-    Span::current().record(SUBMISSION_STATUS, signal.get_type());
-    SubmissionSignal { id: Some(submission_id), ext: SubmissionSignalExt::Completed(signal) }
+    Span::current().record(SUBMISSION_STATUS, ext.get_type());
+    SubmissionSignal { id: Some(submission_id), ext }
 }
 
 async fn do_handle_submission(

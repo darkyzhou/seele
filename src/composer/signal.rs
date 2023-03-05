@@ -13,31 +13,19 @@ pub struct SubmissionSignal {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubmissionSignalExt {
-    Progress(SubmissionProgressSignal),
-    Completed(SubmissionCompletedSignal),
-}
+    Progress {
+        status: Value,
 
-#[derive(Debug, Serialize)]
-pub struct SubmissionProgressSignal {
-    pub status: Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report: Option<Value>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub report: Option<Value>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub report_error: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "kind", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum SubmissionCompletedSignal {
-    ParseError {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        report_error: Option<String>,
+    },
+    Error {
         error: String,
     },
-    InternalError {
-        error: String,
-    },
-    Done {
+    Completed {
         status: Value,
 
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,12 +36,12 @@ pub enum SubmissionCompletedSignal {
     },
 }
 
-impl SubmissionCompletedSignal {
+impl SubmissionSignalExt {
     pub fn get_type(&self) -> &'static str {
         match self {
-            Self::ParseError { .. } => "PARSE_ERROR",
-            Self::InternalError { .. } => "INTERNAL_ERROR",
-            Self::Done { .. } => "DONE",
+            Self::Progress { .. } => "PROGRESS",
+            Self::Error { .. } => "ERROR",
+            Self::Completed { .. } => "COMPLETED",
         }
     }
 }

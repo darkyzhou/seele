@@ -13,7 +13,7 @@ use tracing::{debug, error, instrument, Span};
 
 use super::{predicate, report::execute_reporter, SubmissionSignal};
 use crate::{
-    composer::{report::apply_embeds_config, SubmissionProgressSignal, SubmissionSignalExt},
+    composer::{report::apply_embeds_config, SubmissionSignalExt},
     entities::{
         ActionFailedReport, ActionFailedReportExt, ActionReport, ActionTaskConfig,
         ParallelFailedReport, ParallelSuccessReport, ParallelTaskConfig, SequenceFailedReport,
@@ -93,20 +93,16 @@ async fn handle_progress_report(
                         let result = execute_reporter(&submission, reporter, status.clone()).await;
                         _ = status_tx.clone().send(SubmissionSignal {
                             id: Some(submission.id.clone()),
-                            ext: SubmissionSignalExt::Progress({
-                                match result {
-                                    Err(err) => SubmissionProgressSignal {
-                                        status,
-                                        report: None,
-                                        report_error: Some(format!("{err:#}"))
-                                    },
-                                    Ok(report) => SubmissionProgressSignal {
-                                        status,
-                                        report: Some(report),
-                                        report_error: None,
-                                    }
+                            ext: match result {
+                                Err(err) => SubmissionSignalExt::Progress {
+                                    status,
+                                    report: None,
+                                    report_error: Some(format!("{err:#}")),
+                                },
+                                Ok(report) => {
+                                    SubmissionSignalExt::Progress { status, report: Some(report), report_error: None }
                                 }
-                            }),
+                            },
                         });
                         anyhow::Ok(())
                     }

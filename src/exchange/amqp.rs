@@ -2,7 +2,7 @@ use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use futures_util::StreamExt;
-use lapin::{message::Delivery, options::BasicNackOptions, Channel, ChannelState, Connection};
+use lapin::{message::Delivery, Channel, ChannelState, Connection};
 use once_cell::sync::Lazy;
 use ring_channel::ring_channel;
 use tokio::{
@@ -14,10 +14,7 @@ use tracing::{error, info, warn};
 use triggered::Listener;
 
 use crate::{
-    composer::{
-        ComposerQueueItem, ComposerQueueTx, SubmissionCompletedSignal, SubmissionSignal,
-        SubmissionSignalExt,
-    },
+    composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal, SubmissionSignalExt},
     conf::{AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
@@ -208,7 +205,7 @@ async fn handle_delivery(
                 }
 
                 let routing_key = match &signal.ext {
-                    SubmissionSignalExt::Progress(_) => &config.progress_routing_key,
+                    SubmissionSignalExt::Progress { .. } => &config.progress_routing_key,
                     _ => &config.report_routing_key,
                 };
 
@@ -230,18 +227,7 @@ async fn handle_delivery(
                         .await
                         .context("Error awaiting the confirmation")?;
 
-                    match &signal.ext {
-                        SubmissionSignalExt::Completed(SubmissionCompletedSignal::ParseError {
-                            ..
-                        }) => delivery
-                            .nack(BasicNackOptions { requeue: false, ..Default::default() })
-                            .await
-                            .context("Error sending the nack"),
-                        SubmissionSignalExt::Completed(_) => {
-                            delivery.ack(Default::default()).await.context("Error sending the ack")
-                        }
-                        _ => Ok(()),
-                    }
+                    delivery.ack(Default::default()).await.context("Error sending the ack")
                 }
                 .await;
 
