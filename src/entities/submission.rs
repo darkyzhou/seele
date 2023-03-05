@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -8,7 +9,10 @@ use either::Either;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReporter};
+use super::{
+    ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReportEmbedConfig,
+    SubmissionReporter,
+};
 
 pub type UtcTimestamp = DateTime<Utc>;
 
@@ -76,20 +80,49 @@ pub struct Submission {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TaskConfig {
-    #[serde(default)]
-    pub tags: Option<IndexMap<String, String>>,
+    #[serde(default, skip_serializing)]
+    pub progress: bool,
 
-    #[serde(skip_deserializing, default, flatten)]
+    #[serde(default, skip_serializing)]
+    pub report: Option<TaskReportConfig>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tags: Option<HashMap<String, String>>,
+
+    #[serde(default, flatten, skip_deserializing)]
     pub status: RwLock<TaskStatus>,
 
-    #[serde(skip_serializing, default)]
+    #[serde(default, skip_deserializing)]
+    pub embeds: RwLock<TaskEmbeds>,
+
+    #[serde(default, skip_serializing)]
     pub when: Option<String>,
 
-    #[serde(skip_serializing, default)]
+    #[serde(default, skip_serializing)]
     pub needs: Option<String>,
 
     #[serde(skip_serializing_if = "TaskConfigExt::is_action_task", flatten)]
     pub ext: TaskConfigExt,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TaskReportConfig {
+    #[serde(default)]
+    pub embeds: Vec<SubmissionReportEmbedConfig>,
+    // TODO: uploads
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum TaskEmbeds {
+    Error(String),
+    Values(HashMap<String, String>),
+}
+
+impl Default for TaskEmbeds {
+    fn default() -> Self {
+        Self::Values(Default::default())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -18,7 +18,7 @@ use crate::{
         ComposerQueueItem, ComposerQueueTx, SubmissionCompletedSignal, SubmissionSignal,
         SubmissionSignalExt,
     },
-    conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
+    conf::{AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
 static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(|| Default::default());
@@ -34,10 +34,6 @@ pub async fn run(
     composer_tx: ComposerQueueTx,
     config: &AmqpExchangeConfig,
 ) -> Result<()> {
-    if conf::CONFIG.composer.report_progress && config.report.progress_routing_key.is_empty() {
-        bail!("report_progress is enabled but progress_routing_key is not specified");
-    }
-
     info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
 
     let (trigger, shutdown) = triggered::trigger();

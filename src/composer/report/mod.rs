@@ -1,48 +1,50 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use futures_util::future;
+use serde_json::Value;
 use tokio::{
     fs::{self, File},
     io::{AsyncReadExt, BufReader},
 };
+use tracing::instrument;
 
-use crate::entities::{Submission, SubmissionConfig, SubmissionReportConfig, SubmissionReporter};
+use crate::entities::{Submission, SubmissionReportEmbedConfig, SubmissionReporter};
 
 mod javascript;
 mod utils;
 
-pub async fn make_submission_report(
-    config: Arc<SubmissionConfig>,
-    reporter: &SubmissionReporter,
-) -> Result<SubmissionReportConfig> {
-    match reporter {
-        SubmissionReporter::JavaScript { javascript } => {
-            javascript::execute_javascript_reporter(
-                serde_json::to_string(&config)?,
-                javascript.to_string(),
-            )
-            .await
-        }
-    }
-}
-
-pub struct ApplyReportConfigResult {
-    pub embeds: HashMap<String, String>,
-}
-
-pub async fn apply_report_config(
-    config: &SubmissionReportConfig,
+#[instrument(skip_all)]
+pub async fn execute_reporter(
     submission: &Submission,
-) -> Result<ApplyReportConfigResult> {
-    if !config.uploads.is_empty() {
-        bail!("`uploads` is not implemented");
+    reporter: &SubmissionReporter,
+    data: Value,
+) -> Result<Value> {
+    let mut config = match reporter {
+        SubmissionReporter::JavaScript { javascript } => {
+            javascript::execute_javascript_reporter(data, javascript.to_string()).await?
+        }
+    };
+
+    let embeds = apply_embeds_config(&submission.root_directory, &config.embeds)
+        .await
+        .context("Error applying the embeds config")?;
+    for (field, content) in embeds {
+        config.report.insert(field, content.into());
     }
 
-    let embeds = HashMap::from_iter({
-        future::try_join_all(config.embeds.iter().map(|embed| async move {
+    serde_json::to_value(config.report).context("Error serializing the report from the reporter")
+}
+
+#[instrument(skip(root))]
+pub async fn apply_embeds_config(
+    root: &Path,
+    embeds: &[SubmissionReportEmbedConfig],
+) -> Result<HashMap<String, String>> {
+    Ok(HashMap::from_iter({
+        future::try_join_all(embeds.iter().map(|embed| async move {
             // TODO: Should we check for malicious paths?
-            let path = submission.root_directory.join(&embed.path);
+            let path = root.join(&embed.path);
 
             async {
                 let metadata = fs::metadata(&path).await.context("Error checking metadata")?;
@@ -64,9 +66,6 @@ pub async fn apply_report_config(
             .await
             .with_context(|| format!("Error handling the file: {}", path.display()))
         }))
-        .await
-        .context("Error applying embeds config")?
-    });
-
-    Ok(ApplyReportConfigResult { embeds })
+        .await?
+    }))
 }

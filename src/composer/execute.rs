@@ -6,22 +6,19 @@ use either::Either;
 use ring_channel::RingSender;
 use serde_json::Value;
 use tokio::{
-    sync::{oneshot, Mutex},
+    sync::{mpsc, oneshot},
     time::Instant,
 };
-use tracing::{debug, error, info_span, instrument, Instrument, Span};
+use tracing::{debug, error, instrument, Span};
 
-use super::{
-    predicate,
-    report::{apply_report_config, make_submission_report},
-    SubmissionProgressSignal, SubmissionSignal, SubmissionSignalExt,
-};
+use super::{predicate, report::execute_reporter, SubmissionSignal};
 use crate::{
-    conf,
+    composer::{report::apply_embeds_config, SubmissionProgressSignal, SubmissionSignalExt},
     entities::{
         ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
         ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
-        TaskConfigExt, TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus, TaskSuccessReport,
+        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus,
+        TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -30,8 +27,8 @@ use crate::{
 struct ExecutionContext {
     submission_id: String,
     submission_root: PathBuf,
-    status_tx: Mutex<RingSender<SubmissionSignal>>,
     worker_queue_tx: WorkerQueueTx,
+    progress_tx: mpsc::Sender<()>,
 }
 
 #[instrument(skip_all)]
@@ -40,11 +37,21 @@ pub async fn execute_submission(
     worker_queue_tx: WorkerQueueTx,
     status_tx: RingSender<SubmissionSignal>,
 ) -> Result<(bool, Value, Option<Result<Value>>)> {
+    let submission = Arc::new(submission);
+
+    let (abort_tx, abort_rx) = mpsc::channel(1);
+    let (progress_tx, progress_rx) = mpsc::channel(8);
+    tokio::spawn({
+        let span = Span::current();
+        let submission = submission.clone();
+        handle_progress_report(span, submission, abort_rx, progress_rx, status_tx)
+    });
+
     let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
-        status_tx: Mutex::new(status_tx),
         worker_queue_tx,
+        progress_tx,
     };
 
     let results = futures_util::future::join_all(
@@ -52,34 +59,67 @@ pub async fn execute_submission(
     )
     .await;
 
+    _ = abort_tx.send(());
+
     let success = results.into_iter().all(|success| success);
     let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
-    let report = {
-        match &submission.config.reporter {
-            None => None,
-            Some(reporter) => Some({
-                let span = info_span!(parent: Span::current(), "handle_reporter");
-                async {
-                    let mut report_config =
-                        make_submission_report(submission.config.clone(), reporter).await?;
-
-                    let result = apply_report_config(&report_config, &submission).await?;
-
-                    for (field, content) in result.embeds {
-                        report_config.report.insert(field, content.into());
-                    }
-
-                    serde_json::to_value(report_config.report)
-                        .context("Error serializing report returned by the reporter")
-                }
-                .instrument(span)
-                .await
-                .context("Error executing the reporter")
-            }),
-        }
+    let report = match &submission.config.reporter {
+        None => None,
+        Some(reporter) => Some(execute_reporter(&submission, reporter, status.clone()).await),
     };
     Ok((success, status, report))
+}
+
+#[instrument(skip_all, parent = parent_span)]
+async fn handle_progress_report(
+    parent_span: Span,
+    submission: Arc<Submission>,
+    mut abort_rx: mpsc::Receiver<()>,
+    mut progress_rx: mpsc::Receiver<()>,
+    status_tx: RingSender<SubmissionSignal>,
+) {
+    loop {
+        tokio::select! {
+            _ = abort_rx.recv() => break,
+            item = progress_rx.recv() => match item {
+                None => break,
+                Some(_) => {
+                    let Some(reporter) = &submission.config.reporter else {
+                        continue;
+                    };
+
+                    let result = async {
+                        let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
+                        let result = execute_reporter(&submission, reporter, status.clone()).await;
+                        _ = status_tx.clone().send(SubmissionSignal {
+                            id: Some(submission.id.clone()),
+                            ext: SubmissionSignalExt::Progress({
+                                match result {
+                                    Err(err) => SubmissionProgressSignal {
+                                        status,
+                                        report: None,
+                                        report_error: Some(format!("{err:#}"))
+                                    },
+                                    Ok(report) => SubmissionProgressSignal {
+                                        status,
+                                        report: Some(report),
+                                        report_error: None,
+                                    }
+                                }
+                            }),
+                        });
+                        anyhow::Ok(())
+                    }
+                    .await;
+
+                    if let Err(err) = result {
+                        error!("Error handling the progress report: {err:#}");
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[async_recursion]
@@ -90,6 +130,18 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> bo
         }
         TaskNodeExt::Schedule(tasks) => track_schedule_execution(ctx, node.clone(), tasks).await,
     };
+
+    if node.config.progress {
+        _ = ctx.progress_tx.send(());
+    }
+
+    if let Some(report) = &node.config.report {
+        *node.config.embeds.write().unwrap() =
+            match apply_embeds_config(&ctx.submission_root, &report.embeds).await {
+                Err(err) => TaskEmbeds::Error(format!("Error applying embeds config: {err:#}")),
+                Ok(embeds) => TaskEmbeds::Values(embeds),
+            };
+    }
 
     let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
         .children
@@ -165,23 +217,6 @@ async fn track_schedule_execution(
 
     {
         *node.config.status.write().unwrap() = status;
-    }
-
-    if conf::CONFIG.composer.report_progress {
-        match serde_json::to_value(&node.config) {
-            Err(err) => {
-                error!("Error serializing the task node config: {err:#}");
-            }
-            Ok(status) => {
-                _ = ctx.status_tx.lock().await.send(SubmissionSignal {
-                    id: Some(ctx.submission_id.clone()),
-                    ext: SubmissionSignalExt::Progress(SubmissionProgressSignal {
-                        name: node.name.clone(),
-                        status,
-                    }),
-                });
-            }
-        }
     }
 
     success

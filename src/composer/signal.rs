@@ -19,8 +19,13 @@ pub enum SubmissionSignalExt {
 
 #[derive(Debug, Serialize)]
 pub struct SubmissionProgressSignal {
-    pub name: String,
     pub status: Value,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub report_error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
