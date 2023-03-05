@@ -91,17 +91,13 @@ async fn handle_submission(
     let submission_id = submission.id.clone();
     let signal = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
         Err(err) => SubmissionCompletedSignal::InternalError { error: format!("{err:#}") },
-        Ok((success, status, report)) => {
+        Ok((status, report)) => {
             let (report, report_error) = match report {
                 None => (None, None),
                 Some(Ok(report)) => (Some(report), None),
                 Some(Err(err)) => (None, Some(format!("{err:#}"))),
             };
-            if success {
-                SubmissionCompletedSignal::Success { status, report, report_error }
-            } else {
-                SubmissionCompletedSignal::ExecutionError { status, report, report_error }
-            }
+            SubmissionCompletedSignal::Done { status, report, report_error }
         }
     };
 
@@ -113,7 +109,7 @@ async fn do_handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
     status_tx: ring_channel::RingSender<SubmissionSignal>,
-) -> Result<(bool, Value, Option<Result<Value>>)> {
+) -> Result<(Value, Option<Result<Value>>)> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
     if fs::metadata(&submission_root).await.is_ok() {
         bail!(
@@ -137,14 +133,8 @@ async fn do_handle_submission(
         .context("Error executing the submission");
 
     match &result {
-        Ok((false, _, Some(Err(err)))) => {
-            error!("The execution returned a failed report and the reporter failed: {err:#}");
-        }
-        Ok((false, _, None)) => {
-            error!("The execution returned a failed report");
-        }
-        Ok((true, _, Some(Err(err)))) => {
-            error!("The execution succeeded but the reporter failed: {err:#}");
+        Ok((_, Some(Err(err)))) => {
+            error!("The reporter failed: {err:#}");
         }
         Err(err) => {
             error!("{err:#}");

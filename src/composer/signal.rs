@@ -37,16 +37,7 @@ pub enum SubmissionCompletedSignal {
     InternalError {
         error: String,
     },
-    ExecutionError {
-        status: Value,
-
-        #[serde(skip_serializing_if = "Option::is_none")]
-        report: Option<Value>,
-
-        #[serde(skip_serializing_if = "Option::is_none")]
-        report_error: Option<String>,
-    },
-    Success {
+    Done {
         status: Value,
 
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,8 +53,7 @@ impl SubmissionCompletedSignal {
         match self {
             Self::ParseError { .. } => "PARSE_ERROR",
             Self::InternalError { .. } => "INTERNAL_ERROR",
-            Self::ExecutionError { .. } => "EXECUTION_ERROR",
-            Self::Success { .. } => "SUCCESS",
+            Self::Done { .. } => "DONE",
         }
     }
 }

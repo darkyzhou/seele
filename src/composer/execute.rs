@@ -36,7 +36,7 @@ pub async fn execute_submission(
     submission: Submission,
     worker_queue_tx: WorkerQueueTx,
     status_tx: RingSender<SubmissionSignal>,
-) -> Result<(bool, Value, Option<Result<Value>>)> {
+) -> Result<(Value, Option<Result<Value>>)> {
     let submission = Arc::new(submission);
 
     let (abort_tx, abort_rx) = mpsc::channel(1);
@@ -54,21 +54,20 @@ pub async fn execute_submission(
         progress_tx,
     };
 
-    let results = futures_util::future::join_all(
+    futures_util::future::join_all(
         submission.root_node.tasks.iter().cloned().map(|task| track_task_execution(&ctx, task)),
     )
     .await;
 
     _ = abort_tx.send(());
 
-    let success = results.into_iter().all(|success| success);
     let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
     let report = match &submission.config.reporter {
         None => None,
         Some(reporter) => Some(execute_reporter(&submission, reporter, status.clone()).await),
     };
-    Ok((success, status, report))
+    Ok((status, report))
 }
 
 #[instrument(skip_all, parent = parent_span)]
@@ -123,7 +122,7 @@ async fn handle_progress_report(
 }
 
 #[async_recursion]
-async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> bool {
+async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) {
     let success = match &node.ext {
         TaskNodeExt::Action(config) => {
             track_action_execution(ctx, node.clone(), config.clone()).await
@@ -162,12 +161,10 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> bo
         skip_task_node(node);
     }
 
-    let results = futures_util::future::join_all(
+    futures_util::future::join_all(
         continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
     )
     .await;
-
-    return success && results.into_iter().all(|success| success);
 }
 
 #[instrument(skip_all, fields(task.name = node.name))]
