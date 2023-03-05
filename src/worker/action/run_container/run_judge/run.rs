@@ -8,13 +8,9 @@ use triggered::Listener;
 
 use super::MOUNT_DIRECTORY;
 use crate::{
-    conf,
     entities::ActionSuccessReportExt,
     worker::{
-        run_container::{
-            self,
-            runj::{self},
-        },
+        run_container::{self, runj},
         ActionContext,
     },
 };
@@ -31,6 +27,7 @@ pub struct Config {
 #[derive(Debug, Clone)]
 pub struct MountFile {
     pub name: String,
+    pub rename: Option<String>,
     pub exec: bool,
 }
 
@@ -44,14 +41,16 @@ impl TryFrom<&str> for MountFile {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(match value.split_once(':') {
-            None => Self { name: value.to_owned(), exec: false },
-            Some((name, options)) => {
-                if options != "exec" {
-                    bail!("Unexpected file option: {options}");
-                }
-                Self { name: name.to_owned(), exec: true }
+        Ok(match value.split(':').collect::<Vec<_>>()[..] {
+            [name] => Self { name: name.to_owned(), rename: None, exec: false },
+            [name, "exec"] => Self { name: name.to_owned(), rename: None, exec: true },
+            [name, rename] => {
+                Self { name: name.to_owned(), rename: Some(rename.to_owned()), exec: false }
             }
+            [name, rename, "exec"] => {
+                Self { name: name.to_owned(), rename: Some(rename.to_owned()), exec: true }
+            }
+            _ => bail!("Unexpected file item: {value}"),
         })
     }
 }
@@ -85,10 +84,6 @@ pub async fn execute(
     ctx: &ActionContext,
     config: &Config,
 ) -> Result<ActionSuccessReportExt> {
-    if config.files.is_empty() {
-        bail!("Unexpected empty `files`");
-    }
-
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
@@ -102,41 +97,33 @@ pub async fn execute(
 
         for file in &config.files {
             let from_path = ctx.submission_root.join(&file.name);
-            let to_path = [MOUNT_DIRECTORY, &file.name].iter().collect::<PathBuf>();
 
             if let Err(err) = fs::metadata(&from_path).await {
                 bail!("The file {file} does not exist: {err:#}");
             }
 
             run_container_config.mounts.push(run_container::MountConfig::Full({
-                if !file.exec {
-                    runj::MountConfig { from: from_path, to: to_path, options: None }
-                } else {
+                if file.exec {
                     fs::set_permissions(&from_path, Permissions::from_mode(0o777))
                         .await
                         .with_context(|| {
                             format!("Error setting the permission of the executable {file}")
                         })?;
-
-                    if !conf::CONFIG.worker.action.run_container.tmp_noexec {
-                        runj::MountConfig {
-                            from: from_path,
-                            to: to_path,
-                            options: Some(vec!["exec".to_owned()]),
-                        }
-                    } else {
-                        let new_from_path =
-                            conf::PATHS.new_temp_directory().await?.join(&file.name);
-                        fs::copy(&from_path, &new_from_path)
-                            .await
-                            .with_context(|| format!("Error copying the file: {file}"))?;
-                        runj::MountConfig {
-                            from: new_from_path,
-                            to: to_path,
-                            options: Some(vec!["exec".to_owned()]),
-                        }
-                    }
                 }
+
+                let to_path = [
+                    MOUNT_DIRECTORY,
+                    match &file.rename {
+                        Some(name) => name,
+                        None => &file.name,
+                    },
+                ]
+                .iter()
+                .collect::<PathBuf>();
+
+                let options = if file.exec { Some(vec!["exec".to_owned()]) } else { None };
+
+                runj::MountConfig { from: from_path, to: to_path, options }
             }));
         }
 
