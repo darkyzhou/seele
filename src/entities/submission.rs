@@ -108,8 +108,31 @@ pub struct TaskConfig {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TaskReportConfig {
     #[serde(default)]
-    pub embeds: Vec<SubmissionReportEmbedConfig>,
+    pub embeds: Vec<TaskReportEmbedConfig>,
     // TODO: uploads
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TaskReportEmbedConfig {
+    #[serde(default)]
+    pub when: TaskReportEmbedWhenConfig,
+
+    #[serde(flatten)]
+    pub inner: SubmissionReportEmbedConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskReportEmbedWhenConfig {
+    Success,
+    Failure,
+    Always,
+}
+
+impl Default for TaskReportEmbedWhenConfig {
+    fn default() -> Self {
+        Self::Always
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]

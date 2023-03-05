@@ -17,8 +17,8 @@ use crate::{
     entities::{
         ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
         ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
-        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt, TaskStatus,
-        TaskSuccessReport,
+        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt,
+        TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -136,8 +136,18 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> bo
     }
 
     if let Some(report) = &node.config.report {
+        let embeds = report
+            .embeds
+            .iter()
+            .filter(|config| match config.when {
+                TaskReportEmbedWhenConfig::Success => success,
+                TaskReportEmbedWhenConfig::Failure => !success,
+                TaskReportEmbedWhenConfig::Always => true,
+            })
+            .map(|config| config.inner.clone())
+            .collect::<Vec<_>>();
         *node.config.embeds.write().unwrap() =
-            match apply_embeds_config(&ctx.submission_root, &report.embeds).await {
+            match apply_embeds_config(&ctx.submission_root, &embeds).await {
                 Err(err) => TaskEmbeds::Error(format!("Error applying embeds config: {err:#}")),
                 Ok(embeds) => TaskEmbeds::Values(embeds),
             };
@@ -177,7 +187,7 @@ async fn track_action_execution(
     };
 
     if let TaskStatus::Failed { report } = &status {
-        error!("The execution of the task returned a failed report: {:?}", report);
+        error!("The execution of the task returned a failed report: {report:?}");
     }
 
     let success = matches!(status, TaskStatus::Success { .. });
