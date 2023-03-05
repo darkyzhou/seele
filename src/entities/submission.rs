@@ -277,16 +277,8 @@ pub struct ActionFailedReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_elapsed_ms: Option<u64>,
 
-    pub error: String,
-
-    #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub ext: Option<ActionFailedReportExt>,
-}
-
-impl From<String> for ActionFailedReport {
-    fn from(value: String) -> Self {
-        Self { run_at: None, time_elapsed_ms: None, error: value, ext: None }
-    }
+    #[serde(flatten)]
+    pub ext: ActionFailedReportExt,
 }
 
 #[derive(Debug, Clone)]

@@ -151,11 +151,13 @@ async fn execute_action(
         Err(err) => ActionFailedReport {
             run_at: Some(run_at),
             time_elapsed_ms: Some(time_elapsed_ms),
-            error: format!("Error executing the action: {err:#}"),
             ext: err
                 .root_cause()
                 .downcast_ref::<ActionErrorWithReport>()
-                .map(|err| err.report.clone()),
+                .map(|err| err.report.clone())
+                .unwrap_or_else(|| ActionFailedReportExt::Internal {
+                    error: "Failed to downcast the error".to_owned(),
+                }),
         }
         .into(),
         Ok(ext) => ActionSuccessReport { run_at, time_elapsed_ms, ext }.into(),

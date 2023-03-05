@@ -30,8 +30,9 @@ pub enum ActionSuccessReportExt {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ActionFailedReportExt {
+    Internal { error: String },
     Noop(action::noop::ExecutionReport),
     AddFile(action::add_file::FailedReport),
     RunContainer(action::run_container::ExecutionReport),

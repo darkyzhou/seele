@@ -15,10 +15,10 @@ use super::{predicate, report::execute_reporter, SubmissionSignal};
 use crate::{
     composer::{report::apply_embeds_config, SubmissionProgressSignal, SubmissionSignalExt},
     entities::{
-        ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
-        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
-        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt,
-        TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
+        ActionFailedReport, ActionFailedReportExt, ActionReport, ActionTaskConfig,
+        ParallelFailedReport, ParallelSuccessReport, ParallelTaskConfig, SequenceFailedReport,
+        SequenceSuccessReport, Submission, TaskConfig, TaskConfigExt, TaskEmbeds, TaskFailedReport,
+        TaskNode, TaskNodeExt, TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -181,7 +181,13 @@ async fn track_action_execution(
 
     let status = match result {
         Err(err) => TaskStatus::Failed {
-            report: TaskFailedReport::Action(format!("Error submitting the task: {err:#}").into()),
+            report: TaskFailedReport::Action(ActionFailedReport {
+                run_at: None,
+                time_elapsed_ms: None,
+                ext: ActionFailedReportExt::Internal {
+                    error: format!("Error submitting the task: {err:#}"),
+                },
+            }),
         },
         Ok(report) => report.into(),
     };
