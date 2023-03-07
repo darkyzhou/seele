@@ -56,6 +56,12 @@ pub struct FdConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stderr: Option<PathBuf>,
+
+    #[serde(default)]
+    pub stdout_to_stderr: bool,
+
+    #[serde(default)]
+    pub stderr_to_stdout: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

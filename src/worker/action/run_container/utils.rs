@@ -59,6 +59,7 @@ pub async fn make_runj_config(ctx: &ActionContext, config: Config) -> Result<run
         stdin: fd.stdin.map(|path| ctx.submission_root.join(path)),
         stdout: fd.stdout.map(|path| ctx.submission_root.join(path)),
         stderr: fd.stderr.map(|path| ctx.submission_root.join(path)),
+        ..fd
     });
 
     let mounts = config
