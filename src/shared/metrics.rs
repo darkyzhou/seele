@@ -11,7 +11,7 @@ use crate::conf;
 
 pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
     let mut pairs = vec![
-        KeyValue::new("service.name", env!("CARGO_PKG_NAME")),
+        KeyValue::new("service.name", "seele"),
         KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
         KeyValue::new("host.name", conf::HOSTNAME.clone()),
     ];
@@ -34,11 +34,11 @@ pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
 pub static METRICS_CONTROLLER: OnceCell<BasicController> = OnceCell::new();
 
 pub static METER: Lazy<Meter> =
-    Lazy::new(|| global::meter_with_version(env!("CARGO_PKG_NAME"), Some("0.1"), None));
+    Lazy::new(|| global::meter_with_version("seele", Some("0.1"), None));
 
 pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
     METER
-        .f64_histogram("submission.duration")
+        .f64_histogram("seele.submission.duration")
         .with_description("Duration of submissions handling")
         .with_unit(Unit::new("s"))
         .init()
@@ -46,21 +46,21 @@ pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
 
 pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     METER
-        .u64_observable_gauge("runner.count")
+        .u64_observable_gauge("seele.runner.count")
         .with_description("Count of available runner threads")
         .init()
 });
 
 pub static PENDING_SUBMISSION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     METER
-        .u64_observable_gauge("submission.pending.count")
+        .u64_observable_gauge("seele.submission.pending.count")
         .with_description("Count of pending submissions in the composer queue")
         .init()
 });
 
 pub static PENDING_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     METER
-        .u64_observable_gauge("action.pending.count")
+        .u64_observable_gauge("seele.action.pending.count")
         .with_description("Count of pending actions in the worker queue")
         .init()
 });
