@@ -103,16 +103,26 @@ func prepareFds(config *entities.FdConfig) (*os.File, *os.File, *os.File, error)
 		stdErrFile *os.File
 	)
 	if config != nil && config.StdOutToStdErr {
+		if config.StdOut != "" {
+			return nil, nil, nil, fmt.Errorf("Cannot have both StdOut and StdOutToStdErr set")
+		}
+
 		stdErrFile, err = prepareOutFd(false, config)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Error preparing the stderr file: %w", err)
 		}
+
 		stdOutFile = stdErrFile
 	} else if config != nil && config.StdErrToStdOut {
+		if config.StdErr != "" {
+			return nil, nil, nil, fmt.Errorf("Cannot have both StdErr and StdErrToStdOut set")
+		}
+
 		stdOutFile, err = prepareOutFd(true, config)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Error preparing the stdout file: %w", err)
 		}
+
 		stdErrFile = stdOutFile
 	} else {
 		stdOutFile, err = prepareOutFd(true, config)
