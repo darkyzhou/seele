@@ -79,59 +79,15 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		}
 	}()
 
-	var (
-		stdInFile      *os.File
-		stdOutFile     *os.File
-		stdErrFile     *os.File
-		stdOutFilePath string
-		stdErrFilePath string
-	)
-	{
-		stdInFilePath := lo.TernaryF(
-			config.Fd == nil || config.Fd.StdIn == "",
-			func() string {
-				return "/dev/null"
-			},
-			func() string {
-				return config.Fd.StdIn
-			},
-		)
-		stdInFile, err = os.Open(stdInFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("Error opening the stdin file %s: %w", stdInFilePath, err)
-		}
-		defer stdInFile.Close()
-
-		stdOutFilePath = lo.TernaryF(
-			config.Fd == nil || config.Fd.StdOut == "",
-			func() string {
-				return "/dev/null"
-			},
-			func() string {
-				return config.Fd.StdOut
-			},
-		)
-		stdOutFile, err = prepareOutFile(stdOutFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("Error preparing the stdout file %s: %w", stdOutFilePath, err)
-		}
-		defer stdOutFile.Close()
-
-		stdErrFilePath = lo.TernaryF(
-			config.Fd == nil || config.Fd.StdErr == "",
-			func() string {
-				return "/dev/null"
-			},
-			func() string {
-				return config.Fd.StdErr
-			},
-		)
-		stdErrFile, err = prepareOutFile(stdErrFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("Error preparing the stderr file %s: %w", stdErrFilePath, err)
-		}
-		defer stdErrFile.Close()
+	stdInFile, stdOutFile, stdErrFile, err := prepareFds(config.Fd)
+	if err != nil {
+		return nil, fmt.Errorf("Error preparing fds")
 	}
+	defer func() {
+		_ = stdInFile.Close()
+		_ = stdOutFile.Close()
+		_ = stdErrFile.Close()
+	}()
 
 	var (
 		rlimits     []configs.Rlimit
@@ -253,8 +209,6 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		wallTime,
 		wallTimeLimitExceeded,
 		cgroupPath,
-		stdOutFilePath,
-		stdErrFilePath,
 		rlimitFsize,
 	})
 	if err != nil {

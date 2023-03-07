@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs2"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/samber/lo"
 	"golang.org/x/sys/unix"
 )
 
@@ -76,6 +77,85 @@ func getIdMappings(config *entities.UserNamespaceConfig) ([]specs.LinuxIDMapping
 		}
 }
 
+func prepareFds(config *entities.FdConfig) (*os.File, *os.File, *os.File, error) {
+	if config != nil && config.StdErrToStdOut && config.StdOutToStdErr {
+		return nil, nil, nil, fmt.Errorf("Cannot have both StdErrToStdOut and StdOutToStdErr set")
+	}
+
+	var err error
+
+	stdInFilePath := lo.TernaryF(
+		config == nil || config.StdIn == "",
+		func() string {
+			return os.DevNull
+		},
+		func() string {
+			return config.StdIn
+		},
+	)
+	stdInFile, err := os.Open(stdInFilePath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("Error opening the stdin file %s: %w", stdInFilePath, err)
+	}
+
+	var (
+		stdOutFile *os.File
+		stdErrFile *os.File
+	)
+	if config != nil && config.StdOutToStdErr {
+		stdErrFile, err = prepareOutFd(false, config)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Error preparing the stderr file: %w", err)
+		}
+		stdOutFile = stdErrFile
+	} else if config != nil && config.StdErrToStdOut {
+		stdOutFile, err = prepareOutFd(true, config)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Error preparing the stdout file: %w", err)
+		}
+		stdErrFile = stdOutFile
+	} else {
+		stdOutFile, err = prepareOutFd(true, config)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Error preparing the stdout file: %w", err)
+		}
+
+		stdErrFile, err = prepareOutFd(false, config)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Error preparing the stderr file: %w", err)
+		}
+	}
+
+	return stdInFile, stdOutFile, stdErrFile, nil
+}
+
+func prepareOutFd(stdout bool, config *entities.FdConfig) (*os.File, error) {
+	if config == nil || (stdout && config.StdOut == "") || (!stdout && config.StdErr == "") {
+		mask := unix.Umask(0)
+		file, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0664)
+		unix.Umask(mask)
+		if err != nil {
+			return nil, fmt.Errorf("Error opening the %s: %w", os.DevNull, err)
+		}
+		return file, nil
+	} else {
+		path := lo.Ternary(stdout, config.StdOut, config.StdErr)
+
+		modes := os.O_WRONLY | os.O_TRUNC
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			modes = modes | os.O_CREATE | os.O_EXCL
+		}
+
+		mask := unix.Umask(0)
+		file, err := os.OpenFile(path, modes, 0664)
+		unix.Umask(mask)
+		if err != nil {
+			return nil, fmt.Errorf("Error opening the file: %w", err)
+		}
+		return file, nil
+	}
+}
+
 func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
 	// FIXME: In seele bare work mode, 'others' bits are not important
 	if err := utils.CheckPermission(config.LowerDirectory, 0b000_101_101); err != nil {
@@ -101,21 +181,6 @@ func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
 		return "", fmt.Errorf("Error serializing the config: %w", err)
 	}
 	return string(data), nil
-}
-
-func prepareOutFile(path string) (*os.File, error) {
-	modes := os.O_WRONLY | os.O_TRUNC
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		modes = modes | os.O_CREATE | os.O_EXCL
-	}
-
-	mask := unix.Umask(0)
-	file, err := os.OpenFile(path, modes, 0664)
-	unix.Umask(mask)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening the file: %w", err)
-	}
-	return file, nil
 }
 
 func checkIsOOM(cgroupPath string) (bool, error) {

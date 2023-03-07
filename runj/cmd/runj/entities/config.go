@@ -30,9 +30,11 @@ type OverlayfsConfig struct {
 }
 
 type FdConfig struct {
-	StdIn  string `mapstructure:"stdin"`
-	StdOut string `mapstructure:"stdout"`
-	StdErr string `mapstructure:"stderr"`
+	StdIn          string `mapstructure:"stdin"`
+	StdOut         string `mapstructure:"stdout"`
+	StdErr         string `mapstructure:"stderr"`
+	StdOutToStdErr bool   `mapstructure:"stdout_to_stderr"`
+	StdErrToStdOut bool   `mapstructure:"stderr_to_stdout"`
 }
 
 type MountConfig struct {

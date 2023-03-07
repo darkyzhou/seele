@@ -30,8 +30,6 @@ type ExecutionReportProps struct {
 	wallTime              time.Duration
 	wallTimeLimitExceeded bool
 	cgroupPath            string
-	stdOutFilePath        string
-	stdErrFilePath        string
 	rlimitFsize           uint64
 }
 
@@ -125,7 +123,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 	// the output files' lengths additionally to determine whether it is actually an OLE status.
 	if props.rlimitFsize > 0 {
 		if props.config.Fd != nil && props.config.Fd.StdOut != "" {
-			info, err := os.Stat(props.stdOutFilePath)
+			info, err := os.Stat(props.config.Fd.StdOut)
 			if err != nil {
 				return nil, fmt.Errorf("Error checking the stdout file length: %w", err)
 			}
@@ -136,7 +134,7 @@ func makeExecutionReport(props *ExecutionReportProps) (*entities.ExecutionReport
 		}
 
 		if props.config.Fd != nil && props.config.Fd.StdErr != "" {
-			info, err := os.Stat(props.stdErrFilePath)
+			info, err := os.Stat(props.config.Fd.StdErr)
 			if err != nil {
 				return nil, fmt.Errorf("Error checking the stderr file length: %w", err)
 			}
