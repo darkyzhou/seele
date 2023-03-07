@@ -99,7 +99,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 
     ClientBuilder::new(
         Client::builder()
-            .user_agent(concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("seele/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(5)) // TODO: move to conf
             .timeout(Duration::from_secs(30)) // TODO: move to conf
             // TODO: pool_idle_timeout?
