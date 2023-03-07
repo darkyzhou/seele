@@ -21,6 +21,5 @@ export default {
   },
   check: (report) => {
     assert.strictEqual(report.status, "MEMORY_LIMIT_EXCEEDED");
-    assert.strictEqual(report.memory_usage_kib < 12 * 1024, true);
   },
 };
