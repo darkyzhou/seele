@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use futures_util::future;
 use serde_json::Value;
 use tokio::{
@@ -42,13 +42,20 @@ pub async fn apply_embeds_config(
     embeds: &[SubmissionReportEmbedConfig],
 ) -> Result<HashMap<String, String>> {
     Ok(HashMap::from_iter({
-        future::try_join_all(embeds.iter().map(|embed| async move {
+        future::try_join_all(embeds.iter().map(|config| async move {
             // TODO: Should we check for malicious paths?
-            let path = root.join(&embed.path);
+            let path = root.join(&config.path);
 
             async {
-                let metadata = fs::metadata(&path).await.context("Error checking metadata")?;
-                let truncate_bytes = embed.truncate_kib * 1024;
+                let Ok(metadata) = fs::metadata(&path).await else {
+                    if !config.ignore_if_missing {
+                        bail!("Failed to open the file");
+                    }
+
+                    return Ok(None);
+                };
+
+                let truncate_bytes = config.truncate_kib * 1024;
                 let content = {
                     let mut reader =
                         BufReader::new(File::open(&path).await.context("Error opening the file")?);
@@ -61,11 +68,13 @@ pub async fn apply_embeds_config(
                     String::from_utf8_lossy(&buffer).to_string()
                 };
 
-                anyhow::Ok((embed.field.clone(), content))
+                anyhow::Ok(Some((config.field.clone(), content)))
             }
             .await
             .with_context(|| format!("Error handling the file: {}", path.display()))
         }))
         .await?
+        .into_iter()
+        .filter_map(|item| item)
     }))
 }

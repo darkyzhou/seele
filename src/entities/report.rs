@@ -29,6 +29,14 @@ pub struct SubmissionReportEmbedConfig {
     pub path: PathBuf,
     pub field: String,
     pub truncate_kib: usize,
+
+    #[serde(default = "default_ignore_if_missing")]
+    pub ignore_if_missing: bool,
+}
+
+#[inline]
+fn default_ignore_if_missing() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
