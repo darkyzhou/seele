@@ -111,7 +111,9 @@ fn main() {
 
                     let metrics = opentelemetry_otlp::new_pipeline()
                         .metrics(
-                            selectors::simple::histogram(vec![5.0, 15.0, 30.0, 60.0]),
+                            selectors::simple::histogram(vec![
+                                0.05, 0.3, 1.8, 5.0, 15.0, 30.0, 60.0,
+                            ]),
                             cumulative_temporality_selector(),
                             opentelemetry::runtime::Tokio,
                         )
