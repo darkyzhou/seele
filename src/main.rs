@@ -127,7 +127,7 @@ fn main() {
                             ),
                         )
                         .with_resource(METRICS_RESOURCE.clone())
-                        .with_period(Duration::from_secs(5))
+                        .with_period(Duration::from_secs(3))
                         .build()
                         .context("Failed to initialize the metrics")?;
 
