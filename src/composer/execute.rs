@@ -158,7 +158,7 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) {
         skip_task_node(node);
     }
 
-    futures_util::future::join_all(
+    future::join_all(
         continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
     )
     .await;
@@ -170,6 +170,10 @@ async fn track_action_execution(
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
 ) -> bool {
+    {
+        *node.config.status.write().unwrap() = TaskStatus::Running;
+    }
+
     debug!("Submitting the action");
     let result = submit_action(ctx, config.clone()).await;
 
@@ -205,11 +209,13 @@ async fn track_schedule_execution(
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
 ) -> bool {
+    {
+        *node.config.status.write().unwrap() = TaskStatus::Running;
+    }
+
     let begin = Instant::now();
-    futures_util::future::join_all(
-        tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)),
-    )
-    .await;
+    future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)))
+        .await;
     let time_elapsed_ms = {
         let end = Instant::now();
         end.duration_since(begin).as_millis().try_into().unwrap()

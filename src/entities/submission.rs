@@ -180,6 +180,7 @@ pub struct ParallelTaskConfig {
 pub enum TaskStatus {
     Pending,
     Skipped,
+    Running,
     Failed { report: TaskFailedReport },
     Success { report: TaskSuccessReport },
 }
