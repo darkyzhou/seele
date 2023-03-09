@@ -3,6 +3,7 @@ use std::{iter, path::PathBuf, sync::Arc};
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
 use either::Either;
+use futures_util::future;
 use ring_channel::RingSender;
 use serde_json::Value;
 use tokio::{
@@ -54,7 +55,7 @@ pub async fn execute_submission(
         progress_tx,
     };
 
-    futures_util::future::join_all(
+    future::join_all(
         submission.root_node.tasks.iter().cloned().map(|task| track_task_execution(&ctx, task)),
     )
     .await;
