@@ -190,10 +190,6 @@ async fn track_action_execution(
         Ok(report) => report.into(),
     };
 
-    if let TaskStatus::Failed { report } = &status {
-        error!("The execution of the task returned a failed report: {report:?}");
-    }
-
     let success = matches!(status, TaskStatus::Success { .. });
 
     {
