@@ -166,7 +166,7 @@ func prepareOutFd(stdout bool, config *entities.FdConfig) (*os.File, error) {
 	}
 }
 
-func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
+func prepareOverlayfs(userNamespaceConfig *entities.UserNamespaceConfig, config *entities.OverlayfsConfig) (string, error) {
 	// FIXME: In seele bare work mode, 'others' bits are not important
 	if err := utils.CheckPermission(config.LowerDirectory, 0b000_101_101); err != nil {
 		return "", fmt.Errorf("Error checking lower directory's permissions: %w", err)
@@ -176,6 +176,15 @@ func prepareOverlayfs(config *entities.OverlayfsConfig) (string, error) {
 	}
 	if err := utils.CheckPermission(config.MergedDirectory, 0b111_000_000); err != nil {
 		return "", fmt.Errorf("Error checking merged directory's permissions: %w", err)
+	}
+
+	if userNamespaceConfig != nil && userNamespaceConfig.Enabled {
+		if err := os.Chown(config.UpperDirectory, int(userNamespaceConfig.RootUid), int(userNamespaceConfig.RootGid)); err != nil {
+			return "", fmt.Errorf("Error chowning upper directory: %w", err)
+		}
+		if err := os.Chown(config.MergedDirectory, int(userNamespaceConfig.RootUid), int(userNamespaceConfig.RootGid)); err != nil {
+			return "", fmt.Errorf("Error chowning merged directory: %w", err)
+		}
 	}
 
 	workdirEmpty, err := utils.DirectoryEmpty(config.WorkDirectory)

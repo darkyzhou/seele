@@ -122,7 +122,7 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		}
 	}
 
-	overlayfsConfig, err := prepareOverlayfs(config.Overlayfs)
+	overlayfsConfig, err := prepareOverlayfs(config.UserNamespace, config.Overlayfs)
 	if err != nil {
 		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
 	}
