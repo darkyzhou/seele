@@ -20,7 +20,6 @@ pub struct FileItem {
 pub enum FileItemExt {
     Http { url: String },
     PlainText { plain: String },
-    Base64 { base64: String },
 }
 
 impl Display for FileItem {
@@ -35,8 +34,6 @@ impl Display for FileItem {
                 FileItemExt::Http { url } => url.to_string(),
                 FileItemExt::PlainText { plain } =>
                     format!("{}...", plain.as_str().truncate_ellipse(30)),
-                FileItemExt::Base64 { base64 } =>
-                    format!("{}...", base64.as_str().truncate_ellipse(50)),
             }
         )
     }
