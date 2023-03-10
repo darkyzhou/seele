@@ -15,7 +15,7 @@ use triggered::Listener;
 pub use self::{entities::*, idmap::*, image::prepare_image};
 use self::{
     runj::ContainerExecutionStatus,
-    utils::{check_and_create_directories, make_runj_config},
+    utils::{check_and_create_directories, cleanup_overlayfs, make_runj_config},
 };
 use super::ActionContext;
 use crate::{
@@ -54,7 +54,7 @@ pub async fn execute(
     let report = runner::spawn_blocking({
         let local = RUNNER_THREAD_LOCAL.clone();
         let span = info_span!(parent: Span::current(), "execute_runj");
-        move || span.in_scope(move || prepare_and_execute_runj(abort, &local, config))
+        move || span.in_scope(move || execute_runj(abort, &local, config))
     })
     .await??;
 
@@ -70,7 +70,7 @@ pub async fn execute(
     }
 }
 
-fn prepare_and_execute_runj(
+fn execute_runj(
     abort: Listener,
     local: &ThreadLocal<i64>,
     mut config: RunjConfig,
@@ -89,12 +89,12 @@ fn prepare_and_execute_runj(
         config.limits.cgroup.cpuset_cpus = Some(format!("{}", cpu));
     }
 
-    let config =
+    let config_json =
         serde_json::to_string(&config).context("Error serializing the converted config")?;
 
     let mut output = vec![];
     let mut reader = cmd!(&conf::CONFIG.paths.runj)
-        .stdin_bytes(config.as_bytes())
+        .stdin_bytes(config_json.as_bytes())
         .stderr_to_stdout()
         .reader()
         .context("Error running the runj process")?;
@@ -119,11 +119,14 @@ fn prepare_and_execute_runj(
 
     let result = reader.read_to_end(&mut output);
 
-    if abort.is_triggered() {
-        bail!(ABORTED_MESSAGE);
+    if let Err(err) = cleanup_overlayfs(&config.overlayfs) {
+        warn!("Error cleaning up overlayfs directories: {err:#}");
     }
 
     _ = cancel_tx.send(());
+    if abort.is_triggered() {
+        bail!(ABORTED_MESSAGE);
+    }
 
     match result {
         Ok(_) => {

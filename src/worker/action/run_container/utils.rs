@@ -1,9 +1,14 @@
 use std::{fs::Permissions, os::unix::prelude::PermissionsExt};
 
 use anyhow::{Context, Result};
+use nix::mount;
 use tokio::fs;
 
-use super::{idmap, image, runj, Config};
+use super::{
+    idmap, image,
+    runj::{self, OverlayfsConfig},
+    Config,
+};
 use crate::{
     cgroup,
     conf::{self, SeeleWorkMode},
@@ -31,10 +36,12 @@ pub async fn make_runj_config(ctx: &ActionContext, config: Config) -> Result<run
     };
 
     let overlayfs = {
-        let random_id = nano_id::base62::<8>();
-        let upper_dir = ctx.submission_root.join(format!("__run_container_upper_{}", random_id));
-        let work_dir = ctx.submission_root.join(format!("__run_container_work_{}", random_id));
-        let merged_dir = ctx.submission_root.join(format!("__run_container_merged_{}", random_id));
+        let id = nano_id::base62::<8>();
+
+        let lower_dir = image::get_unpacked_image_path(&config.image).join("rootfs");
+        let upper_dir = conf::PATHS.temp.join(format!("__run_container_upper_{id}"));
+        let work_dir = conf::PATHS.temp.join(format!("__run_container_work_{id}"));
+        let merged_dir = conf::PATHS.temp.join(format!("__run_container_merged_{id}"));
 
         fs::create_dir(&upper_dir).await?;
         fs::create_dir(&work_dir).await?;
@@ -45,12 +52,7 @@ pub async fn make_runj_config(ctx: &ActionContext, config: Config) -> Result<run
         fs::set_permissions(&work_dir, Permissions::from_mode(0o777)).await?;
         fs::set_permissions(&merged_dir, Permissions::from_mode(0o777)).await?;
 
-        runj::OverlayfsConfig {
-            lower_dir: image::get_unpacked_image_path(&config.image).join("rootfs"),
-            upper_dir,
-            work_dir,
-            merged_dir: merged_dir.clone(),
-        }
+        runj::OverlayfsConfig { lower_dir, upper_dir, work_dir, merged_dir }
     };
 
     let command = config.command.try_into().context("Error parsing command")?;
@@ -97,5 +99,15 @@ pub async fn check_and_create_directories(config: &runj::RunjConfig) -> Result<(
         }
     }
 
+    Ok(())
+}
+
+pub fn cleanup_overlayfs(config: &OverlayfsConfig) -> Result<()> {
+    _ = mount::umount(&config.merged_dir);
+
+    use std::fs;
+    fs::remove_dir_all(&config.merged_dir).context("Error removing merged directory")?;
+    fs::remove_dir_all(&config.work_dir).context("Error removing work directory")?;
+    fs::remove_dir_all(&config.upper_dir).context("Error removing upper directory")?;
     Ok(())
 }
