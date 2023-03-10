@@ -14,7 +14,7 @@ pub struct RunjConfig {
     pub cwd: PathBuf,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub paths: Option<Vec<String>>,
+    pub paths: Option<Vec<PathBuf>>,
 
     pub command: Vec<String>,
 

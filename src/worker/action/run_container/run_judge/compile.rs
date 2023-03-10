@@ -6,7 +6,7 @@ use tokio::fs;
 use tracing::{instrument, warn};
 use triggered::Listener;
 
-use super::MOUNT_DIRECTORY;
+use super::DEFAULT_MOUNT_DIRECTORY;
 use crate::{
     conf,
     entities::ActionSuccessReportExt,
@@ -22,10 +22,10 @@ pub struct Config {
     pub run_container_config: run_container::Config,
 
     #[serde(default)]
-    pub source: Vec<String>,
+    pub source: Vec<PathBuf>,
 
     #[serde(default)]
-    pub save: Vec<String>,
+    pub save: Vec<PathBuf>,
 
     #[serde(default)]
     pub cache: Vec<CacheItem>,
@@ -52,11 +52,11 @@ pub async fn execute(
     let result = async {
         let run_container_config = {
             let mut run_container_config = config.run_container_config.clone();
-            run_container_config.cwd = PathBuf::from(MOUNT_DIRECTORY);
+            run_container_config.cwd = DEFAULT_MOUNT_DIRECTORY.to_owned();
 
             run_container_config.mounts.push(run_container::MountConfig::Full(runj::MountConfig {
                 from: mount_directory.clone(),
-                to: PathBuf::from(MOUNT_DIRECTORY),
+                to: DEFAULT_MOUNT_DIRECTORY.to_owned(),
                 options: None,
             }));
 
@@ -66,7 +66,7 @@ pub async fn execute(
                     .iter()
                     .map(|file| runj::MountConfig {
                         from: ctx.submission_root.join(file),
-                        to: [MOUNT_DIRECTORY, file].iter().collect(),
+                        to: DEFAULT_MOUNT_DIRECTORY.join(file),
                         options: None,
                     })
                     .map(run_container::MountConfig::Full),
@@ -82,18 +82,18 @@ pub async fn execute(
             let target = ctx.submission_root.join(file);
             let metadata = fs::metadata(&source)
                 .await
-                .with_context(|| format!("The file {file} to save does not exist"))?;
+                .with_context(|| format!("The file {} to save does not exist", file.display()))?;
 
             if metadata.is_file() {
                 fs::copy(source, target).await.context("Error copying the file")?;
                 continue;
             } else if metadata.is_dir() {
-                bail!("Saving a directory is currently unsupported: {}", file);
+                bail!("Saving a directory is not supported: {}", file.display());
             } else if metadata.is_symlink() {
-                bail!("Saving a symlink is currently unsupported: {}", file);
+                bail!("Saving a symlink is not supported: {}", file.display());
             }
 
-            bail!("Unknown file type: {}", file);
+            bail!("Unknown file type: {}", file.display());
         }
 
         Ok(report)

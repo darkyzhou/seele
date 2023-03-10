@@ -6,7 +6,7 @@ use tokio::fs;
 use tracing::instrument;
 use triggered::Listener;
 
-use super::MOUNT_DIRECTORY;
+use super::DEFAULT_MOUNT_DIRECTORY;
 use crate::{
     entities::ActionSuccessReportExt,
     worker::{
@@ -26,37 +26,13 @@ pub struct Config {
 
 #[derive(Debug, Clone)]
 pub struct MountFile {
-    pub name: String,
-    pub rename: Option<String>,
+    pub from_path: PathBuf,
+    pub to_path: PathBuf,
     pub exec: bool,
 }
 
-impl Display for MountFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-impl TryFrom<&str> for MountFile {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(match value.split(':').collect::<Vec<_>>()[..] {
-            [name] => Self { name: name.to_owned(), rename: None, exec: false },
-            [name, "exec"] => Self { name: name.to_owned(), rename: None, exec: true },
-            [name, rename] => {
-                Self { name: name.to_owned(), rename: Some(rename.to_owned()), exec: false }
-            }
-            [name, rename, "exec"] => {
-                Self { name: name.to_owned(), rename: Some(rename.to_owned()), exec: true }
-            }
-            _ => bail!("Unexpected file item: {value}"),
-        })
-    }
-}
-
 impl<'de> Deserialize<'de> for MountFile {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -66,15 +42,45 @@ impl<'de> Deserialize<'de> for MountFile {
 }
 
 impl Serialize for MountFile {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        if self.exec {
-            serializer.serialize_str(&format!("{}:exec", self.name))
-        } else {
-            serializer.serialize_str(&self.name)
-        }
+        serializer.serialize_str(&format!("{self}"))
+    }
+}
+
+impl TryFrom<&str> for MountFile {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(match value.split(':').collect::<Vec<_>>()[..] {
+            [from_path] => {
+                Self { from_path: from_path.into(), to_path: from_path.into(), exec: false }
+            }
+            [from_path, "exec"] => {
+                Self { from_path: from_path.into(), to_path: from_path.into(), exec: true }
+            }
+            [from_path, to_path] => {
+                Self { from_path: from_path.into(), to_path: to_path.into(), exec: false }
+            }
+            [from_path, to_path, "exec"] => {
+                Self { from_path: from_path.into(), to_path: to_path.into(), exec: true }
+            }
+            _ => bail!("Unexpected file item: {value}"),
+        })
+    }
+}
+
+impl Display for MountFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}:{}{}",
+            self.from_path.display(),
+            self.to_path.display(),
+            if self.exec { ":exec" } else { "" }
+        )
     }
 }
 
@@ -87,16 +93,16 @@ pub async fn execute(
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 
-        run_container_config.cwd = MOUNT_DIRECTORY.into();
+        run_container_config.cwd = DEFAULT_MOUNT_DIRECTORY.to_owned();
 
         if let Some(paths) = run_container_config.paths.as_mut() {
-            paths.push(MOUNT_DIRECTORY.to_string());
+            paths.push(DEFAULT_MOUNT_DIRECTORY.to_owned());
         } else {
-            run_container_config.paths = Some(vec![MOUNT_DIRECTORY.to_string()]);
+            run_container_config.paths = Some(vec![DEFAULT_MOUNT_DIRECTORY.to_owned()]);
         }
 
         for file in &config.files {
-            let from_path = ctx.submission_root.join(&file.name);
+            let from_path = ctx.submission_root.join(&file.from_path);
 
             if let Err(err) = fs::metadata(&from_path).await {
                 bail!("The file {file} does not exist: {err:#}");
@@ -111,15 +117,7 @@ pub async fn execute(
                         })?;
                 }
 
-                let to_path = [
-                    MOUNT_DIRECTORY,
-                    match &file.rename {
-                        Some(name) => name,
-                        None => &file.name,
-                    },
-                ]
-                .iter()
-                .collect::<PathBuf>();
+                let to_path = DEFAULT_MOUNT_DIRECTORY.join(&file.to_path);
 
                 let options = if file.exec { Some(vec!["exec".to_owned()]) } else { None };
 

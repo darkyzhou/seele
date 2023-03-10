@@ -22,7 +22,7 @@ pub struct Config {
     pub fd: Option<runj::FdConfig>,
 
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub paths: Option<Vec<String>>,
+    pub paths: Option<Vec<PathBuf>>,
 
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub mounts: Vec<MountConfig>,
