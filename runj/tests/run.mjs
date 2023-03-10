@@ -1,13 +1,12 @@
 import { merge } from "lodash-es";
 import { spawn } from "node:child_process";
 import { chmod, mkdir, rm, readdir, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const RUNJ_PATH = resolve(fileURLToPath(import.meta.url), "../../bin/runj");
-const TEMP_PATH = resolve(tmpdir(), "runj-test");
+const TEMP_PATH = resolve("./runj-test");
 const IMAGE_ROOTFS_PATH = resolve(
   fileURLToPath(import.meta.url),
   "../image/rootfs"
