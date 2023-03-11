@@ -55,6 +55,15 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		}
 	}()
 
+	overlayfsConfig, err := prepareOverlayfs(config.UserNamespace, config.Overlayfs)
+	if err != nil {
+		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
+	}
+	// FIXME: Dirty hack
+	// There is almost no way to pass data to the runc child process
+	// except this one and patching runc itself.
+	os.Setenv("GOMAXPROCS", overlayfsConfig)
+
 	containerConfig, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
 		Spec:             spec,
@@ -121,15 +130,6 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 			}
 		}
 	}
-
-	overlayfsConfig, err := prepareOverlayfs(config.UserNamespace, config.Overlayfs)
-	if err != nil {
-		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
-	}
-	// FIXME: Dirty hack
-	// There is almost no way to pass data to the runc child process
-	// except this one and patching runc itself.
-	os.Setenv("GOMAXPROCS", overlayfsConfig)
 
 	noNewPrivileges := true
 	pathEnv := "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" + lo.Ternary(len(config.Paths) <= 0, "", ":"+strings.Join(config.Paths, ":"))
