@@ -120,7 +120,12 @@ fn default_worker_thread_count() -> usize {
 
 #[inline]
 fn default_runner_thread_count() -> usize {
-    num_cpus::get() - 2
+    let count = num_cpus::get();
+    if count <= 2 {
+        panic!("There are too few cpu cores on your system, seele requires at least 3 cpu cores");
+    }
+
+    count - 2
 }
 
 #[derive(Debug, Deserialize)]
