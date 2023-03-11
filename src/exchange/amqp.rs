@@ -15,7 +15,7 @@ use triggered::Listener;
 
 use crate::{
     composer::{ComposerQueueItem, ComposerQueueTx, SubmissionSignal, SubmissionSignalExt},
-    conf::{AmqpExchangeConfig, AmqpExchangeReportConfig},
+    conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
 static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(|| Default::default());
@@ -139,6 +139,11 @@ async fn do_consume(
         )
         .await
         .context("Error declaring the report exchange")?;
+
+    channel
+        .basic_qos(conf::CONFIG.thread_counts.runner.try_into()?, Default::default())
+        .await
+        .context("Error setting channel qos")?;
 
     let channel = Arc::new(channel);
 
