@@ -2,6 +2,7 @@ use std::{iter, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
+use chrono::Utc;
 use either::Either;
 use futures_util::future;
 use ring_channel::RingSender;
@@ -14,7 +15,7 @@ use tracing::{debug, error, instrument, Span};
 
 use super::{predicate, report::execute_reporter, SubmissionSignal};
 use crate::{
-    composer::{report::apply_embeds_config, SubmissionSignalExt},
+    composer::{report::apply_embeds_config, SubmissionReportSignal, SubmissionSignalExt},
     entities::{
         ActionFailedReport, ActionFailedReportExt, ActionReport, ActionTaskConfig,
         ParallelFailedReport, ParallelSuccessReport, ParallelTaskConfig, SequenceFailedReport,
@@ -92,17 +93,22 @@ async fn handle_progress_report(
                     let result = async {
                         let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
                         let result = execute_reporter(&submission, reporter, status.clone()).await;
+                        let report_at = Utc::now();
                         _ = status_tx.clone().send(SubmissionSignal {
                             id: Some(submission.id.clone()),
                             ext: match result {
-                                Err(err) => SubmissionSignalExt::Progress {
-                                    status,
+                                Err(err) => SubmissionSignalExt::Progress(SubmissionReportSignal {
+                                    report_at,
                                     report: None,
                                     report_error: Some(format!("{err:#}")),
-                                },
-                                Ok(report) => {
-                                    SubmissionSignalExt::Progress { status, report: Some(report), report_error: None }
-                                }
+                                    status,
+                                }),
+                                Ok(report) => SubmissionSignalExt::Progress(SubmissionReportSignal {
+                                    report_at,
+                                    report: Some(report),
+                                    report_error: None,
+                                    status
+                                })
                             },
                         });
                         anyhow::Ok(())

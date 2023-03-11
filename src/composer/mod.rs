@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{bail, Context, Result};
+use chrono::Utc;
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use ring_channel::RingSender;
 use serde_json::Value;
@@ -77,7 +78,7 @@ async fn handle_submission(
         let message = format!("Error parsing the submission: {:#}", err);
         error!(message);
 
-        let ext = SubmissionSignalExt::Error { error: message };
+        let ext = SubmissionSignalExt::Error(SubmissionErrorSignal { error: message });
         Span::current().record(SUBMISSION_STATUS, ext.get_type());
         return SubmissionSignal { id: None, ext };
     }
@@ -88,14 +89,19 @@ async fn handle_submission(
 
     let submission_id = submission.id.clone();
     let ext = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
-        Err(err) => SubmissionSignalExt::Error { error: format!("{err:#}") },
+        Err(err) => SubmissionSignalExt::Error(SubmissionErrorSignal { error: format!("{err:#}") }),
         Ok((status, report)) => {
             let (report, report_error) = match report {
                 None => (None, None),
                 Some(Ok(report)) => (Some(report), None),
                 Some(Err(err)) => (None, Some(format!("{err:#}"))),
             };
-            SubmissionSignalExt::Completed { status, report, report_error }
+            SubmissionSignalExt::Completed(SubmissionReportSignal {
+                report_at: Utc::now(),
+                status,
+                report,
+                report_error,
+            })
         }
     };
 
