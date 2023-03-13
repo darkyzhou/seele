@@ -22,10 +22,10 @@ pub struct Config {
     pub run_container_config: run_container::Config,
 
     #[serde(default)]
-    pub source: Vec<PathBuf>,
+    pub sources: Vec<PathBuf>,
 
     #[serde(default)]
-    pub save: Vec<PathBuf>,
+    pub saves: Vec<PathBuf>,
 
     #[serde(default)]
     pub cache: Vec<CacheItem>,
@@ -62,7 +62,7 @@ pub async fn execute(
 
             run_container_config.mounts.extend(
                 config
-                    .source
+                    .sources
                     .iter()
                     .map(|file| runj::MountConfig {
                         from: ctx.submission_root.join(file),
@@ -77,7 +77,7 @@ pub async fn execute(
 
         let report = run_container::execute(handle, ctx, &run_container_config).await?;
 
-        for file in &config.save {
+        for file in &config.saves {
             let source = mount_directory.join(file);
             let target = ctx.submission_root.join(file);
             let metadata = fs::metadata(&source)
