@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{bail, Result};
 use chrono::Utc;
@@ -15,8 +15,7 @@ pub use self::action::*;
 use crate::{
     conf,
     entities::{
-        ActionFailedReport, ActionFailedReportExt, ActionReport, ActionSuccessReport,
-        ActionTaskConfig,
+        ActionFailedReport, ActionReport, ActionReportExt, ActionSuccessReport, ActionTaskConfig,
     },
 };
 
@@ -28,26 +27,7 @@ pub struct WorkerQueueItem {
     pub submission_id: String,
     pub submission_root: PathBuf,
     pub config: Arc<ActionTaskConfig>,
-    pub report_tx: oneshot::Sender<ActionReport>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ActionErrorWithReport {
-    report: ActionFailedReportExt,
-}
-
-impl ActionErrorWithReport {
-    pub fn new(report: ActionFailedReportExt) -> Self {
-        Self { report }
-    }
-}
-
-impl Error for ActionErrorWithReport {}
-
-impl Display for ActionErrorWithReport {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Action execution failed with a report")
-    }
+    pub report_tx: oneshot::Sender<Result<ActionReport>>,
 }
 
 pub type WorkerQueueTx = mpsc::Sender<WorkerQueueItem>;
@@ -124,22 +104,24 @@ async fn execute_action(
     handle: Listener,
     submission_root: PathBuf,
     task: &ActionTaskConfig,
-) -> ActionReport {
+) -> Result<ActionReport> {
     let ctx = Arc::new(ActionContext { submission_root });
 
     let begin = Instant::now();
     let run_at = Utc::now();
-    let result = match task {
-        ActionTaskConfig::Noop(config) => action::noop::execute(config).await,
-        ActionTaskConfig::AddFile(config) => action::add_file::execute(handle, &ctx, config).await,
+    let ext = match task {
+        ActionTaskConfig::Noop(config) => action::noop::execute(config).await?,
+        ActionTaskConfig::AddFile(config) => {
+            action::add_file::execute(handle, &ctx, config).await?
+        }
         ActionTaskConfig::RunContainer(config) => {
-            action::run_container::execute(handle, &ctx, config).await
+            action::run_container::execute(handle, &ctx, config).await?
         }
         ActionTaskConfig::RunJudgeCompile(config) => {
-            action::run_container::run_judge::compile::execute(handle, &ctx, config).await
+            action::run_container::run_judge::compile::execute(handle, &ctx, config).await?
         }
         ActionTaskConfig::RunJudgeRun(config) => {
-            action::run_container::run_judge::run::execute(handle, &ctx, config).await
+            action::run_container::run_judge::run::execute(handle, &ctx, config).await?
         }
     };
     let time_elapsed_ms = {
@@ -147,19 +129,12 @@ async fn execute_action(
         end.duration_since(begin).as_millis().try_into().unwrap()
     };
 
-    match result {
-        Err(err) => ActionFailedReport {
-            run_at: Some(run_at),
-            time_elapsed_ms: Some(time_elapsed_ms),
-            ext: err
-                .root_cause()
-                .downcast_ref::<ActionErrorWithReport>()
-                .map(|err| err.report.clone())
-                .unwrap_or_else(|| ActionFailedReportExt::Internal {
-                    error: "Failed to downcast the error".to_owned(),
-                }),
+    Ok(match ext {
+        ActionReportExt::Success(ext) => {
+            ActionReport::Success(ActionSuccessReport { run_at, time_elapsed_ms, ext })
         }
-        .into(),
-        Ok(ext) => ActionSuccessReport { run_at, time_elapsed_ms, ext }.into(),
-    }
+        ActionReportExt::Failure(ext) => {
+            ActionReport::Failed(ActionFailedReport { run_at, time_elapsed_ms, ext })
+        }
+    })
 }

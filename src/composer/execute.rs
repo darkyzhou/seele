@@ -1,6 +1,6 @@
 use std::{iter, path::PathBuf, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
 use chrono::Utc;
 use either::Either;
@@ -17,13 +17,24 @@ use super::{predicate, report::execute_reporter, SubmissionSignal};
 use crate::{
     composer::{report::apply_embeds_config, SubmissionReportSignal, SubmissionSignalExt},
     entities::{
-        ActionFailedReport, ActionFailedReportExt, ActionReport, ActionTaskConfig,
-        ParallelFailedReport, ParallelSuccessReport, ParallelTaskConfig, SequenceFailedReport,
-        SequenceSuccessReport, Submission, TaskConfig, TaskConfigExt, TaskEmbeds, TaskFailedReport,
-        TaskNode, TaskNodeExt, TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
+        ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
+        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
+        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt,
+        TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
+
+macro_rules! join_errors {
+    ($errors:expr) => {
+        $errors
+            .into_iter()
+            .filter_map(|item| item.err())
+            .map(|err| format!("{err:#}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+}
 
 #[derive(Debug)]
 struct ExecutionContext {
@@ -56,12 +67,16 @@ pub async fn execute_submission(
         progress_tx,
     };
 
-    future::join_all(
+    let results = future::join_all(
         submission.root_node.tasks.iter().cloned().map(|task| track_task_execution(&ctx, task)),
     )
     .await;
-
     _ = abort_tx.send(());
+
+    let errors = join_errors!(results);
+    if !errors.is_empty() {
+        bail!("Execution got following internal error(s):\n{errors}");
+    }
 
     let status = serde_json::to_value(&submission.config)
         .context("Error serializing the submission report")?;
@@ -125,12 +140,12 @@ async fn handle_progress_report(
 }
 
 #[async_recursion]
-async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) {
+async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Result<()> {
     let success = match &node.ext {
         TaskNodeExt::Action(config) => {
-            track_action_execution(ctx, node.clone(), config.clone()).await
+            track_action_execution(ctx, node.clone(), config.clone()).await?
         }
-        TaskNodeExt::Schedule(tasks) => track_schedule_execution(ctx, node.clone(), tasks).await,
+        TaskNodeExt::Schedule(tasks) => track_schedule_execution(ctx, node.clone(), tasks).await?,
     };
 
     if node.config.progress {
@@ -164,10 +179,16 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) {
         skip_task_node(node);
     }
 
-    future::join_all(
+    let results = future::join_all(
         continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
     )
     .await;
+    let errors = join_errors!(results);
+    if !errors.is_empty() {
+        bail!("{errors}");
+    }
+
+    Ok(())
 }
 
 #[instrument(skip_all, fields(task.name = node.name))]
@@ -175,34 +196,23 @@ async fn track_action_execution(
     ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
-) -> bool {
+) -> Result<bool> {
     {
         *node.config.status.write().unwrap() = TaskStatus::Running;
     }
 
     debug!("Submitting the action");
-    let result = submit_action(ctx, config.clone()).await;
-
-    let status = match result {
-        Err(err) => TaskStatus::Failed {
-            report: TaskFailedReport::Action(ActionFailedReport {
-                run_at: None,
-                time_elapsed_ms: None,
-                ext: ActionFailedReportExt::Internal {
-                    error: format!("Error submitting the task: {err:#}"),
-                },
-            }),
-        },
+    let status = match submit_action(ctx, config.clone()).await {
+        Err(err) => bail!("Action {} encountered an internal error: {:#}", node.name, err),
         Ok(report) => report.into(),
     };
-
     let success = matches!(status, TaskStatus::Success { .. });
 
     {
         *node.config.status.write().unwrap() = status;
     }
 
-    success
+    Ok(success)
 }
 
 #[instrument(skip_all, fields(task.name = node.name))]
@@ -210,21 +220,27 @@ async fn track_schedule_execution(
     ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
-) -> bool {
+) -> Result<bool> {
     {
         *node.config.status.write().unwrap() = TaskStatus::Running;
     }
 
     let begin = Instant::now();
-    future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)))
-        .await;
+    let results =
+        future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)))
+            .await;
     let time_elapsed_ms = {
         let end = Instant::now();
         end.duration_since(begin).as_millis().try_into().unwrap()
     };
 
+    let errors = join_errors!(results);
+    if !errors.is_empty() {
+        bail!("{errors}");
+    }
+
     let status = match &node.config.ext {
-        TaskConfigExt::Action(_) => panic!("Unexpected schedule task"),
+        TaskConfigExt::Action(_) => unreachable!(),
         TaskConfigExt::Parallel(config) => resolve_parallel_status(time_elapsed_ms, config),
         TaskConfigExt::Sequence(config) => resolve_sequence_status(
             time_elapsed_ms,
@@ -237,7 +253,7 @@ async fn track_schedule_execution(
         *node.config.status.write().unwrap() = status;
     }
 
-    success
+    Ok(success)
 }
 
 fn resolve_parallel_status(time_elapsed_ms: u64, config: &ParallelTaskConfig) -> TaskStatus {
@@ -340,10 +356,11 @@ async fn submit_action(
             config,
             report_tx: tx,
         })
-        .await?;
+        .await
+        .context("Failed to send the item")?;
 
     // TODO: timeout
-    Ok(rx.await?)
+    Ok(rx.await.context("Failed to receive the report")??)
 }
 
 #[cfg(test)]
@@ -381,13 +398,13 @@ mod tests {
                     results.push(config);
 
                     report_tx
-                        .send(ActionReport::Success(ActionSuccessReport {
+                        .send(Ok(ActionReport::Success(ActionSuccessReport {
                             run_at: Utc::now(),
                             time_elapsed_ms: 0,
                             ext: ActionSuccessReportExt::Noop(action::noop::ExecutionReport {
                                 test: 0,
                             }),
-                        }))
+                        })))
                         .unwrap();
                 }
 

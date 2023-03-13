@@ -12,9 +12,8 @@ pub use self::entities::*;
 use super::ActionContext;
 use crate::{
     conf,
-    entities::{ActionFailedReportExt, ActionSuccessReportExt},
+    entities::{ActionFailureReportExt, ActionReportExt, ActionSuccessReportExt},
     shared::{self, cond::CondGroup},
-    worker::ActionErrorWithReport,
 };
 
 mod entities;
@@ -24,7 +23,7 @@ pub async fn execute(
     handle: Listener,
     ctx: &ActionContext,
     config: &Config,
-) -> Result<ActionSuccessReportExt> {
+) -> Result<ActionReportExt> {
     let results = future::join_all(config.files.iter().map(|item| {
         let handle = handle.clone();
         async move {
@@ -50,12 +49,12 @@ pub async fn execute(
         .collect();
 
     if !failed_items.is_empty() {
-        bail!(ActionErrorWithReport::new(ActionFailedReportExt::AddFile(FailedReport {
-            files: failed_items
+        return Ok(ActionReportExt::Failure(ActionFailureReportExt::AddFile(FailedReport {
+            files: failed_items,
         })));
     }
 
-    Ok(ActionSuccessReportExt::AddFile)
+    Ok(ActionReportExt::Success(ActionSuccessReportExt::AddFile))
 }
 
 async fn handle_plain_text_file(mut file: File, text: &str) -> Result<()> {

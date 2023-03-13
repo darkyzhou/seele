@@ -8,7 +8,7 @@ use triggered::Listener;
 
 use super::DEFAULT_MOUNT_DIRECTORY;
 use crate::{
-    entities::ActionSuccessReportExt,
+    entities::ActionReportExt,
     worker::{
         run_container::{self, runj},
         ActionContext,
@@ -89,7 +89,7 @@ pub async fn execute(
     handle: Listener,
     ctx: &ActionContext,
     config: &Config,
-) -> Result<ActionSuccessReportExt> {
+) -> Result<ActionReportExt> {
     let run_container_config = {
         let mut run_container_config = config.run_container_config.clone();
 

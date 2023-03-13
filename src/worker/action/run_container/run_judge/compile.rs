@@ -9,7 +9,7 @@ use triggered::Listener;
 use super::DEFAULT_MOUNT_DIRECTORY;
 use crate::{
     conf,
-    entities::ActionSuccessReportExt,
+    entities::ActionReportExt,
     worker::{
         run_container::{self, runj},
         ActionContext,
@@ -43,7 +43,7 @@ pub async fn execute(
     handle: Listener,
     ctx: &ActionContext,
     config: &Config,
-) -> Result<ActionSuccessReportExt> {
+) -> Result<ActionReportExt> {
     let mount_directory = conf::PATHS.new_temp_directory().await?;
     // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
     // bit is for rootful case.

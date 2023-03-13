@@ -20,12 +20,9 @@ use self::{
 use super::ActionContext;
 use crate::{
     cgroup, conf,
-    entities::{ActionFailedReportExt, ActionSuccessReportExt},
+    entities::{ActionFailureReportExt, ActionReportExt, ActionSuccessReportExt},
     shared::{runner, ABORTED_MESSAGE},
-    worker::{
-        run_container::runj::{ContainerExecutionReport, RunjConfig},
-        ActionErrorWithReport,
-    },
+    worker::run_container::runj::{ContainerExecutionReport, RunjConfig},
 };
 
 mod entities;
@@ -42,7 +39,7 @@ pub async fn execute(
     abort: Listener,
     ctx: &ActionContext,
     config: &Config,
-) -> Result<ActionSuccessReportExt> {
+) -> Result<ActionReportExt> {
     image::prepare_image(abort.clone(), config.image.clone())
         .await
         .context("Error preparing the container image")?;
@@ -58,16 +55,18 @@ pub async fn execute(
     })
     .await??;
 
-    match report.status {
-        ContainerExecutionStatus::Normal => Ok(ActionSuccessReportExt::RunContainer(report)),
+    Ok(match report.status {
+        ContainerExecutionStatus::Normal => {
+            ActionReportExt::Success(ActionSuccessReportExt::RunContainer(report))
+        }
         _ => {
             if matches!(report.status, ContainerExecutionStatus::Unknown) {
                 warn!("Unknown container execution status");
             }
 
-            bail!(ActionErrorWithReport::new(ActionFailedReportExt::RunContainer(report)))
+            ActionReportExt::Failure(ActionFailureReportExt::RunContainer(report))
         }
-    }
+    })
 }
 
 fn execute_runj(
@@ -85,8 +84,8 @@ fn execute_runj(
             }
         };
 
-        info!("Bound the runj container to cpu {}", cpu);
-        config.limits.cgroup.cpuset_cpus = Some(format!("{}", cpu));
+        info!("Bound the runj container to cpu {cpu}");
+        config.limits.cgroup.cpuset_cpus = Some(format!("{cpu}"));
     }
 
     let config_json =
@@ -149,7 +148,7 @@ fn execute_runj(
                 String::from_utf8_lossy(&output[..]).to_string()
             };
             error!(seele.error = %texts, "The runj process failed");
-            bail!("The runj process failed: {}", texts)
+            bail!("The runj process failed: {texts}")
         }
     }
 }

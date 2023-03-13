@@ -115,42 +115,49 @@ async fn do_handle_submission(
     status_tx: ring_channel::RingSender<SubmissionSignal>,
 ) -> Result<(Value, Option<Result<Value>>)> {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
-    if fs::metadata(&submission_root).await.is_ok() {
-        bail!(
-            "The submission's directory already exists, it may indicate a duplicate submission \
-             id: {}",
-            submission_root.display()
-        );
+
+    let result = async move {
+        if fs::metadata(&submission_root).await.is_ok() {
+            bail!(
+                "The submission's directory already exists, it may indicate a duplicate \
+                 submission id: {}",
+                submission_root.display()
+            );
+        }
+
+        fs::create_dir_all(&submission_root)
+            .await
+            .context("Error creating the submission directory")?;
+
+        // TODO: Design a better mechanism for cleaning the submission files
+        tokio::spawn({
+            let submission_root = submission_root.clone();
+            async move {
+                sleep(Duration::from_secs(60)).await;
+                _ = fs::remove_dir_all(submission_root).await;
+            }
+        });
+
+        debug!("Resolving the submission");
+        let submission = resolve::resolve_submission(submission, submission_root)
+            .context("Failed to resolve the submission")?;
+
+        debug!("Executing the submission");
+        execute::execute_submission(submission, worker_queue_tx, status_tx)
+            .await
+            .context("Error executing the submission")
     }
-
-    fs::create_dir_all(&submission_root)
-        .await
-        .context("Error creating the submission directory")?;
-
-    debug!("Resolving the submission");
-    let submission = resolve::resolve_submission(submission, submission_root.clone())
-        .context("Failed to resolve the submission")?;
-
-    debug!("Executing the submission");
-    let result = execute::execute_submission(submission, worker_queue_tx, status_tx)
-        .await
-        .context("Error executing the submission");
+    .await;
 
     match &result {
+        Err(err) => {
+            error!("Error handling the submission: {err:#}");
+        }
         Ok((_, Some(Err(err)))) => {
             error!("The reporter failed: {err:#}");
         }
-        Err(err) => {
-            error!("{err:#}");
-        }
         _ => {}
     }
-
-    // TODO: Design a better mechanism for cleaning the submission files
-    tokio::spawn(async move {
-        sleep(Duration::from_secs(60)).await;
-        _ = fs::remove_dir_all(submission_root).await;
-    });
 
     result
 }

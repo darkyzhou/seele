@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ActionFailedReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReportEmbedConfig,
+    ActionFailureReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReportEmbedConfig,
     SubmissionReporter,
 };
 
@@ -215,18 +215,6 @@ pub enum ActionReport {
     Failed(ActionFailedReport),
 }
 
-impl From<ActionSuccessReport> for ActionReport {
-    fn from(value: ActionSuccessReport) -> Self {
-        Self::Success(value)
-    }
-}
-
-impl From<ActionFailedReport> for ActionReport {
-    fn from(value: ActionFailedReport) -> Self {
-        Self::Failed(value)
-    }
-}
-
 impl From<ActionReport> for TaskStatus {
     fn from(value: ActionReport) -> Self {
         match value {
@@ -272,14 +260,11 @@ pub struct ParallelFailedReport {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ActionFailedReport {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub run_at: Option<UtcTimestamp>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub time_elapsed_ms: Option<u64>,
+    pub run_at: UtcTimestamp,
+    pub time_elapsed_ms: u64,
 
     #[serde(flatten)]
-    pub ext: ActionFailedReportExt,
+    pub ext: ActionFailureReportExt,
 }
 
 #[derive(Debug, Clone)]

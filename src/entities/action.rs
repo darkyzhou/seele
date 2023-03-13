@@ -21,6 +21,12 @@ pub enum ActionTaskConfig {
     RunJudgeRun(action::run_container::run_judge::run::Config),
 }
 
+#[derive(Debug, Clone)]
+pub enum ActionReportExt {
+    Success(ActionSuccessReportExt),
+    Failure(ActionFailureReportExt),
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum ActionSuccessReportExt {
@@ -31,8 +37,7 @@ pub enum ActionSuccessReportExt {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ActionFailedReportExt {
-    Internal { error: String },
+pub enum ActionFailureReportExt {
     Noop(action::noop::ExecutionReport),
     AddFile(action::add_file::FailedReport),
     RunContainer(action::run_container::ExecutionReport),
