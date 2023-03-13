@@ -15,7 +15,7 @@ use tokio::{
     sync::oneshot,
     time::sleep,
 };
-use tracing::{debug, error, instrument, warn, Span};
+use tracing::{debug, error, info, instrument, warn, Span};
 use triggered::Listener;
 
 use crate::{
@@ -70,7 +70,7 @@ async fn pull_image(image: &OciImage) -> Result<()> {
         1 + conf::CONFIG.worker.action.run_container.pull_image_timeout_seconds,
     );
 
-    debug!(path = %temp_target_path.display(), skopeo = conf::CONFIG.paths.skopeo, "Pulling the image using skopeo");
+    info!(path = %temp_target_path.display(), skopeo = conf::CONFIG.paths.skopeo, "Pulling the image using skopeo");
     let success = runner::spawn_blocking({
         let image = image.clone();
         let temp_target_path = temp_target_path.clone();
@@ -164,7 +164,7 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
     let (handle_tx, cancel_tx) =
         make_timeout_killer(conf::CONFIG.worker.action.run_container.unpack_image_timeout_seconds);
 
-    debug!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
+    info!(path = %temp_unpacked_path.display(), umoci = conf::CONFIG.paths.umoci, "Unpacking the image using umoci");
     let success = runner::spawn_blocking({
         let image = image.clone();
         let image_path = get_oci_image_path(&image);
