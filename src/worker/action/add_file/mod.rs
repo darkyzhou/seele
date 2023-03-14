@@ -126,6 +126,8 @@ async fn download_http_file(url: String) -> Result<Bytes, String> {
         .send()
         .await
         .map_err(|err| format!("Error sending the request: {err:#}"))?
+        .error_for_status()
+        .map_err(|err| format!("Got a non-ok response: {err:#}"))?
         .bytes()
         .await
         .map_err(|err| format!("Error downloading the content: {err:#}"))
