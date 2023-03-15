@@ -77,23 +77,25 @@ pub async fn execute(
 
         let report = run_container::execute(handle, ctx, &run_container_config).await?;
 
-        for file in &config.saves {
-            let source = mount_directory.join(file);
-            let target = ctx.submission_root.join(file);
-            let metadata = fs::metadata(&source)
-                .await
-                .with_context(|| format!("The file {} to save does not exist", file.display()))?;
+        if matches!(report, ActionReportExt::Success(_)) {
+            for file in &config.saves {
+                let source = mount_directory.join(file);
+                let target = ctx.submission_root.join(file);
+                let metadata = fs::metadata(&source).await.with_context(|| {
+                    format!("The file {} to save does not exist", file.display())
+                })?;
 
-            if metadata.is_file() {
-                fs::copy(source, target).await.context("Error copying the file")?;
-                continue;
-            } else if metadata.is_dir() {
-                bail!("Saving a directory is not supported: {}", file.display());
-            } else if metadata.is_symlink() {
-                bail!("Saving a symlink is not supported: {}", file.display());
+                if metadata.is_file() {
+                    fs::copy(source, target).await.context("Error copying the file")?;
+                    continue;
+                } else if metadata.is_dir() {
+                    bail!("Saving a directory is not supported: {}", file.display());
+                } else if metadata.is_symlink() {
+                    bail!("Saving a symlink is not supported: {}", file.display());
+                }
+
+                bail!("Unknown file type: {}", file.display());
             }
-
-            bail!("Unknown file type: {}", file.display());
         }
 
         Ok(report)
