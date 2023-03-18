@@ -92,40 +92,47 @@ async fn handle_progress_report(
     parent_span: Span,
     submission: Arc<Submission>,
     mut abort_rx: mpsc::Receiver<()>,
-    mut progress_rx: mpsc::Receiver<()>,
+    mut notify_rx: mpsc::Receiver<()>,
     status_tx: RingSender<SubmissionSignal>,
 ) {
     loop {
         tokio::select! {
             _ = abort_rx.recv() => break,
-            item = progress_rx.recv() => match item {
+            item = notify_rx.recv() => match item {
                 None => break,
                 Some(_) => {
-                    let Some(reporter) = &submission.config.reporter else {
-                        continue;
-                    };
-
                     let result = async {
-                        let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
-                        let result = execute_reporter(&submission, reporter, status.clone()).await;
-                        let report_at = Utc::now();
-                        _ = status_tx.clone().send(SubmissionSignal {
-                            id: Some(submission.id.clone()),
-                            ext: match result {
-                                Err(err) => SubmissionSignalExt::Progress(SubmissionReportSignal {
-                                    report_at,
-                                    report: None,
-                                    report_error: Some(format!("{err:#}")),
-                                    status,
-                                }),
-                                Ok(report) => SubmissionSignalExt::Progress(SubmissionReportSignal {
-                                    report_at,
-                                    report: Some(report),
-                                    report_error: None,
-                                    status
+                        let signal = {
+                            let report_at = Utc::now();
+                            let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
+                            SubmissionSignal {
+                                id: Some(submission.id.clone()),
+                                ext: SubmissionSignalExt::Progress(match &submission.config.reporter {
+                                    None => SubmissionReportSignal {
+                                        report_at,
+                                        report: None,
+                                        report_error: None,
+                                        status
+                                    },
+                                    Some(reporter) => match execute_reporter(&submission, reporter, status.clone()).await {
+                                        Ok(report) => SubmissionReportSignal {
+                                            report_at,
+                                            report: Some(report),
+                                            report_error: None,
+                                            status
+                                        },
+                                        Err(err) => SubmissionReportSignal {
+                                            report_at,
+                                            report: None,
+                                            report_error: Some(format!("{err:#}")),
+                                            status,
+                                        },
+                                    }
                                 })
-                            },
-                        });
+                            }
+                        };
+
+                        _ = status_tx.clone().send(signal);
                         anyhow::Ok(())
                     }
                     .await;
