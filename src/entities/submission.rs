@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     ActionFailureReportExt, ActionSuccessReportExt, ActionTaskConfig, SubmissionReportEmbedConfig,
-    SubmissionReporter,
+    SubmissionReportUploadConfig, SubmissionReporter,
 };
 
 pub type UtcTimestamp = DateTime<Utc>;
@@ -109,27 +109,38 @@ pub struct TaskConfig {
 pub struct TaskReportConfig {
     #[serde(default)]
     pub embeds: Vec<TaskReportEmbedConfig>,
-    // TODO: uploads
+
+    #[serde(default)]
+    pub uploads: Vec<TaskReportUploadConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TaskReportEmbedConfig {
     #[serde(default)]
-    pub when: TaskReportEmbedWhenConfig,
+    pub when: TaskReportWhenConfig,
 
     #[serde(flatten)]
     pub inner: SubmissionReportEmbedConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct TaskReportUploadConfig {
+    #[serde(default)]
+    pub when: TaskReportWhenConfig,
+
+    #[serde(flatten)]
+    pub inner: SubmissionReportUploadConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TaskReportEmbedWhenConfig {
+pub enum TaskReportWhenConfig {
     Success,
     Failure,
     Always,
 }
 
-impl Default for TaskReportEmbedWhenConfig {
+impl Default for TaskReportWhenConfig {
     fn default() -> Self {
         Self::Always
     }

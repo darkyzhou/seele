@@ -68,38 +68,29 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 
     use http_cache::MokaManager;
     use http_cache_reqwest::{Cache, CacheMode, HttpCache};
-    use reqwest::Client;
     use reqwest_middleware::ClientBuilder;
 
-    ClientBuilder::new(
-        Client::builder()
-            .user_agent(concat!("seele/", env!("CARGO_PKG_VERSION")))
-            .connect_timeout(Duration::from_secs(5)) // TODO: move to conf
-            .timeout(Duration::from_secs(30)) // TODO: move to conf
-            // TODO: pool_idle_timeout?
-            .build()
-            .unwrap(),
-    )
-    .with(Cache(HttpCache {
-        // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline), the
-        // stale response will be returned.
-        mode: CacheMode::Default,
-        manager: MokaManager::new({
-            use moka::future::Cache;
+    ClientBuilder::new(shared::http::build_http_client())
+        .with(Cache(HttpCache {
+            // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline),
+            // the stale response will be returned.
+            mode: CacheMode::Default,
+            manager: MokaManager::new({
+                use moka::future::Cache;
 
-            let config = &conf::CONFIG.worker.action.add_file;
-            Cache::builder()
-                .name("seele-add-file")
-                .weigher(|_, value: &Arc<Vec<u8>>| -> u32 {
-                    value.len().try_into().unwrap_or(u32::MAX)
-                })
-                .max_capacity(1024 * 1024 * config.cache_size_mib)
-                .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
-                .build()
-        }),
-        options: None,
-    }))
-    .build()
+                let config = &conf::CONFIG.worker.action.add_file;
+                Cache::builder()
+                    .name("seele-add-file")
+                    .weigher(|_, value: &Arc<Vec<u8>>| -> u32 {
+                        value.len().try_into().unwrap_or(u32::MAX)
+                    })
+                    .max_capacity(1024 * 1024 * config.cache_size_mib)
+                    .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
+                    .build()
+            }),
+            options: None,
+        }))
+        .build()
 });
 
 static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =

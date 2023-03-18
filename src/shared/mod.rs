@@ -9,6 +9,7 @@ use tokio::{
 
 pub mod cond;
 pub mod file;
+pub mod http;
 pub mod image;
 pub mod metrics;
 pub mod runner;

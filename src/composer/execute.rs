@@ -2,25 +2,22 @@ use std::{iter, path::PathBuf, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
-use chrono::Utc;
 use either::Either;
 use futures_util::future;
-use ring_channel::RingSender;
-use serde_json::Value;
 use tokio::{
-    sync::{mpsc, oneshot},
+    sync::{mpsc, oneshot, Mutex},
     time::Instant,
 };
-use tracing::{debug, error, instrument, Span};
+use tracing::{debug, instrument, Span};
 
-use super::{predicate, report::execute_reporter, SubmissionSignal};
+use super::predicate;
 use crate::{
-    composer::{report::apply_embeds_config, SubmissionReportSignal, SubmissionSignalExt},
+    composer::report::apply_embeds_config,
     entities::{
         ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
-        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission, TaskConfig,
-        TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt,
-        TaskReportEmbedWhenConfig, TaskStatus, TaskSuccessReport,
+        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission,
+        SubmissionReportUploadConfig, TaskConfig, TaskConfigExt, TaskEmbeds, TaskFailedReport,
+        TaskNode, TaskNodeExt, TaskReportWhenConfig, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -42,108 +39,34 @@ struct ExecutionContext {
     submission_root: PathBuf,
     worker_queue_tx: WorkerQueueTx,
     progress_tx: mpsc::Sender<()>,
+    upload_configs: Mutex<Vec<SubmissionReportUploadConfig>>,
 }
 
 #[instrument(skip_all)]
 pub async fn execute_submission(
-    submission: Submission,
+    submission: Arc<Submission>,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: RingSender<SubmissionSignal>,
-) -> Result<(Value, Option<Result<Value>>)> {
-    let submission = Arc::new(submission);
-
-    let (abort_tx, abort_rx) = mpsc::channel(1);
-    let (progress_tx, progress_rx) = mpsc::channel(8);
-    tokio::spawn({
-        let span = Span::current();
-        let submission = submission.clone();
-        handle_progress_report(span, submission, abort_rx, progress_rx, status_tx)
-    });
-
+    progress_tx: mpsc::Sender<()>,
+) -> Result<Vec<SubmissionReportUploadConfig>> {
     let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
         worker_queue_tx,
         progress_tx,
+        upload_configs: Mutex::default(),
     };
 
     let results = future::join_all(
         submission.root_node.tasks.iter().cloned().map(|task| track_task_execution(&ctx, task)),
     )
     .await;
-    _ = abort_tx.send(());
 
     let errors = join_errors!(results);
     if !errors.is_empty() {
         bail!("Execution got following internal error(s):\n{errors}");
     }
 
-    let status = serde_json::to_value(&submission.config)
-        .context("Error serializing the submission report")?;
-    let report = match &submission.config.reporter {
-        None => None,
-        Some(reporter) => Some(execute_reporter(&submission, reporter, status.clone()).await),
-    };
-    Ok((status, report))
-}
-
-#[instrument(skip_all, parent = parent_span)]
-async fn handle_progress_report(
-    parent_span: Span,
-    submission: Arc<Submission>,
-    mut abort_rx: mpsc::Receiver<()>,
-    mut notify_rx: mpsc::Receiver<()>,
-    status_tx: RingSender<SubmissionSignal>,
-) {
-    loop {
-        tokio::select! {
-            _ = abort_rx.recv() => break,
-            item = notify_rx.recv() => match item {
-                None => break,
-                Some(_) => {
-                    let result = async {
-                        let signal = {
-                            let report_at = Utc::now();
-                            let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
-                            SubmissionSignal {
-                                id: Some(submission.id.clone()),
-                                ext: SubmissionSignalExt::Progress(match &submission.config.reporter {
-                                    None => SubmissionReportSignal {
-                                        report_at,
-                                        report: None,
-                                        report_error: None,
-                                        status
-                                    },
-                                    Some(reporter) => match execute_reporter(&submission, reporter, status.clone()).await {
-                                        Ok(report) => SubmissionReportSignal {
-                                            report_at,
-                                            report: Some(report),
-                                            report_error: None,
-                                            status
-                                        },
-                                        Err(err) => SubmissionReportSignal {
-                                            report_at,
-                                            report: None,
-                                            report_error: Some(format!("{err:#}")),
-                                            status,
-                                        },
-                                    }
-                                })
-                            }
-                        };
-
-                        _ = status_tx.clone().send(signal);
-                        anyhow::Ok(())
-                    }
-                    .await;
-
-                    if let Err(err) = result {
-                        error!("Error handling the progress report: {err:#}");
-                    }
-                }
-            }
-        }
-    }
+    Ok(ctx.upload_configs.into_inner())
 }
 
 #[async_recursion]
@@ -160,21 +83,34 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Re
     }
 
     if let Some(report) = &node.config.report {
-        let embeds = report
-            .embeds
-            .iter()
-            .filter(|config| match config.when {
-                TaskReportEmbedWhenConfig::Success => success,
-                TaskReportEmbedWhenConfig::Failure => !success,
-                TaskReportEmbedWhenConfig::Always => true,
-            })
-            .map(|config| config.inner.clone())
-            .collect::<Vec<_>>();
-        *node.config.embeds.write().unwrap() =
+        *node.config.embeds.write().unwrap() = {
+            let embeds = report
+                .embeds
+                .iter()
+                .filter(|config| match config.when {
+                    TaskReportWhenConfig::Success => success,
+                    TaskReportWhenConfig::Failure => !success,
+                    TaskReportWhenConfig::Always => true,
+                })
+                .map(|config| config.inner.clone())
+                .collect::<Vec<_>>();
             match apply_embeds_config(&ctx.submission_root, &embeds).await {
                 Err(err) => TaskEmbeds::Error(format!("Error applying embeds config: {err:#}")),
                 Ok(embeds) => TaskEmbeds::Values(embeds),
-            };
+            }
+        };
+
+        ctx.upload_configs.lock().await.extend(
+            report
+                .uploads
+                .iter()
+                .filter(|config| match config.when {
+                    TaskReportWhenConfig::Success => success,
+                    TaskReportWhenConfig::Failure => !success,
+                    TaskReportWhenConfig::Always => true,
+                })
+                .map(|config| config.inner.clone()),
+        );
     }
 
     let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
@@ -372,7 +308,7 @@ async fn submit_action(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, num::NonZeroUsize};
+    use std::{fs, sync::Arc};
 
     use chrono::Utc;
     use insta::glob;
@@ -388,16 +324,18 @@ mod tests {
     fn test_execute_submission() {
         glob!("tests/*.yaml", |path| {
             Builder::new_multi_thread().enable_all().build().unwrap().block_on(async {
-                let submission = resolve_submission(
-                    serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
-                    "test".into(),
-                )
-                .expect("Error resolving the submission");
+                let submission = Arc::new(
+                    resolve_submission(
+                        serde_yaml::from_str(&fs::read_to_string(path).unwrap()).unwrap(),
+                        "test".into(),
+                    )
+                    .expect("Error resolving the submission"),
+                );
 
                 let (worker_tx, mut worker_rx) = mpsc::channel(114);
-                let (tx, _rx) = ring_channel::ring_channel(NonZeroUsize::try_from(1).unwrap());
+                let (progress_tx, _progress_rx) = mpsc::channel(514);
                 let handle = tokio::spawn(async move {
-                    super::execute_submission(submission, worker_tx, tx).await.unwrap();
+                    super::execute_submission(submission, worker_tx, progress_tx).await.unwrap();
                 });
 
                 let mut results = vec![];

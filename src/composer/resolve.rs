@@ -1,12 +1,14 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::{bail, Context, Result};
+use tracing::instrument;
 
 use crate::entities::{
     ParallelTasks, RootTaskNode, SequenceTasks, Submission, SubmissionConfig, TaskConfig,
     TaskConfigExt, TaskNode, TaskNodeExt,
 };
 
+#[instrument(skip_all)]
 pub fn resolve_submission(
     config: Arc<SubmissionConfig>,
     root_directory: PathBuf,

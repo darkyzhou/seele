@@ -1,24 +1,26 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use ring_channel::RingSender;
-use serde_json::Value;
-use tokio::{
-    fs,
-    sync::mpsc,
-    time::{sleep, Instant},
-};
+use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, field, instrument, Span};
 
 pub use self::signal::*;
-use crate::{conf, entities::SubmissionConfig, shared::metrics, worker::WorkerQueueTx};
+use crate::{
+    composer::{report::apply_uploads_config, reporter::execute_reporter},
+    conf,
+    entities::{Submission, SubmissionConfig},
+    shared::metrics,
+    worker::WorkerQueueTx,
+};
 
 mod execute;
 mod predicate;
 mod report;
+mod reporter;
 mod resolve;
 mod signal;
 
@@ -40,28 +42,8 @@ pub async fn composer_main(
     mut composer_queue_rx: ComposerQueueRx,
     worker_queue_tx: WorkerQueueTx,
 ) -> Result<()> {
-    while let Ok(Some(mut item)) = composer_queue_rx.recv().cancel_on_shutdown(&handle).await {
-        tokio::spawn({
-            let worker_queue_tx = worker_queue_tx.clone();
-            async move {
-                let begin = Instant::now();
-                let signal =
-                    handle_submission(worker_queue_tx, item.config_yaml, item.status_tx.clone())
-                        .await;
-                let duration = {
-                    let end = Instant::now();
-                    end.duration_since(begin).as_secs_f64()
-                };
-
-                metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
-                    &OpenTelemetryCtx::current(),
-                    duration,
-                    &vec![KeyValue::new(SUBMISSION_STATUS, signal.ext.get_type())],
-                );
-
-                _ = item.status_tx.send(signal);
-            }
-        });
+    while let Ok(Some(item)) = composer_queue_rx.recv().cancel_on_shutdown(&handle).await {
+        tokio::spawn(handle_submission(worker_queue_tx.clone(), item.config_yaml, item.status_tx));
     }
 
     Ok(())
@@ -71,52 +53,48 @@ pub async fn composer_main(
 async fn handle_submission(
     worker_queue_tx: WorkerQueueTx,
     config_yaml: String,
-    progress_tx: RingSender<SubmissionSignal>,
-) -> SubmissionSignal {
-    let submission: serde_yaml::Result<Arc<SubmissionConfig>> = serde_yaml::from_str(&config_yaml);
-    if let Err(err) = submission {
-        let message = format!("Error parsing the submission: {:#}", err);
+    mut status_tx: RingSender<SubmissionSignal>,
+) {
+    let begin = Instant::now();
+
+    let submission = serde_yaml::from_str::<Arc<SubmissionConfig>>(&config_yaml);
+    let Ok(submission) = submission else {
+        let message = format!("Error parsing the submission: {:#}", submission.err().unwrap());
         error!(message);
 
         let ext = SubmissionSignalExt::Error(SubmissionErrorSignal { error: message });
         Span::current().record(SUBMISSION_STATUS, ext.get_type());
-        return SubmissionSignal { id: None, ext };
-    }
 
-    let submission = submission.unwrap();
-    Span::current().record(SUBMISSION_ID, &submission.id);
-    Span::current().record(SUBMISSION_ATTRIBUTE, &submission.tracing_attribute);
-
-    let submission_id = submission.id.clone();
-    let ext = match do_handle_submission(submission, worker_queue_tx, progress_tx).await {
-        Err(err) => SubmissionSignalExt::Error(SubmissionErrorSignal { error: format!("{err:#}") }),
-        Ok((status, report)) => {
-            let (report, report_error) = match report {
-                None => (None, None),
-                Some(Ok(report)) => (Some(report), None),
-                Some(Err(err)) => (None, Some(format!("{err:#}"))),
-            };
-            SubmissionSignalExt::Completed(SubmissionReportSignal {
-                report_at: Utc::now(),
-                status,
-                report,
-                report_error,
-            })
-        }
+        _ = status_tx.send(SubmissionSignal { id: None, ext });
+        return;
     };
 
-    Span::current().record(SUBMISSION_STATUS, ext.get_type());
-    SubmissionSignal { id: Some(submission_id), ext }
+    Span::current().record(SUBMISSION_ID, &submission.id);
+    Span::current().record(SUBMISSION_ATTRIBUTE, &submission.tracing_attribute);
+    let signal_type = do_handle_submission(submission, worker_queue_tx, status_tx).await;
+    Span::current().record(SUBMISSION_STATUS, signal_type);
+
+    let duration = {
+        let end = Instant::now();
+        end.duration_since(begin).as_secs_f64()
+    };
+    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
+        &OpenTelemetryCtx::current(),
+        duration,
+        &vec![KeyValue::new(SUBMISSION_STATUS, signal_type)],
+    );
 }
 
 async fn do_handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
-    status_tx: ring_channel::RingSender<SubmissionSignal>,
-) -> Result<(Value, Option<Result<Value>>)> {
+    mut status_tx: RingSender<SubmissionSignal>,
+) -> &'static str {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
 
-    let result = async move {
+    let inner_submission = submission.clone();
+    let inner_status_tx = status_tx.clone();
+    let result = async {
         if fs::metadata(&submission_root).await.is_ok() {
             bail!(
                 "The submission's directory already exists, it may indicate a duplicate \
@@ -129,35 +107,139 @@ async fn do_handle_submission(
             .await
             .context("Error creating the submission directory")?;
 
-        // TODO: Design a better mechanism for cleaning the submission files
+        debug!("Resolving the submission");
+        let submission = Arc::new(
+            resolve::resolve_submission(inner_submission, submission_root.clone())
+                .context("Failed to resolve the submission")?,
+        );
+
+        let (_abort_tx, abort_rx) = mpsc::channel(1);
+        let (progress_tx, progress_rx) = mpsc::channel(8);
         tokio::spawn({
-            let submission_root = submission_root.clone();
-            async move {
-                sleep(Duration::from_secs(60)).await;
-                _ = fs::remove_dir_all(submission_root).await;
-            }
+            let span = Span::current();
+            let submission = submission.clone();
+            handle_progress_report(span, submission, abort_rx, progress_rx, inner_status_tx)
         });
 
-        debug!("Resolving the submission");
-        let submission = resolve::resolve_submission(submission, submission_root)
-            .context("Failed to resolve the submission")?;
-
         debug!("Executing the submission");
-        execute::execute_submission(submission, worker_queue_tx, status_tx)
+        let uploads = execute::execute_submission(submission.clone(), worker_queue_tx, progress_tx)
             .await
-            .context("Error executing the submission")
+            .context("Error executing the submission")?;
+
+        let status = serde_json::to_value(&submission.config)
+            .context("Error serializing the submission report")?;
+        Ok((status, uploads))
     }
     .await;
 
-    match &result {
+    let (ext, uploads) = match result {
         Err(err) => {
             error!("Error handling the submission: {err:#}");
+            (SubmissionSignalExt::Error(SubmissionErrorSignal { error: format!("{err:#}") }), None)
         }
-        Ok((_, Some(Err(err)))) => {
-            error!("The reporter failed: {err:#}");
+        Ok((status, mut uploads)) => {
+            let result = match &submission.reporter {
+                None => None,
+                Some(reporter) => {
+                    Some(execute_reporter(&submission_root, reporter, status.clone()).await)
+                }
+            };
+
+            let (report, report_error) = match result {
+                None => (None, None),
+                Some(Ok((report, reporter_uploads))) => {
+                    uploads.extend(reporter_uploads);
+                    (Some(report), None)
+                }
+                Some(Err(err)) => {
+                    error!("The reporter failed: {err:#}");
+                    (None, Some(format!("{err:#}")))
+                }
+            };
+
+            (
+                SubmissionSignalExt::Completed(SubmissionReportSignal {
+                    report_at: Utc::now(),
+                    status,
+                    report,
+                    report_error,
+                }),
+                Some(uploads),
+            )
         }
-        _ => {}
+    };
+    let signal_type = ext.get_type();
+
+    debug!("Sending the final submission signal");
+    _ = status_tx.send(SubmissionSignal { id: Some(submission.id.clone()), ext });
+
+    if let Some(uploads) = uploads {
+        debug!("Handling file uploads");
+        if let Err(err) = apply_uploads_config(&submission_root, &uploads).await {
+            error!("Error uploading files: {err:#}");
+        }
     }
 
-    result
+    _ = fs::remove_dir_all(submission_root).await;
+
+    signal_type
+}
+
+#[instrument(skip_all, parent = parent_span)]
+async fn handle_progress_report(
+    parent_span: Span,
+    submission: Arc<Submission>,
+    mut abort_rx: mpsc::Receiver<()>,
+    mut progress_rx: mpsc::Receiver<()>,
+    status_tx: RingSender<SubmissionSignal>,
+) {
+    loop {
+        tokio::select! {
+            _ = abort_rx.recv() => break,
+            item = progress_rx.recv() => match item {
+                None => break,
+                Some(_) => {
+                    let result = async {
+                        let signal = {
+                            let report_at = Utc::now();
+                            let status = serde_json::to_value(&submission.config).context("Error serializing the submission report")?;
+                            SubmissionSignal {
+                                id: Some(submission.id.clone()),
+                                ext: SubmissionSignalExt::Progress(match &submission.config.reporter {
+                                    None => SubmissionReportSignal {
+                                        report_at,
+                                        report: None,
+                                        report_error: None,
+                                        status
+                                    },
+                                    Some(reporter) => match execute_reporter(&submission.root_directory, reporter, status.clone()).await {
+                                        Ok((report, _)) => SubmissionReportSignal {
+                                            report_at,
+                                            report: Some(report),
+                                            report_error: None,
+                                            status
+                                        },
+                                        Err(err) => SubmissionReportSignal {
+                                            report_at,
+                                            report: None,
+                                            report_error: Some(format!("{err:#}")),
+                                            status,
+                                        },
+                                    }
+                                })
+                            }
+                        };
+
+                        _ = status_tx.clone().send(signal);
+                        anyhow::Ok(())
+                    }
+                    .await;
+
+                    if let Err(err) = result {
+                        error!("Error handling the progress report: {err:#}");
+                    }
+                }
+            }
+        }
+    }
 }

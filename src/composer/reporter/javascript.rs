@@ -7,7 +7,8 @@ use tokio::task::spawn_blocking;
 use tracing::instrument;
 
 use crate::{
-    composer::report::utils::get_oj_status, entities::SubmissionReportConfig, worker::run_container,
+    composer::reporter::utils::get_oj_status, entities::SubmissionReportConfig,
+    worker::run_container,
 };
 
 #[instrument(skip_all)]
