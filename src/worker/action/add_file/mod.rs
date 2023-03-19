@@ -96,7 +96,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
     Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
 
-#[instrument(skip_all)]
+#[instrument(skip(handle, file))]
 async fn handle_http_file(handle: Listener, mut file: File, url: &String) -> Result<()> {
     match HTTP_TASKS.run(url.clone(), handle).await {
         None => bail!(shared::ABORTED_MESSAGE),
