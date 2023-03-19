@@ -232,7 +232,11 @@ async fn handle_delivery(
                         .await
                         .context("Error awaiting the confirmation")?;
 
-                    delivery.ack(Default::default()).await.context("Error sending the ack")
+                    if !matches!(signal.ext, SubmissionSignalExt::Progress(_)) {
+                        delivery.ack(Default::default()).await.context("Error sending the ack")?;
+                    }
+
+                    anyhow::Ok(())
                 }
                 .await;
 
