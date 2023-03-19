@@ -11,42 +11,42 @@ Submission(
     tracing_attribute: None,
     steps: {
       "prepare_sources": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
       "compile": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "parallel": [
           {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
           {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
         ],
       },
       "standard": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "parallel": [
           {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
             "steps": {
               "prepare": {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
               "run": {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
               "compare": {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
             },
           },

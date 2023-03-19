@@ -11,50 +11,50 @@ Submission(
     tracing_attribute: None,
     steps: {
       "one": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
       "two": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "steps": {
           "two-one": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
           "two-two": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
         },
       },
       "three": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
       "four": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "steps": {
           "four-one": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
             "steps": {
               "four-one-one": {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
                 "steps": {
                   "four-one-one-one": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                     "steps": {
                       "four-one-one-one-one": {
-                        "tags": None,
                         "status": "PENDING",
+                        "embeds": {},
                         "steps": {
                           "four-one-one-one-one-one": {
-                            "tags": None,
                             "status": "PENDING",
+                            "embeds": {},
                           },
                         },
                       },
@@ -65,32 +65,32 @@ Submission(
             },
           },
           "four-two": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
             "parallel": [
               {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
               {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
                 "parallel": [
                   {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                     "parallel": [
                       {
-                        "tags": None,
                         "status": "PENDING",
+                        "embeds": {},
                         "parallel": [
                           {
-                            "tags": None,
                             "status": "PENDING",
+                            "embeds": {},
                             "parallel": [
                               {
-                                "tags": None,
                                 "status": "PENDING",
+                                "embeds": {},
                               },
                             ],
                           },
@@ -101,18 +101,18 @@ Submission(
                 ],
               },
               {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
             ],
           },
           "four-three": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
             "steps": {
               "four-three-one": {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
               },
             },
           },

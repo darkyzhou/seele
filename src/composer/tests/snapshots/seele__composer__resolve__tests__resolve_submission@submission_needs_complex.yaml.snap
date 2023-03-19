@@ -11,40 +11,40 @@ Submission(
     tracing_attribute: None,
     steps: {
       "one": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
       "two": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "steps": {
           "two-one": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
             "parallel": [
               {
-                "tags": None,
                 "status": "PENDING",
+                "embeds": {},
                 "steps": {
                   "two-one-one": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                   },
                   "two-one-two": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                   },
                   "two-one-three": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                   },
                   "two-one-four": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                   },
                   "two-one-five": {
-                    "tags": None,
                     "status": "PENDING",
+                    "embeds": {},
                   },
                 },
               },
@@ -53,8 +53,8 @@ Submission(
         },
       },
       "three": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
     },
   ),

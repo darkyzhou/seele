@@ -11,26 +11,26 @@ Submission(
     tracing_attribute: None,
     steps: {
       "one": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
       "two": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
         "steps": {
           "two-one": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
           "two-two": {
-            "tags": None,
             "status": "PENDING",
+            "embeds": {},
           },
         },
       },
       "three": {
-        "tags": None,
         "status": "PENDING",
+        "embeds": {},
       },
     },
   ),
