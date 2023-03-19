@@ -4,8 +4,9 @@ use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
 use either::Either;
 use futures_util::future;
+use ring_channel::RingSender;
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{oneshot, Mutex},
     time::Instant,
 };
 use tracing::{debug, instrument, Span};
@@ -38,7 +39,7 @@ struct ExecutionContext {
     submission_id: String,
     submission_root: PathBuf,
     worker_queue_tx: WorkerQueueTx,
-    progress_tx: mpsc::Sender<()>,
+    progress_tx: Mutex<RingSender<()>>,
     upload_configs: Mutex<Vec<SubmissionReportUploadConfig>>,
 }
 
@@ -46,13 +47,13 @@ struct ExecutionContext {
 pub async fn execute_submission(
     submission: Arc<Submission>,
     worker_queue_tx: WorkerQueueTx,
-    progress_tx: mpsc::Sender<()>,
+    progress_tx: RingSender<()>,
 ) -> Result<Vec<SubmissionReportUploadConfig>> {
     let ctx = ExecutionContext {
         submission_id: submission.id.clone(),
         submission_root: submission.root_directory.clone(),
         worker_queue_tx,
-        progress_tx,
+        progress_tx: Mutex::new(progress_tx),
         upload_configs: Mutex::default(),
     };
 
@@ -79,7 +80,7 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Re
     };
 
     if node.config.progress {
-        _ = ctx.progress_tx.send(());
+        _ = ctx.progress_tx.lock().await.send(());
     }
 
     if let Some(report) = &node.config.report {
@@ -308,7 +309,7 @@ async fn submit_action(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, sync::Arc};
+    use std::{fs, num::NonZeroUsize, sync::Arc};
 
     use chrono::Utc;
     use insta::glob;
@@ -333,7 +334,8 @@ mod tests {
                 );
 
                 let (worker_tx, mut worker_rx) = mpsc::channel(114);
-                let (progress_tx, _progress_rx) = mpsc::channel(514);
+                let (progress_tx, _progress_rx) =
+                    ring_channel::ring_channel(NonZeroUsize::new(1).unwrap());
                 let handle = tokio::spawn(async move {
                     super::execute_submission(submission, worker_tx, progress_tx).await.unwrap();
                 });

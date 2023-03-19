@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{num::NonZeroUsize, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
+use futures_util::StreamExt;
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
-use ring_channel::RingSender;
+use ring_channel::{RingReceiver, RingSender};
 use tokio::{fs, sync::mpsc, time::Instant};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, field, instrument, Span};
@@ -114,7 +115,7 @@ async fn do_handle_submission(
         );
 
         let (_abort_tx, abort_rx) = mpsc::channel(1);
-        let (progress_tx, progress_rx) = mpsc::channel(8);
+        let (progress_tx, progress_rx) = ring_channel::ring_channel(NonZeroUsize::new(1).unwrap());
         tokio::spawn({
             let span = Span::current();
             let submission = submission.clone();
@@ -190,13 +191,13 @@ async fn handle_progress_report(
     parent_span: Span,
     submission: Arc<Submission>,
     mut abort_rx: mpsc::Receiver<()>,
-    mut progress_rx: mpsc::Receiver<()>,
-    status_tx: RingSender<SubmissionSignal>,
+    mut progress_rx: RingReceiver<()>,
+    mut status_tx: RingSender<SubmissionSignal>,
 ) {
     loop {
         tokio::select! {
             _ = abort_rx.recv() => break,
-            item = progress_rx.recv() => match item {
+            item = progress_rx.next() => match item {
                 None => break,
                 Some(_) => {
                     let result = async {
@@ -230,7 +231,7 @@ async fn handle_progress_report(
                             }
                         };
 
-                        _ = status_tx.clone().send(signal);
+                        _ = status_tx.send(signal);
                         anyhow::Ok(())
                     }
                     .await;
