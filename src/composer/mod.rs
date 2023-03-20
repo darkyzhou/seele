@@ -5,7 +5,11 @@ use chrono::Utc;
 use futures_util::StreamExt;
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use ring_channel::{RingReceiver, RingSender};
-use tokio::{fs, sync::mpsc, time::Instant};
+use tokio::{
+    fs,
+    sync::mpsc::{self, error::TryRecvError},
+    time::Instant,
+};
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
 use tracing::{debug, error, field, instrument, Span};
 
@@ -231,7 +235,10 @@ async fn handle_progress_report(
                             }
                         };
 
-                        _ = status_tx.send(signal);
+                        if matches!(abort_rx.try_recv(), Err(TryRecvError::Empty)) {
+                            _ = status_tx.send(signal);
+                        }
+
                         anyhow::Ok(())
                     }
                     .await;
