@@ -15,10 +15,10 @@ use super::predicate;
 use crate::{
     composer::report::apply_embeds_config,
     entities::{
-        ActionReport, ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport,
-        ParallelTaskConfig, SequenceFailedReport, SequenceSuccessReport, Submission,
-        SubmissionReportUploadConfig, TaskConfig, TaskConfigExt, TaskEmbeds, TaskFailedReport,
-        TaskNode, TaskNodeExt, TaskReportWhenConfig, TaskStatus, TaskSuccessReport,
+        ActionTaskConfig, ParallelFailedReport, ParallelSuccessReport, ParallelTaskConfig,
+        SequenceFailedReport, SequenceSuccessReport, Submission, SubmissionReportUploadConfig,
+        TaskConfig, TaskConfigExt, TaskEmbeds, TaskFailedReport, TaskNode, TaskNodeExt,
+        TaskReportWhenConfig, TaskStatus, TaskSuccessReport,
     },
     worker::{WorkerQueueItem, WorkerQueueTx},
 };
@@ -72,18 +72,20 @@ pub async fn execute_submission(
 
 #[async_recursion]
 async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Result<()> {
-    let success = match &node.ext {
+    {
+        *node.config.status.write().unwrap() = TaskStatus::Running;
+    }
+
+    let status = match &node.ext {
         TaskNodeExt::Action(config) => {
             track_action_execution(ctx, node.clone(), config.clone()).await?
         }
         TaskNodeExt::Schedule(tasks) => track_schedule_execution(ctx, node.clone(), tasks).await?,
     };
 
-    if node.config.progress {
-        _ = ctx.progress_tx.lock().await.send(());
-    }
-
     if let Some(report) = &node.config.report {
+        let success = matches!(status, TaskStatus::Success { .. });
+
         *node.config.embeds.write().unwrap() = {
             let embeds = report
                 .embeds
@@ -114,6 +116,14 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Re
         );
     }
 
+    {
+        *node.config.status.write().unwrap() = status;
+    }
+
+    if node.config.progress {
+        _ = ctx.progress_tx.lock().await.send(());
+    }
+
     let (continue_nodes, skipped_nodes): (Vec<_>, Vec<_>) = node
         .children
         .iter()
@@ -140,23 +150,22 @@ async fn track_action_execution(
     ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     config: Arc<ActionTaskConfig>,
-) -> Result<bool> {
-    {
-        *node.config.status.write().unwrap() = TaskStatus::Running;
-    }
-
+) -> Result<TaskStatus> {
     debug!("Submitting the action");
-    let status = match submit_action(ctx, config.clone()).await {
-        Err(err) => bail!("Action {} encountered an internal error: {:#}", node.name, err),
-        Ok(report) => report.into(),
-    };
-    let success = matches!(status, TaskStatus::Success { .. });
+    let (tx, rx) = oneshot::channel();
+    ctx.worker_queue_tx
+        .send(WorkerQueueItem {
+            parent_span: Span::current(),
+            submission_root: ctx.submission_root.clone(),
+            submission_id: ctx.submission_id.clone(),
+            config,
+            report_tx: tx,
+        })
+        .await
+        .context("Failed to send the item")?;
 
-    {
-        *node.config.status.write().unwrap() = status;
-    }
-
-    Ok(success)
+    let report = rx.await.context("Failed to receive the report")??;
+    Ok(report.into())
 }
 
 #[instrument(skip_all, fields(task.name = node.name))]
@@ -164,11 +173,7 @@ async fn track_schedule_execution(
     ctx: &ExecutionContext,
     node: Arc<TaskNode>,
     tasks: &[Arc<TaskNode>],
-) -> Result<bool> {
-    {
-        *node.config.status.write().unwrap() = TaskStatus::Running;
-    }
-
+) -> Result<TaskStatus> {
     let begin = Instant::now();
     let results =
         future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)))
@@ -183,21 +188,14 @@ async fn track_schedule_execution(
         bail!("{errors}");
     }
 
-    let status = match &node.config.ext {
+    Ok(match &node.config.ext {
         TaskConfigExt::Action(_) => unreachable!(),
         TaskConfigExt::Parallel(config) => resolve_parallel_status(time_elapsed_ms, config),
         TaskConfigExt::Sequence(config) => resolve_sequence_status(
             time_elapsed_ms,
             config.tasks.iter().map(|(key, value)| (key.to_string(), value.to_owned())),
         ),
-    };
-    let success = matches!(status, TaskStatus::Success { .. });
-
-    {
-        *node.config.status.write().unwrap() = status;
-    }
-
-    Ok(success)
+    })
 }
 
 fn resolve_parallel_status(time_elapsed_ms: u64, config: &ParallelTaskConfig) -> TaskStatus {
@@ -285,26 +283,6 @@ fn skip_task_node(node: &TaskNode) {
         }
         skip_task_node(node);
     }
-}
-
-async fn submit_action(
-    ctx: &ExecutionContext,
-    config: Arc<ActionTaskConfig>,
-) -> Result<ActionReport> {
-    let (tx, rx) = oneshot::channel();
-    ctx.worker_queue_tx
-        .send(WorkerQueueItem {
-            parent_span: Span::current(),
-            submission_root: ctx.submission_root.clone(),
-            submission_id: ctx.submission_id.clone(),
-            config,
-            report_tx: tx,
-        })
-        .await
-        .context("Failed to send the item")?;
-
-    // TODO: timeout
-    Ok(rx.await.context("Failed to receive the report")??)
 }
 
 #[cfg(test)]
