@@ -3,11 +3,12 @@ use std::{fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt, path
 use anyhow::{bail, Context, Result};
 use serde::{de, Deserialize, Serialize};
 use tokio::fs;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use triggered::Listener;
 
 use super::DEFAULT_MOUNT_DIRECTORY;
 use crate::{
+    conf,
     entities::ActionReportExt,
     worker::{
         run_container::{self, runj},
@@ -90,10 +91,21 @@ pub async fn execute(
     ctx: &ActionContext,
     config: &Config,
 ) -> Result<ActionReportExt> {
-    let run_container_config = {
+    let mount_directory = conf::PATHS.new_temp_directory().await?;
+    // XXX: 0o777 is mandatory. The group bit is for rootless case and the others
+    // bit is for rootful case.
+    fs::set_permissions(&mount_directory, Permissions::from_mode(0o777)).await?;
+
+    let result = async {
         let mut run_container_config = config.run_container_config.clone();
 
         run_container_config.cwd = DEFAULT_MOUNT_DIRECTORY.to_owned();
+
+        run_container_config.mounts.push(run_container::MountConfig::Full(runj::MountConfig {
+            from: mount_directory.clone(),
+            to: DEFAULT_MOUNT_DIRECTORY.to_owned(),
+            options: None,
+        }));
 
         if let Some(paths) = run_container_config.paths.as_mut() {
             paths.push(DEFAULT_MOUNT_DIRECTORY.to_owned());
@@ -125,8 +137,13 @@ pub async fn execute(
             }));
         }
 
-        run_container_config
-    };
+        run_container::execute(handle, ctx, &run_container_config).await
+    }
+    .await;
 
-    run_container::execute(handle, ctx, &run_container_config).await
+    if let Err(err) = fs::remove_dir_all(&mount_directory).await {
+        warn!(directory = %mount_directory.display(), "Error removing mount directory: {err:#}")
+    }
+
+    result
 }
