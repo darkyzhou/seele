@@ -138,7 +138,7 @@ func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDM
 		Version: specs.Version,
 		Root: &specs.Root{
 			Path:     config.Overlayfs.MergedDirectory,
-			Readonly: true,
+			Readonly: false,
 		},
 		Hostname: "seele",
 		Mounts:   mounts,
