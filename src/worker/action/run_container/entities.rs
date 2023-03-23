@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
@@ -41,6 +44,19 @@ fn default_cwd() -> PathBuf {
 pub enum CommandConfig {
     Simple(String),
     Full(Vec<String>),
+}
+
+impl Display for CommandConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Simple(str) => str,
+                Self::Full(commands) => &commands.join(" "),
+            }
+        )
+    }
 }
 
 impl TryInto<Vec<String>> for CommandConfig {

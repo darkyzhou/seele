@@ -9,7 +9,7 @@ use nix::{
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
 use tokio::sync::oneshot;
-use tracing::{error, info, info_span, instrument, warn, Span};
+use tracing::{error, info, info_span, warn, Span};
 use triggered::Listener;
 
 pub use self::{entities::*, idmap::*, image::prepare_image};
@@ -34,7 +34,6 @@ mod utils;
 
 static RUNNER_THREAD_LOCAL: Lazy<Arc<ThreadLocal<i64>>> = Lazy::new(|| Arc::default());
 
-#[instrument(skip_all, name = "action_run_container_execute")]
 pub async fn execute(
     abort: Listener,
     ctx: &ActionContext,
@@ -44,14 +43,19 @@ pub async fn execute(
         .await
         .context("Error preparing the container image")?;
 
-    let config =
+    let runjConfig =
         make_runj_config(ctx, config.clone()).await.context("Error converting the config")?;
-    check_and_create_directories(&config).await?;
+    check_and_create_directories(&runjConfig).await?;
 
     let report = runner::spawn_blocking({
         let local = RUNNER_THREAD_LOCAL.clone();
-        let span = info_span!(parent: Span::current(), "execute_runj");
-        move || span.in_scope(move || execute_runj(abort, &local, config))
+        let span = info_span!(
+            parent: Span::current(),
+            "execute_runj",
+            seele.image = %config.image,
+            seele.command = %config.command,
+        );
+        move || span.in_scope(move || execute_runj(abort, &local, runjConfig))
     })
     .await??;
 
