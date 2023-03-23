@@ -6,7 +6,10 @@ use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
 pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
-use self::{composer::ComposerConfig, healthz::HealthzConfig, worker::WorkerConfig};
+use self::{
+    composer::ComposerConfig, healthz::HealthzConfig, telemetry::TelemetryConfig,
+    worker::WorkerConfig,
+};
 
 mod action;
 mod composer;
@@ -14,6 +17,7 @@ mod env;
 mod exchange;
 mod healthz;
 mod path;
+mod telemetry;
 mod worker;
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
@@ -181,9 +185,4 @@ fn default_skopeo_path() -> String {
 #[inline]
 fn default_umoci_path() -> String {
     "/usr/bin/umoci".to_string()
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TelemetryConfig {
-    pub collector_url: String,
 }
