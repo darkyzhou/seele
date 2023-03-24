@@ -1,6 +1,6 @@
 use std::{
     fs::create_dir_all,
-    sync::{Arc, Barrier},
+    sync::{atomic::Ordering, Arc, Barrier},
     time::Duration,
 };
 
@@ -25,8 +25,9 @@ use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_Subs
 
 use crate::{
     conf::SeeleWorkMode,
-    shared::metrics::{
-        METER, METRICS_RESOURCE, PENDING_ACTION_COUNT_GAUGE, PENDING_SUBMISSION_COUNT_GAUGE,
+    shared::{
+        metrics::{METER, METRICS_RESOURCE, PENDING_CONTAINER_ACTION_COUNT_GAUGE},
+        runner,
     },
     worker::action,
 };
@@ -210,26 +211,12 @@ fn main() {
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
 
-                    METER.register_callback({
-                        let tx = composer_queue_tx.clone();
-                        move |ctx| {
-                            PENDING_SUBMISSION_COUNT_GAUGE.observe(
-                                ctx,
-                                (tx.max_capacity() - tx.capacity()) as u64,
-                                &[],
-                            )
-                        }
-                    })?;
-
-                    METER.register_callback({
-                        let tx = worker_queue_tx.clone();
-                        move |ctx| {
-                            PENDING_ACTION_COUNT_GAUGE.observe(
-                                ctx,
-                                (tx.max_capacity() - tx.capacity()) as u64,
-                                &[],
-                            )
-                        }
+                    METER.register_callback(move |ctx| {
+                        PENDING_CONTAINER_ACTION_COUNT_GAUGE.observe(
+                            ctx,
+                            runner::PENDING_TASKS.load(Ordering::SeqCst),
+                            &[],
+                        )
                     })?;
 
                     handle.start("healthz", |handle| healthz::healthz_main(handle));

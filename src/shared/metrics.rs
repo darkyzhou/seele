@@ -51,17 +51,10 @@ pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
         .init()
 });
 
-pub static PENDING_SUBMISSION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+pub static PENDING_CONTAINER_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     METER
-        .u64_observable_gauge("seele.submission.pending.count")
-        .with_description("Count of pending submissions in the composer queue")
-        .init()
-});
-
-pub static PENDING_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
-    METER
-        .u64_observable_gauge("seele.action.pending.count")
-        .with_description("Count of pending actions in the worker queue")
+        .u64_observable_gauge("seele.action.container.pending.count")
+        .with_description("Count of pending container actions in the worker queue")
         .init()
 });
 
