@@ -7,7 +7,7 @@ use tracing_subscriber::filter::LevelFilter;
 
 pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
 use self::{
-    composer::ComposerConfig, healthz::HealthzConfig, telemetry::TelemetryConfig,
+    composer::ComposerConfig, healthz::HealthzConfig, http::HttpConfig, telemetry::TelemetryConfig,
     worker::WorkerConfig,
 };
 
@@ -16,6 +16,7 @@ mod composer;
 mod env;
 mod exchange;
 mod healthz;
+mod http;
 mod path;
 mod telemetry;
 mod worker;
@@ -49,6 +50,9 @@ pub struct SeeleConfig {
 
     #[serde(default)]
     pub healthz: HealthzConfig,
+
+    #[serde(default)]
+    pub http: HttpConfig,
 
     #[serde(default)]
     pub exchange: IndexMap<String, ExchangeConfig>,
