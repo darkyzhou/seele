@@ -58,6 +58,12 @@ pub struct ActionRunContainerConfig {
 
     #[serde(default)]
     pub preload_images: Vec<OciImage>,
+
+    #[serde(default = "default_cache_size_mib")]
+    pub cache_size_mib: u64,
+
+    #[serde(default = "default_cache_ttl_hour")]
+    pub cache_ttl_hour: u64,
 }
 
 impl Default for ActionRunContainerConfig {
@@ -70,6 +76,8 @@ impl Default for ActionRunContainerConfig {
             userns_gid: default_userns_gid(),
             userns_group: default_userns_group(),
             preload_images: Default::default(),
+            cache_size_mib: default_cache_size_mib(),
+            cache_ttl_hour: default_cache_ttl_hour(),
         }
     }
 }

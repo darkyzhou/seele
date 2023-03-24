@@ -48,14 +48,10 @@ pub enum CommandConfig {
 
 impl Display for CommandConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Simple(str) => str,
-                Self::Full(commands) => &commands.join(" "),
-            }
-        )
+        match self {
+            Self::Simple(str) => write!(f, "{str}"),
+            Self::Full(commands) => write!(f, "{}", commands.join(" ")),
+        }
     }
 }
 

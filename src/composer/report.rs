@@ -20,7 +20,6 @@ use crate::{
     shared,
 };
 
-#[instrument(skip(root))]
 pub async fn apply_embeds_config(
     root: &Path,
     embeds: &[SubmissionReportEmbedConfig],

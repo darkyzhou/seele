@@ -28,10 +28,11 @@ pub enum ActionReportExt {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ActionSuccessReportExt {
     Noop(action::noop::ExecutionReport),
     AddFile,
+    RunCompile(action::run_container::run_judge::compile::ExecutionReport),
     RunContainer(action::run_container::ExecutionReport),
 }
 

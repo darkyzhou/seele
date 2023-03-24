@@ -25,6 +25,7 @@ use crate::{
     worker::run_container::runj::{ContainerExecutionReport, RunjConfig},
 };
 
+pub mod cache;
 mod entities;
 mod idmap;
 mod image;
@@ -43,9 +44,9 @@ pub async fn execute(
         .await
         .context("Error preparing the container image")?;
 
-    let runjConfig =
+    let runj_config =
         make_runj_config(ctx, config.clone()).await.context("Error converting the config")?;
-    check_and_create_directories(&runjConfig).await?;
+    check_and_create_directories(&runj_config).await?;
 
     let report = runner::spawn_blocking({
         let local = RUNNER_THREAD_LOCAL.clone();
@@ -55,7 +56,7 @@ pub async fn execute(
             seele.image = %config.image,
             seele.command = %config.command,
         );
-        move || span.in_scope(move || execute_runj(abort, &local, runjConfig))
+        move || span.in_scope(move || execute_runj(abort, &local, runj_config))
     })
     .await??;
 
