@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use anyhow::Result;
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
@@ -7,6 +9,7 @@ use opentelemetry::{
     KeyValue,
 };
 
+use super::runner;
 use crate::conf;
 
 pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
@@ -61,6 +64,14 @@ pub static PENDING_CONTAINER_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = La
 pub fn register_gauge_metrics() -> Result<()> {
     METER.register_callback(|ctx| {
         RUNNER_COUNT_GAUGE.observe(ctx, conf::CONFIG.thread_counts.runner as u64, &[])
+    })?;
+
+    METER.register_callback(move |ctx| {
+        PENDING_CONTAINER_ACTION_COUNT_GAUGE.observe(
+            ctx,
+            runner::PENDING_TASKS.load(Ordering::SeqCst),
+            &[],
+        )
     })?;
 
     Ok(())

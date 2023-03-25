@@ -1,6 +1,6 @@
 use std::{
     fs::create_dir_all,
-    sync::{atomic::Ordering, Arc, Barrier},
+    sync::{Arc, Barrier},
     time::Duration,
 };
 
@@ -23,14 +23,7 @@ use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
 use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
 
-use crate::{
-    conf::SeeleWorkMode,
-    shared::{
-        metrics::{METER, METRICS_RESOURCE, PENDING_CONTAINER_ACTION_COUNT_GAUGE},
-        runner,
-    },
-    worker::action,
-};
+use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
 
 mod cgroup;
 mod composer;
@@ -210,14 +203,6 @@ fn main() {
                         mpsc::channel(conf::CONFIG.thread_counts.runner);
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
-
-                    METER.register_callback(move |ctx| {
-                        PENDING_CONTAINER_ACTION_COUNT_GAUGE.observe(
-                            ctx,
-                            runner::PENDING_TASKS.load(Ordering::SeqCst),
-                            &[],
-                        )
-                    })?;
 
                     handle.start("healthz", |handle| healthz::healthz_main(handle));
                     handle.start("exchange", |handle| {
