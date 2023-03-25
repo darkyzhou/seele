@@ -9,7 +9,7 @@ use nix::{
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
 use tokio::sync::oneshot;
-use tracing::{error, info, info_span, warn, Span};
+use tracing::{info, info_span, warn, Span};
 use triggered::Listener;
 
 pub use self::{entities::*, idmap::*, image::prepare_image};
@@ -152,7 +152,6 @@ fn execute_runj(
                 let output = output.into_iter().take(1024).collect::<Vec<_>>();
                 String::from_utf8_lossy(&output[..]).to_string()
             };
-            error!(seele.error = %texts, "The runj process failed");
             bail!("The runj process failed: {texts}")
         }
     }
