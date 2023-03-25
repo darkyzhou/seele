@@ -2,10 +2,13 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
-use futures_util::{future, FutureExt};
+use futures_util::{future, Stream, StreamExt};
 use once_cell::sync::Lazy;
-use tokio::{fs::File, io};
-use tracing::instrument;
+use tokio::{
+    fs::File,
+    io::{self, AsyncWriteExt},
+};
+use tracing::{info, instrument};
 use triggered::Listener;
 
 pub use self::entities::*;
@@ -13,7 +16,7 @@ use super::ActionContext;
 use crate::{
     conf,
     entities::{ActionFailureReportExt, ActionReportExt, ActionSuccessReportExt},
-    shared::{self, cond::CondGroup},
+    shared,
 };
 
 mod entities;
@@ -67,61 +70,71 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
     use std::time::Duration;
 
     use http_cache::MokaManager;
-    use http_cache_reqwest::{Cache, CacheMode, HttpCache};
+    use http_cache_reqwest::{Cache, HttpCache};
     use reqwest_middleware::ClientBuilder;
 
+    let config = &conf::CONFIG.worker.action.add_file;
     ClientBuilder::new(shared::http::build_http_client())
         .with(Cache(HttpCache {
-            // TODO: If the revalidation request fails (for example, on a 500 or if you’re offline),
-            // the stale response will be returned.
-            mode: CacheMode::Default,
-            manager: MokaManager::new({
-                use moka::future::Cache;
-
-                let config = &conf::CONFIG.worker.action.add_file;
-                Cache::builder()
+            mode: config.cache_strategy.into(),
+            manager: MokaManager::new(
+                moka::future::Cache::builder()
                     .name("seele-add-file")
                     .weigher(|_, value: &Arc<Vec<u8>>| -> u32 {
                         value.len().try_into().unwrap_or(u32::MAX)
                     })
                     .max_capacity(1024 * 1024 * config.cache_size_mib)
                     .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
-                    .build()
-            }),
+                    .build(),
+            ),
             options: None,
         }))
         .build()
 });
 
-static HTTP_TASKS: Lazy<CondGroup<String, Result<Bytes, String>>> =
-    Lazy::new(|| CondGroup::new(|url: &String| download_http_file(url.clone()).boxed()));
-
 #[instrument(skip(handle, file))]
-async fn handle_http_file(handle: Listener, mut file: File, url: &String) -> Result<()> {
-    match HTTP_TASKS.run(url.clone(), handle).await {
-        None => bail!(shared::ABORTED_MESSAGE),
-        Some(Err(err)) => bail!("Error downloading the file: {err:#}"),
-        Some(Ok(data)) => {
-            let mut data = data.as_ref();
-            io::copy_buf(&mut data, &mut file).await.context("Error writing the data")?;
-            Ok(())
+async fn handle_http_file(handle: Listener, mut file: File, url: &str) -> Result<()> {
+    tokio::select! {
+        _ = handle => bail!(shared::ABORTED_MESSAGE),
+        result = download_http_file(url) => match result {
+            Err(err) => bail!("Error downloading the file: {err:#}"),
+            Ok(mut stream) => {
+                while let Some(data) = stream.next().await {
+                    let data = data.context("Error reading the remote data")?;
+                    file.write_all(&data).await.context("Error writing to the file")?;
+                }
+                Ok(())
+            }
         }
     }
 }
 
-async fn download_http_file(url: String) -> Result<Bytes, String> {
-    // TODO: We should use streams, but need to find a way
-    // to share it across CondGroup consumers
-    HTTP_CLIENT
+async fn download_http_file(
+    url: &str,
+) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>> {
+    let response = HTTP_CLIENT
         .get(url)
         .send()
         .await
-        .map_err(|err| format!("Error sending the request: {err:#}"))?
+        .context("Error sending the request")?
         .error_for_status()
-        .map_err(|err| format!("Got a non-ok response: {err:#}"))?
-        .bytes()
-        .await
-        .map_err(|err| format!("Error downloading the content: {err:#}"))
+        .context("Got a non-ok response")?;
+
+    let headers = response.headers();
+    match (headers.get(http_cache::XCACHE), headers.get(http_cache::XCACHELOOKUP)) {
+        (Some(cache), Some(cache_lookup)) => {
+            info!("Cache served: {:?}, cache existed {:?}", cache, cache_lookup);
+        }
+        (Some(cache), None) => {
+            info!("Cache served: {:?}", cache);
+        }
+        (None, Some(cache_lookup)) => {
+            info!("Cache existed {:?}", cache_lookup);
+        }
+        _ => {}
+    }
+
+    Ok(response.bytes_stream())
 }
 
 #[cfg(test)]

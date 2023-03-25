@@ -1,3 +1,4 @@
+use http_cache::CacheMode;
 use serde::Deserialize;
 
 use crate::shared::image::OciImage;
@@ -13,6 +14,9 @@ pub struct ActionConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct ActionAddFileConfig {
+    #[serde(default = "default_cache_strategy")]
+    pub cache_strategy: HttpCacheStrategy,
+
     #[serde(default = "default_cache_size_mib")]
     pub cache_size_mib: u64,
 
@@ -20,10 +24,43 @@ pub struct ActionAddFileConfig {
     pub cache_ttl_hour: u64,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HttpCacheStrategy {
+    Default,
+    NoStore,
+    Reload,
+    NoCache,
+    ForceCache,
+    OnlyIfCached,
+}
+
+impl Into<CacheMode> for HttpCacheStrategy {
+    fn into(self) -> CacheMode {
+        match self {
+            Self::Default => CacheMode::Default,
+            Self::NoStore => CacheMode::NoStore,
+            Self::Reload => CacheMode::Reload,
+            Self::NoCache => CacheMode::NoCache,
+            Self::ForceCache => CacheMode::ForceCache,
+            Self::OnlyIfCached => CacheMode::OnlyIfCached,
+        }
+    }
+}
+
 impl Default for ActionAddFileConfig {
     fn default() -> Self {
-        Self { cache_size_mib: default_cache_size_mib(), cache_ttl_hour: default_cache_ttl_hour() }
+        Self {
+            cache_strategy: default_cache_strategy(),
+            cache_size_mib: default_cache_size_mib(),
+            cache_ttl_hour: default_cache_ttl_hour(),
+        }
     }
+}
+
+#[inline]
+fn default_cache_strategy() -> HttpCacheStrategy {
+    HttpCacheStrategy::Default
 }
 
 #[inline]
