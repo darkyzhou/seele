@@ -17,7 +17,7 @@ pub struct CondGroup<K, R> {
 
 impl<K, R> CondGroup<K, R>
 where
-    K: Eq + Hash,
+    K: Clone + Eq + Hash,
     R: Clone + 'static,
 {
     pub fn new(task_fn: impl Fn(&K) -> BoxFuture<'static, R> + Send + Sync + 'static) -> Self {
@@ -39,10 +39,17 @@ where
                     .boxed()
                     .shared()
                 };
-                tasks.insert(key, task.clone());
+                tasks.insert(key.clone(), task.clone());
                 drop(tasks);
 
-                task.await
+                let result = task.await;
+
+                {
+                    let mut tasks = self.tasks.lock().await;
+                    tasks.remove(&key);
+                }
+
+                result
             }
             Some(task) => {
                 let task = task.clone();
@@ -50,7 +57,7 @@ where
 
                 tokio::select! {
                     _ = handle => None,
-                    result = task => result.clone(),
+                    result = task => result,
                 }
             }
         }
