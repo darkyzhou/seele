@@ -49,7 +49,7 @@ pub struct SubmissionConfig {
     #[serde(default = "random_submission_id")]
     pub id: String,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tracing_attribute: Option<String>,
 
     #[serde(rename = "steps")]
