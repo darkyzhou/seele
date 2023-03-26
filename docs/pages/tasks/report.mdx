@@ -1,0 +1,209 @@
+# 评测报告
+
+Seele 在执行评测任务时，会依据用户的配置和评测任务的结构，向用户返回评测报告。评测报告分为三种：进度（progress）报告、错误（error）报告和完成（completed）报告。它们的关系如下图所示。
+
+![Seele reports](/report.png)
+
+当用户没有配置[进度报告](#%E8%BF%9B%E5%BA%A6%E6%8A%A5%E5%91%8A)时，Seele 对于每个评测任务**只会返回一个**错误报告或完成报告。否则，Seele
+会在执行过程中先返回若干个进度报告，**再在最后**返回一个错误报告或完成报告。
+
+## 报告类型
+
+评测报告基于 JSON 格式，用 TypeScript 表示的类型如下：
+
+```typescript
+interface SeeleProgressReport {
+  // 对应于评测任务中的 `id`
+  id: string;
+
+  // 区分三种报告的类型
+  type: "PROGRESS";
+
+  // 符合 RFC 3339 规范的时间戳，表示报告的产生时间
+  report_at: string;
+
+  // 对应于评测任务中各个子任务结构的状态
+  status: Record<string, unknown>;
+}
+
+interface SeeleErrorReport {
+  // 对应于评测任务中的 `id`
+  // 当提交的 yaml 语法有误时，Seele 无法解析 `id`，此属性会被设为空
+  id?: string;
+
+  // 区分三种报告的类型
+  type: "ERROR";
+
+  // 错误信息
+  error: string;
+}
+
+interface SeeleCompletedReport {
+  // 对应于评测任务中的 `id`
+  id: string;
+
+  // 区分三种报告的类型
+  type: "COMPLETED";
+
+  // 符合 RFC 3339 规范的时间戳，表示报告的产生时间
+  report_at: string;
+
+  // 对应于评测任务中各个子任务结构的状态
+  status: Record<string, unknown>;
+}
+```
+
+## 错误报告
+
+错误报告表示 Seele 在执行评测任务的过程中出现了预期之外的错误，包括评测系统内部错误以及动作任务的异常报错。此时，用户应该认为这次评测任务的执行失败，且结果无效。在下面的例子中，我们提交了一个不符合 Seele 规范的评测任务。
+
+```yaml
+id: example
+steps: 114514
+```
+
+Seele 返回了下列的错误报告：
+
+```json
+{
+  "type": "ERROR",
+  "error": "Error parsing the submission: steps: invalid type: integer `114514`, expected a map at line 1 column 8"
+}
+```
+
+## 完成报告
+
+当 Seele 在执行评测任务的过程中没有出现预期之外的错误，执行结束后会返回一份完成报告，其中会提供各个子任务的执行状况，包括状态以及一些额外的信息。即使一些子任务执行进入了
+`FAILED` 态而不是 `SUCCESS` 态，只要没有出现上述的预期之外的错误，Seele 仍然会返回完成报告。
+
+在完成报告中，各个任务对应的属性的结构关系与评测任务中的定义是一致的。例如，一个在评测任务的 `.steps.first` 中定义的任务，在完成报告中仍然位于 `.steps.first`。
+
+在下面的例子中，我们运行了一个 Python 容器，使用 Python 计算 `1 / 0` 的值。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      stderr: "err.txt"
+    report:
+      embeds:
+        - path: "err.txt"
+          field: output
+          truncate_kib: 8
+```
+
+执行完毕后，Seele 返回了如下的完成报告。其中，运行评测程序的动作任务进入了 `FAILED` 态，并返回了我们指定的文件的内容，文件内容中承载了 Python 的输出。
+
+```json
+{
+  "id": "rQrUL3UXOrAAUBgE",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T03:02:21.001006976Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:02:20.883136036Z",
+    "id": "rQrUL3UXOrAAUBgE",
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:02:20.884004210Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "FAILED",
+        "report": {
+          "run_at": "2023-03-26T03:02:20.884799397Z",
+          "time_elapsed_ms": 115,
+          "type": "run_container",
+          "status": "RUNTIME_ERROR",
+          "exit_code": 1,
+          "wall_time_ms": 69,
+          "cpu_user_time_ms": 8,
+          "cpu_kernel_time_ms": 16,
+          "memory_usage_kib": 13640
+        },
+        "embeds": {
+          "output": "Traceback (most recent call last):\n  File \"/seele/main.py\", line 1, in <module>\n    print(f\"{1/0}\")\n             ~^~\nZeroDivisionError: division by zero\n"
+        }
+      }
+    }
+  }
+}
+```
+
+## 进度报告
+
+为了让用户实时地获取评测任务的执行状态，带来更好的用户体验，Seele 提供了进度报告的支持。对于顺序任务、并发任务和动作任务，通过向
+`progress` 属性传入 `true` 可为此任务添加标识。当 Seele 完成执行此子任务后，它会对**整个评测任务**生成一份进度报告。
+
+仍然以上面的运行 Python 代码为例子，我们在 `prepare` 子任务中添加了 `progress: true`：
+
+```yaml
+steps:
+  prepare:
+    progress: true
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      stderr: "err.txt"
+    report:
+      embeds:
+        - path: "err.txt"
+          field: output
+          truncate_kib: 8
+```
+
+Seele 会在返回上述的完成报告之前，返回如下所示的一份进度报告。在进度报告中，各个任务对应的属性的结构关系与评测任务中的定义是一致的。
+
+```json
+{
+  "id": "NlkFFgPUMAbqUvWc",
+  "type": "PROGRESS",
+  "report_at": "2023-03-26T03:22:39.100246877Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:22:39.098968341Z",
+    "id": "NlkFFgPUMAbqUvWc",
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:22:39.099682421Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "RUNNING",
+        "embeds": {}
+      }
+    }
+  }
+}
+```
+
+出于性能原因，Seele **不保证**用户通过 `progress: true` 定义每一个的进度报告产生点都能对应一份进度报告。
+

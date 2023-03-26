@@ -1,0 +1,195 @@
+import { Callout, Tabs, Tab } from "nextra-theme-docs";
+
+# 快速上手
+
+## 系统要求
+
+<Callout type="info">
+  如果你不了解这些条件，我们建议直接选用 [Ubuntu
+  22.04](https://www.releases.ubuntu.com/jammy/)
+  或以上版本，此发行版能够满足下列的条件。
+</Callout>
+
+Seele 基于 Linux 内核提供的容器技术和 Rootless Containers 技术，这些技术需要 Linux 系统满足下列的条件。
+
+- 至少具备 4 个 CPU 核心和 4 GiB 及以上的内存。
+- Linux 内核版本至少在 `5.11` 以上，推荐使用尽可能新版本的内核以带来安全漏洞的修复和稳定性的提升。
+- 默认启用了 [Control Group v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) 而不是 v1。
+- 至少存在一个普通用户，并且[配置了对应的 `/etc/subuid` 和 `/etc/subgid`](https://rootlesscontaine.rs/getting-started/common/subuid/)。
+- 如果作为普通用户运行，那么需要 Systemd 版本在 243 以上，并且[开启了相关的 deletation](https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation)。
+
+<Callout type="info">
+我们推荐为 Seele 专门准备一个新用户账号，确保它在系统上具备较低的权限和较小的影响面：
+```sh
+adduser --no-create-home --disabled-login --disabled-password --gecos "" seele
+```
+
+下面的安装步骤会假设使用了 `seele` 用户和用户组，并且它的 uid 和 gid 均为 `1000`。
+
+</Callout>
+
+## 安装步骤
+
+Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kubernetes 部署，最简单的方式是 Docker 部署。
+
+<Tabs items={['Docker 部署', '裸机部署', 'Kubernetes 部署']} storageKey="selected-installation-method">
+  <Tab>
+    使用下列命令拉取 Seele 的最新版容器镜像：
+
+    ```sh
+    docker pull ghcr.io/darkyzhou/seele
+    ```
+
+    在当前目录中准备一份配置文件 `config.toml`，内容如下：
+
+    ```toml
+    # 配置评测系统在 8080 端口上运行一个 Http 服务以接收我们发送的评测任务
+    [exchange.demo]
+    type = "http"
+    address = "0.0.0.0"
+    port = 8080
+
+    # 安全沙箱需要知道应该使用系统上的哪个用户来创建容器
+    [worker.action.run_container]
+    userns_user = "seele"
+    userns_group = "seele"
+    userns_uid = 1000
+    userns_gid = 1000
+    ```
+
+    拉取完成后，运行下列命令：
+
+    <Callout type="info">
+      请尽可能使用最新版的 Docker 以避免出现功能不支持的问题。
+    </Callout>
+
+    ```sh
+    docker run \
+      --security-opt seccomp=unconfined \
+      --security-opt apparmor=unconfined \
+      --security-opt systempaths=unconfined \
+      -v /etc/subuid:/etc/subuid \
+      -v /etc/subgid:/etc/subgid \
+      -v /sys/fs/cgroup:/sys/fs/cgroup \
+      -v `pwd`/config.toml:/etc/seele/config.toml \
+      --tmpfs /tmp:exec,mode=777,size=1G \
+      --cgroupns host \
+      --net host \
+      ghcr.io/darkyzhou/seele
+    ```
+
+  </Tab>
+  <Tab>
+  裸机部署的文档仍在编写中。
+  </Tab>
+  <Tab>
+  Kubernetes 部署的文档仍在编写中。
+  </Tab>
+</Tabs>
+
+当 Seele 运行成功后，你会看到类似下面的输出：
+
+```log
+2023-03-25T02:57:16.048480Z  INFO seele:154: Checking cpu counts
+2023-03-25T02:57:16.048882Z  INFO seele:167: Checking id maps
+2023-03-25T02:57:16.048988Z  INFO seele:182: Creating necessary directories in /home/seele/seele/root
+2023-03-25T02:57:16.049601Z  INFO seele:200: Worker started bootstrap
+2023-03-25T02:57:16.050193Z  INFO seele:208: Initializing seele components
+2023-03-25T02:57:16.050350Z  INFO seele::exchange:16: Initializing exchanges based on the configuration
+2023-03-25T02:57:16.050962Z  INFO seele::exchange::http:27: Starting http exchange demo on 0.0.0.0:23335
+```
+
+我们准备了一个简单的评测任务，它会添加一个 `main.py` 源文件，并使用 Python 官方镜像运行源文件得到输出。
+为了方便，我们将这个文件保存为 `task.yaml`。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print("Hello, world!")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      # 将程序的标准输出流重定向到文件中
+      stdout: "out.txt"
+    report:
+      embeds:
+        # 让 Seele 保存 out.txt 文件的内容
+        - path: "out.txt"
+          field: output
+          truncate_kib: 8
+```
+
+使用像 `curl` 这样的工具可以让我们向 Seele 的 Http 服务发送一个含有评测任务的请求：
+
+```sh
+curl --data-binary @task.yaml http://127.0.0.1:8080
+```
+
+当 Seele 接收到这个评测任务之后，它会尝试连接 [Docker Hub](https://hub.docker.com) 下载 Python 的官方镜像并运行任务。
+如果一切顺利，并且你的网络能够流畅访问 Docker Hub，那么你会很快得到类似下面的结果：
+
+```jsonc
+{
+  "id": "X66BLePg2osQqFsN",
+  "type": "COMPLETED",
+  "report_at": "2023-03-25T03:10:50.077941185Z",
+  "status": {
+    "submitted_at": "2023-03-25T03:10:49.926655435Z",
+    "id": "X66BLePg2osQqFsN",
+    // 下面的 JSON 对象指示了每个步骤的执行情况
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-25T03:10:49.927670519Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-25T03:10:49.928582962Z",
+          "time_elapsed_ms": 148,
+          "type": "run_container",
+          // 下面的属性列举出了运行 Python 容器的资源使用情况
+          "status": "NORMAL",
+          "exit_code": 0,
+          "wall_time_ms": 103,
+          "cpu_user_time_ms": 15,
+          "cpu_kernel_time_ms": 15,
+          "memory_usage_kib": 18000
+        },
+        "embeds": {
+          // 下面是我们在任务中要求 Seele 保存的程序输出
+          "output": "Hello, world!\n"
+        }
+      }
+    }
+  }
+}
+```
+
+## 后续步骤
+
+你已经了解了 Seele 的基本使用流程。如果你想了解更多，可以从文档的下列部分开始继续阅读：
+
+- 如果你想进一步了解 Seele 的评测任务，请阅读[评测任务](/tasks/types)。
+- 如果你想查阅 Seele 的各种配置项，请阅读[配置项](/configurations/file)。
+- 如果你对 Seele 的技术细节感兴趣，请阅读[技术细节](/technical-details/architecture)。
+
+<Callout type="info">
+  Seele 仍处于早期开发阶段，如果你有好的建议或发现了 bug，欢迎前往本项目的
+  [GitHub 仓库](https://github.com/darkyzhou/seele)发表 issue 并顺便点一下
+  star。同时，Seele 的文档可能并没有涵盖完整的细节，如果你有疑问，同样欢迎发表
+  issue。
+</Callout>

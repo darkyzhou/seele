@@ -1,0 +1,50 @@
+# 配置文件
+
+Seele 的配置文件采用 [TOML](https://toml.io/en/) 格式，且配置文件名固定为 `config.toml`。在程序启动时，它会尝试在当前目录下读取配置文件，若文件不存在则会导致程序退出。当使用
+Seele 提供的 Docker 镜像时，默认的当前目录为 `/etc/seele`，因此你需要将配置文件挂载到此文件夹下才能让程序顺利读取到配置文件。
+
+配置文件中的各个配置项如下表所示：
+
+| 名称            |   类型   | 可选 | 简介                                                                                                     |
+| :-------------- | :------: | :--: | :------------------------------------------------------------------------------------------------------- |
+| `log_level`     | `string` |  是  | 输入到控制台的日志等级，默认为 `warn`。<br />可选值：`debug`、`info`、`warn`、`error` 和 `off`           |
+| `work_mode`     | `string` |  是  | 评测系统的工作模式，参见下文。<br />可选值：`bare_systemd`、`containerized`<br />默认值：`containerized` |
+| `thread_counts` | `object` |  是  | 评测系统使用的线程数量，参见下文                                                                         |
+| `paths`         | `object` |  是  | 一些文件夹和程序的目录，参见下文                                                                         |
+| `telemetry`     | `object` |  是  | 观测性配置，参见下文                                                                                     |
+| `healthz`       | `object` |  是  | 健康探针配置，参见下文                                                                                   |
+| `http`          | `object` |  是  | 内置的 HTTP 客户端配置，参见下文                                                                         |
+| `exchange`      | `object` |  是  | 参见 [Exchange 配置](/configuration/exchange)                                                            |
+| `composer`      | `object` |  是  | 参见 [Composer 配置](/configuration/composer)                                                            |
+| `worker`        | `object` |  是  | 参见 [Worker 配置](/configuration/worker)                                                                |
+
+## `work_mode` 配置
+
+指定 Seele 运行的模式，这和评测系统的工作原理有关。当作为普通用户运行评测系统程序时，请指定 `bare_systemd`。当使用 Seele 的容器镜像部署到 Docker 或 Kubernetes 等平台上运行时，请指定 `containerized`（此值为默认值）。
+
+## `thread_counts` 配置
+
+为了确保评测公平性，Seele 在启动时会严格地[将每一个线程绑定到不同的 CPU 核心上](/technical-details/bind-cores)。
+
+默认情况下，令 `N` 为系统上存在的
+CPU 核心数，Seele 会使用其中的 `1` 个核心运行主线程，使用另外的 `1` 个核心运行 `1` 个辅助线程（此线程被称为 Worker 线程），并使用剩余的 `N-2` 个核心运行 `N-2` 个辅助线程（此线程被称为 Runner 线程），评测系统会使用
+Runner 线程运行安全沙箱，参见[整体架构](/technical-details/architecture)。
+
+用户可以通过下表所示的 `thread_counts` 的属性改变 Worker 线程和 Runner 线程的数量：
+
+| 名称     |   类型   | 可选 | 简介            |
+| :------- | :------: | :--: | :-------------- |
+| `worker` | `number` |  是  | Worker 线程数量 |
+| `runner` | `number` |  是  | Runner 线程数量 |
+
+## `paths` 配置
+
+此配置的属性若下所示：
+
+| 名称     |   类型   | 可选 | 简介                                                              |
+| :------- | :------: | :--: | :---------------------------------------------------------------- |
+| `root`   | `string` |  是  | 默认值为 `/etc/seele`。存储评测系统需要持久化的文件的根文件夹路径 |
+| `tmp`    | `string` |  是  | 默认值为 `/tmp`。存储评测任务文件夹的根文件夹路径                 |
+| `runj`   | `string` |  是  | 默认值为 `/usr/local/bin/runj`。安全沙箱程序的路径                |
+| `skopeo` | `string` |  是  | 默认值为 `/usr/bin/skopeo`。skopeo 程序的路径                     |
+| `umoci`  | `string` |  是  | 默认值为 `/usr/bin/umoci`。umoci 程序的路径                       |

@@ -1,0 +1,70 @@
+# 报告脚本
+
+Seele 允许为评测任务通过 `reporter` 属性指定一个报告脚本。当返回[进度报告和完成报告](/tasks/types)时，评测系统将评测报告作为输入运行报告脚本，并根据脚本的返回值执行相应的操作。目前，Seele 仅支持 JavaScript 语言作为报告脚本。
+
+`reporter` 属性的参数如下表所示：
+
+| 属性         |   类型   | 简介                         |
+| :----------- | :------: | :--------------------------- |
+| `javascript` | `string` | 使用 JavaScript 作为报告脚本 |
+
+脚本的返回值**必须**符合下表所示的结构：
+
+| 属性      |   类型   | <span style={{whiteSpace: 'nowrap'}}>可选</span> | 简介                                                                                                                                           |
+| :-------- | :------: | :----------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| `report`  | `object` |                        否                        | 额外的报告内容，将被作为评测报告的 `report` 属性                                                                                               |
+| `embeds`  | `object` |                        是                        | 嵌入文件内容的配置，参见[嵌入和上传文件](/tasks/embed-and-upload)                                                                              |
+| `uploads` | `object` |                        是                        | 上传文件的配置，参见[嵌入和上传文件](/tasks/embed-and-upload)。对于进度报告，脚本返回的 `uploads` 会被忽略，只有当输入完成报告时此属性才有效。 |
+
+## JavaScript 报告脚本
+
+当报告脚本被运行时，Seele 提供了一个全局变量 `DATA` 指向输入的评测报告对象，为用户提供了各个子任务的状态。用户可以根据 `DATA` 的内容决定脚本的返回值。
+
+在下面的脚本例子中，我们检查子任务 `check` 的完成状况来额外返回一个 `grade` 属性代表本次评测任务的分数。
+
+```javascript
+function getGrade() {
+  const status = DATA.steps.check.status;
+
+  switch (status) {
+    case "PENDING":
+    case "RUNNING":
+      return null;
+    case "SKIPPED":
+      return -1;
+    case "FAILED":
+      return 0;
+    case "SUCCESS":
+      return 100;
+  }
+}
+
+return {
+  report: {
+    grade: getGrade(),
+  },
+};
+```
+
+Seele 返回的完成报告如下所示：
+
+```jsonc
+{
+  "id": "F7UAO37LMPYQRqLo",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T13:33:10.934345832Z",
+  "report": {
+    "grade": 100
+  },
+  "status": {
+    // ...
+  }
+}
+```
+
+Seele 使用 [QuickJS](https://bellard.org/quickjs/) 引擎执行 JavaScript 报告脚本。此引擎基本支持较新的 ES2020 规范，对 `Date`、`Math`、`JSON` 等基础 API 提供了完整支持。JavaScript
+报告脚本存在包括但不局限于以下列出的限制：
+
+- Seele 并没有接入异步功能，像 `Promise` 这样的异步 API 不会起作用。
+- QuickJS 引擎没有提供 Web API，例如 `fetch()`。
+- 无法访问文件系统、网络。

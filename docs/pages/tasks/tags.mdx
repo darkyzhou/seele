@@ -1,0 +1,47 @@
+# 标签
+
+为了满足一些场景的需要，我们可以在评测任务中通过 `tags` 向子任务附加标签。这些标签会被原样保留在对应的评测报告中。`tags` 接受一个字典，键值为字符串。
+
+在下面的例子中，我们运行了一个添加文件的任务并使用 `tags` 附加了一些标签。
+
+```yaml
+steps:
+  prepare:
+    tags:
+      foo: "bar"
+      message: "hello"
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+```
+
+Seele 会在对应的评测报告（包括进度报告和完成报告）中保留我们提供的标签，如下所示：
+
+```json
+{
+  "id": "QqmPeQrUFsrLAULA",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T03:29:15.388936921Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:29:15.387603442Z",
+    "id": "QqmPeQrUFsrLAULA",
+    "steps": {
+      "prepare": {
+        "tags": {
+          "foo": "bar",
+          "message": "hello"
+        },
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:29:15.388262860Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      }
+    }
+  }
+}
+```

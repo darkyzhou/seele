@@ -1,0 +1,72 @@
+import { Callout } from "nextra-theme-docs";
+
+# 添加文件
+
+添加文件是一种动作任务，能够按照用户的参数向[根文件夹](/tasks/directory)中保存一些必要的文件。目前，添加文件为用户提供了三种添加文件的方法：通过内联纯文本、内联
+Base64 文本和 HTTP URL，它们分别通过 `plain`、`base64` 和 `url` 属性来被指定和传入参数。
+
+## 内联纯文本
+
+下面的例子展示了一个添加文件任务，通过内联纯文本添加了两个源文件 `main.h` 和 `main.c`。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        plain: |
+          extern int power;
+
+      - path: "main.c"
+        plain: |
+          #include <stdio.h>
+          #include "main.h"
+
+          int power = 114514;
+
+          int main(void) {
+            printf("Power: %d\n", power);
+            return 0;
+          }
+```
+
+<Callout type="warning">
+  不建议使用内联纯文本传递用户提交的源代码等文件，因为 YAML
+  并不支持承载一些特殊字符。此外，Seele 也会拒绝处理非 UTF-8
+  编码的纯文本。在这些情况下，使用内联 Base64 文本或 HTTP URL 是更好的选择。
+</Callout>
+
+## 内联 Base64 文本
+
+下面的例子展示了一个添加文件任务，通过内联 Base64 文本添加了两个源文件 `main.h` 和 `main.c`。Seele 会对 Base64 文本进行解码，将二进制数据直接存入文件中。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        base64: "ZXh0ZXJuIGludCBwb3dlcjs="
+      - path: "main.c"
+        base64: "I2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlICJtYWluLmgiCgppbnQgcG93ZXIgPSAxMTQ1MTQ7CgppbnQgbWFpbih2b2lkKSB7CiAgcHJpbnRmKCJQb3dlcjogJWRcbiIsIHBvd2VyKTsKICByZXR1cm4gMDsKfQ=="
+```
+
+## HTTP URL
+
+下面的例子展示了一个添加文件任务，通过 HTTP URL添加了两个源文件 `main.h` 和 `main.c`。Seele 会使用内置的 HTTP 客户端向两个 URL 发送 GET 请求，将得到的响应写入文件中。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        url: "http://darkyzhou.net/main.h"
+      - path: "main.c"
+        url: "http://darkyzhou.net/main.c"
+```
+
+<Callout type="info">暂不支持身份验证、下载 HTTPS URL。</Callout>
+
+在默认情况下，添加文件任务会尝试使用 HTTP 响应头中的协商缓存头来将下载的文件缓存到内存中，这样能够加速后续评测任务对相同文件的下载。详见[添加文件的配置项](/configurations/files)。

@@ -1,0 +1,12 @@
+{
+    "types": "任务类型",
+    "states": "任务状态",
+    "report": "评测报告",
+    "order": "控制执行",
+    "tags": "标签",
+    "directory": "根文件夹",
+    "files": "添加文件",
+    "judge": "运行评测程序",
+    "embed-and-upload": "嵌入和上传文件",
+    "script": "报告脚本"
+}

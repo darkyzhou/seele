@@ -1,0 +1,42 @@
+import { Callout } from 'nextra-theme-docs'
+
+# 控制执行
+
+顺序任务能够按一定的顺序执行它的子任务，通过 `steps` 定义。默认情况下，顺序任务会按照子任务的前后顺序先后执行每个子任务，当某个子任务执行失败进入
+[`FAILED`](/tasks/states) 态时，顺序任务停止执行，并将剩余的子节点的状态设置为 `SKIPPED` 态。为了让用户能够建模一些更复杂的任务执行流程，Seele 提供了两种属性改变上述的行为，它们分别是：`when` 和 `needs`。
+
+## `when`
+
+接收一个字符串，可选值：`true` 或 `previous.ok`。默认值为 `previous.ok`。
+
+当顺序任务中的某个子任务执行失败时，Seele 会检查它的后继节点的 `when` 值。默认情况下，`previous.ok` 表示仅在前驱节点执行成功时继续运行本节点。设置为 `true` 可以让 Seele 即使在前驱节点执行失败时依然执行本节点。
+
+<Callout type="info">
+  如果你对这个属性有更好的建议，欢迎在本项目的 [GitHub 仓库](https://github.com/darkyzhou/seele)中发表 issue。
+</Callout>
+
+## `needs`
+
+接收一个字符串，指定在顺序任务中它作为子任务的前驱任务的名称。
+
+默认情况下，顺序会按照声明顺序先后执行子任务。每个子任务的前驱节点就是它相邻的前一个任务。
+例如下面的例子中，`one`、`two` 和 `three` 三个子任务会被按顺序执行。它们的关系如下图所示。
+
+```yaml
+steps:
+  one: # ...
+  two: # ...
+  three: # ...
+```
+
+![Order of the three tasks](/order-1.png)
+
+通过在 `three` 的配置中添加 `when: one`，我们将 `three` 的前驱节点从 `two` 改变为 `one`。此时，顺序任务的执行顺序发生了变化，它仍然会先执行
+`one`，但之后会**并发执行** `two` 和 `three`。此时它们的关系如下图所示。
+
+![Order of the three tasks when using needs](/order-2.png)
+
+当搭配 `when` 使用时，`previous.ok` 指向它的前驱任务的状态，也就是 `when` 指定的前驱任务。`when`
+只能指定声明在它之前的任务名称，例如在上面的例子中我们**不能**在 `two` 中使用 `when: three`。
+
+
