@@ -1,2 +1,31 @@
 # 本地开发
 
+建议使用 Archlinux 等具有新版内核的发行版进行本地开发。进行本地开发仅需使用普通用户，不需要 `root` 权限。
+
+## 调试安全沙箱
+
+`runj` 文件夹下存在 `Makefile`，通过 `make build` 即可构建安全沙箱并将可执行文件保存到 `runj/bin` 中。
+
+对于集成测试，需要在 `runj/tests/image` 文件中准备 `gcc:11-bullseye` 的镜像文件，然后在 `runj/tests` 中运行 `pnpm install` 和 `node run.mjs` 即可开始集成测试。
+
+## 调试评测服务
+
+Seele 的仓库中提供了 `Dockerfile.dev` 用于本地开发的打包。可以通过 `docker build -f Dockerfile.dev .` 构建 Seele
+评测系统，包括评测服务程序和安全沙箱程序。构建完成后可按照 [Docker 部署](/getting-started)的方法启动评测系统。
+
+如果要使用调试器或 `cargo run` 直接启动评测服务，请参考下列配置文件：
+
+```toml
+log_level = "info"
+work_mode = "bare"
+
+[paths]
+root = '/home/user/seele/root'
+runj = '/home/user/seele/runj/bin/runj'
+
+[worker.action.run_container]
+userns_uid = 1000
+userns_user = "user"
+userns_gid = 1000
+userns_group = "user"
+```

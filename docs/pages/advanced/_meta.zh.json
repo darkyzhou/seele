@@ -1,5 +1,6 @@
 {
     "architecture": "整体架构",
     "sandbox": "安全沙箱",
-    "bind-cores": "绑定 CPU 核心"
+    "fairness": "公平性",
+    "telemetry": "观测性"
 }

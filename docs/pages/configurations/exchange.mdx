@@ -1,0 +1,67 @@
+import { Callout } from "nextra-theme-docs";
+
+# Exchange 配置
+
+Exchange 接收用户提交的评测任务并将其交给 Composer，然后将 Composer 发送的评测报告反馈给用户。为了提升灵活性，评测系统允许用户配置多个
+Exchange 共同工作。 目前，Seele 提供了两种 Exchange 的实现，为用户提供了多种与评测系统进行数据交互的方式，它们分别是 HTTP Exchange 和 AMQP Exchange。
+
+配置接收一个字典，键为字符串表示 Exchange 的名称，值为两种类型之一的 Exchange 的配置，见下文。
+
+## HTTP Exchange
+
+HTTP Exchange 开启一个 HTTP 端点监听用户发送的评测任务请求，请求体为 YAML 文本。它的配置如下表所示：
+
+| 名称                  |   类型   | 可选 | 简介                                                                                   |
+| :-------------------- | :------: | :--: | :------------------------------------------------------------------------------------- |
+| `type`                | `'http'` |  否  | 指示 Exchange 类型为 HTTP Exchange                                                     |
+| `address`             | `string` |  是  | HTTP 端点监听的地址。默认值为 `127.0.0.1`                                              |
+| `port`                | `number` |  否  | HTTP 端点监听的端口                                                                    |
+| `max_body_size_bytes` | `number` |  是  | 接收的 HTTP 请求体的最大大小，超出大小限制的请求会被拒绝。单位为 Bytes。默认值为 8 MiB |
+
+HTTP Exchange 默认只会返回完成报告或错误报告，用户需要通过在请求的 Query params 中添加 `progress=true` 来额外获得进度报告。HTTP Exchange 会使用 `\n` 分隔返回的每条评测报告 JSON 数据。
+
+## AMQP Exchange
+
+AMQP Exchange 采用流行的消息通信协议 [Amqp 0.9.1](https://www.amqp.org/) 配合 [RabbitMQ](https://www.rabbitmq.com/) 等消息队列实现评测任务的获取以及评测报告的输出。相比 HTTP Exchange，它是生产环境中应对大规模流量的更理想的方式。
+
+<Callout type="info">
+  请勿混淆 Seele 的 Exchange 概念和 Amqp 协议中的 Exchange 概念。
+</Callout>
+
+它的配置如下表所示：
+
+| 名称         |   类型   | 简介                               |
+| :----------- | :------: | :--------------------------------- |
+| `type`       | `'amqp'` | 指示 Exchange 类型为 AMQP Exchange |
+| `url`        | `string` | Amqp 端点的 URL                    |
+| `submission` | `object` | 接收评测任务的相关配置，见下文     |
+| `report`     | `object` | 发送评测报告的相关配置，见下文     |
+
+### `submission` 配置
+
+Seele 根据下表列出的配置，通过创建相应的队列使用 routing key 绑定到 exchange 来监听提交的评测任务。
+
+| 名称            |   类型   | 简介                                                                                                                                                          |
+| :-------------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `exchange`      | `object` | Amqp exchange 配置，见下文                                                                                                                                    |
+| `routing_key`   | `string` | 评测任务的 routing key                                                                                                                                        |
+| `queue`         | `string` | 监听 exchange 信息的队列名                                                                                                                                    |
+| `queue_options` | `object` | 可选。监听 exchange 信息的队列设置。参见 [generated.rs](https://github.com/amqp-rs/lapin/blob/ae89cf67b169f59b5187419fc074d3a1257dff02/src/generated.rs#L147) |
+
+### `report` 配置
+
+Seele 根据下表列出的配置，向 exchange 使用相应的 routing key 发送评测报告。发送的信息体是 JSON 纯文本。
+
+| 名称                   |   类型   | 简介                                                 |
+| :--------------------- | :------: | :--------------------------------------------------- |
+| `exchange`             | `object` | Amqp exchange 配置，见下文                           |
+| `report_routing_key`   | `string` | 发送完成报告或错误报告时使用的 routing key           |
+| `progress_routing_key` | `string` | 可选。发送进度报告时使用的 routing key。为空时不发送 |
+
+### `exchange` 配置
+
+| 名称      |   类型   | 简介                                                                                                                                                       |
+| :-------- | :------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | `string` | Exchange 的名称                                                                                                                                            |
+| `kind`    | `string` | 可选。Amqp exchange 的类型。参见 [exchange.rs](https://github.com/amqp-rs/lapin/blob/main/src/exchange.rs)                                                 |
+| `options` | `object` | 可选。声明 Amqp exchange 的设置。参见 [generated.rs](https://github.com/amqp-rs/lapin/blob/ae89cf67b169f59b5187419fc074d3a1257dff02/src/generated.rs#L113) |

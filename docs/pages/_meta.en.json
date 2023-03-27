@@ -1,2 +1,8 @@
 {
+    "index": "Introduction",
+    "getting-started": "Getting Started",
+    "tasks": "Judge Tasks",
+    "configurations": "Configurations",
+    "advanced": "Advanced",
+    "misc": "Miscellaneous"
 }
