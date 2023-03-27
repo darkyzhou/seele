@@ -13,7 +13,7 @@ use self::{
 
 mod action;
 mod composer;
-mod env;
+pub mod env;
 mod exchange;
 mod healthz;
 mod http;

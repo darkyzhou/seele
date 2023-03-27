@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::conf::env;
+
 #[derive(Debug, Deserialize)]
 pub struct HttpConfig {
     #[serde(default = "default_user_agent")]
@@ -33,7 +35,7 @@ impl Default for HttpConfig {
 
 #[inline]
 fn default_user_agent() -> String {
-    concat!("seele/", env!("CARGO_PKG_VERSION")).to_owned()
+    format!("seele/{}", env::COMMIT_TAG.or(*env::COMMIT_SHA).unwrap_or("unknown"))
 }
 
 #[inline]

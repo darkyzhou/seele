@@ -15,7 +15,10 @@ use crate::conf;
 pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
     let mut pairs = vec![
         KeyValue::new("service.name", "seele"),
-        KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+        KeyValue::new(
+            "service.version",
+            conf::env::COMMIT_TAG.or(*conf::env::COMMIT_SHA).unwrap_or("unknown"),
+        ),
         KeyValue::new("host.name", conf::HOSTNAME.clone()),
     ];
 
@@ -27,8 +30,12 @@ pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
         pairs.push(KeyValue::new("container.image.name", container_image_name.clone()));
     }
 
-    if let Some(container_image_tag) = conf::CONTAINER_IMAGE_TAG.as_ref() {
-        pairs.push(KeyValue::new("container.image.tag", container_image_tag.clone()));
+    if let Some(tag) = conf::COMMIT_TAG.as_ref() {
+        pairs.push(KeyValue::new("commit.tag", tag.clone()));
+    }
+
+    if let Some(sha) = conf::COMMIT_SHA.as_ref() {
+        pairs.push(KeyValue::new("commit.sha", sha.clone()));
     }
 
     Resource::new(pairs)

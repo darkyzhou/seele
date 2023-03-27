@@ -1,3 +1,6 @@
+ARG GIT_SHA
+ARG GIT_NAME
+
 FROM golang:1.19 AS runj
 WORKDIR /usr/src/app/
 COPY runj/go.mod runj/go.sum ./
@@ -16,6 +19,8 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
+ENV COMMIT_TAG=$GIT_NAME
+ENV COMMIT_SHA=$GIT_SHA
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --bin seele
