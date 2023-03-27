@@ -1,0 +1,16 @@
+import { Callout } from 'nextra-theme-docs'
+
+# 描述评测任务
+
+Seele 要求用户使用 YAML 语言描述评测任务。每个评测任务由下表列出的属性构成：
+
+| 名称                |   类型   | 简介                                                |
+| :------------------ | :------: | :-------------------------------------------------- |
+| `id`                | `string` | 评测任务的 ID                                       |
+| `tracing_attribute` | `string` | 可选。为此任务附加[观测性](/advanced/telemetry)属性 |
+| `reporter`          | `object` | 可选。[报告脚本](/tasks/script)配置                 |
+| `steps`             | `object` | 根顺序任务的参数，参见[任务类型](/tasks/types)      |
+
+<Callout type="info">
+  对于入门用户，上面的属性中只有 `id` 和 `steps` 是必要的。 
+</Callout>

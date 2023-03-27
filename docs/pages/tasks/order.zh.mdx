@@ -5,7 +5,7 @@ import { Callout } from 'nextra-theme-docs'
 顺序任务能够按一定的顺序执行它的子任务，通过 `steps` 定义。默认情况下，顺序任务会按照子任务的前后顺序先后执行每个子任务，当某个子任务执行失败进入
 [`FAILED`](/tasks/states) 态时，顺序任务停止执行，并将剩余的子节点的状态设置为 `SKIPPED` 态。为了让用户能够建模一些更复杂的任务执行流程，Seele 提供了两种属性改变上述的行为，它们分别是：`when` 和 `needs`。
 
-## `when`
+## `when` 配置
 
 接收一个字符串，可选值：`true` 或 `previous.ok`。默认值为 `previous.ok`。
 
@@ -15,7 +15,7 @@ import { Callout } from 'nextra-theme-docs'
   如果你对这个属性有更好的建议，欢迎在本项目的 [GitHub 仓库](https://github.com/darkyzhou/seele)中发表 issue。
 </Callout>
 
-## `needs`
+## `needs` 配置
 
 接收一个字符串，指定在顺序任务中它作为子任务的前驱任务的名称。
 

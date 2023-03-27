@@ -2,5 +2,6 @@
     "architecture": "整体架构",
     "sandbox": "安全沙箱",
     "fairness": "公平性",
-    "telemetry": "观测性"
+    "telemetry": "观测性",
+    "images": "工具镜像"
 }

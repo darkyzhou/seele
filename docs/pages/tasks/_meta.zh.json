@@ -1,4 +1,5 @@
 {
+    "description": "描述评测任务",
     "types": "任务类型",
     "states": "任务状态",
     "report": "评测报告",

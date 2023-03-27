@@ -1,3 +1,5 @@
+import { Callout } from 'nextra-theme-docs'
+
 # 嵌入和上传文件
 
 顺序任务、并发任务和动作任务的配置提供了一个 `report` 属性。它的参数如下表所示：
@@ -28,3 +30,7 @@
 | `target`            |      `string`       | 上传文件的 HTTP 请求的 URL                            |
 | `method`            | `'POST'` 或 `'PUT'` | 上传文件的 HTTP 请求的方法                            |
 | `ignore_if_missing` |      `boolean`      | 如果文件不存在，是否忽略且不报错。**默认值为 `true`** |
+
+<Callout type="info">
+  Seele 会在评测任务执行完毕，并且发送完成报告或错误报告后，开始异步地上传文件。
+</Callout>

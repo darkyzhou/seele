@@ -1,0 +1,48 @@
+# 观测性
+
+Seele 通过 OpenTelemetry 提供的 SDK 导出 Tracing 和 Metrics 数据。
+
+## Tracing
+
+Seele 的 Tracing 数据从 Composer 接收到 Exchange 发来的评测任务开始，直到 Composer 向 Exchange
+发送评测报告结束。每个 Tracing 包含多个 Span，其中包含充足的 Log Event 用于追踪评测任务的执行状况。
+
+Tracing 的各个 Span 主要来自于：
+
+- Composer 追踪每个子任务的执行。
+- Worker 收到 Composer 发来的动作任务。
+- Worker 执行[添加文件任务](/tasks/files)。
+- Worker 执行[编译任务和执行任务](/tasks/judge)。
+
+Composer 在处理评测任务的前后会为上报的根 Span 附加下列的属性：
+
+- `seele.submission.id`，取自评测任务的 ID。
+- `seele.submission.attribute`，取自评测任务的 `tracing_attributes`。
+- `seele.submission.status`，表示评测报告的类型，取值为 `COMPLETED` 或 `ERROR`。
+
+当 Worker 执行编译任务或执行任务时，它会为 Span 中的 Log Event 附加额外的属性，它们来自对应的[评测报告](/tasks/judge#%E8%AF%84%E6%B5%8B%E6%8A%A5%E5%91%8A)。
+
+- `seele.container.status`
+- `seele.container.code`
+- `seele.container.signal`
+- `seele.container.cpu_user_time`
+- `seele.container.cpu_kernel_time`
+- `seele.container.memory_usage`
+
+用户可根据上述的属性辅助查询特定的 Tracing 记录，从而快速定位问题。
+
+## Metrics
+
+### `seele.submission.duration`
+
+类型为 `float64` 的 Histogram，单位为 `s`。统计了评测系统收到的每个评测任务整体的执行时间。此 Histogram 亦可用于统计评测系统执行的评测任务总数，以及在一段时间内的请求数。
+
+Seele 为上报的每一条记录附加了 `submission.status` 属性，表示评测报告的类型，取值为 `COMPLETED` 或 `ERROR`。用户可根据此属性的取值监控是否出现执行失败的评测任务，并及时告警处理。
+
+### `seele.runner.count`
+
+类型为 `uint64` 的 Gauge，指示了当前实例在线的 [Runner 线程](/advanced/architecture)数量。
+
+### `seele.action.container.pending.count`
+
+类型为 `uint64` 的 Gauge，指示了当前实例中，在安全沙箱线程池任务队列中等待执行的[编译任务或执行任务](/tasks/judge)数量。若此数据持续保持较高的数值且不断升高，往往说明用户为评测系统分配的 CPU 核心数量不足以支撑庞大的请求量。

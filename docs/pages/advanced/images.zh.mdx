@@ -1,0 +1,50 @@
+import { Callout } from "nextra-theme-docs";
+
+# 工具镜像
+
+我们提供了一些工具类的容器镜像，为用户使用 Seele 提供了方便。
+
+## `diff-scripts` 镜像
+
+镜像的源文件位于 [images/diff-scripts](https://github.com/darkyzhou/seele/tree/main/images/diff-scripts)。可在评测任务中使用 `image: darkyzhou/diff-scripts` 引用此镜像。
+
+`diff-scripts` 提供了两个脚本文件 `diff-strict` 和 `diff-loose`，用于对比评测程序的输出内容和标准答案内容之间是否存在差异，它们基于 GNU 的 diffutils。
+
+### `diff-strict`
+
+检查当前目录的 `user.out` 和 `standard.out` 文件内容是否完全一致。
+
+- 若存在除了末尾空白字符和数量不同的空白字符外的差异，退出码为 `8`。
+- 若**仅存在**末尾空白字符或数量不同的空白字符上的差异，退出码为 `9`。
+- 若不存在差异，退出码为 `0`。
+- 若文件不存在，退出码为 `1`。
+
+### `diff-loose`
+
+检查当前目录的 `user.out` 和 `standard.out` 文件内容是否*基本*一致。
+
+- 若存在除了末尾空白字符、数量不同的空白字符以及数量不同的空行外的差异，退出码为 `8`。
+- 若不存在上述差异，退出码为 `0`。
+- 若文件不存在，退出码为 `1`。
+
+### 使用方法
+
+脚本文件总是固定使用当前目录的 `user.out` 文件作为评测程序的输出内容，使用 `standard.out` 作为标准答案内容。我们在使用[执行任务](/tasks/judge)时可以通过 `files` 属性来修改挂载文件的名称。
+
+下面的例子展示了 `diff-loose` 的使用方法，`diff-strict` 的使用同理。在这个例子中，我们将评测程序的输出流重定向到文件 `__user_output` 中，然后结合答案文件 `__answer` 挂载到工具镜像中进行比较。
+
+```yaml
+steps:
+  run:
+    # ...
+    fd:
+      stdout: "__user_output"
+
+  compare:
+    action: "seele/run-judge/run@1"
+    image: "harbor.matrix.moe/docker.io/darkyzhou/diff-scripts"
+    command: "diff-loose"
+    files:
+        - "__user_output:user.out"
+        - "__answer:standard.out"
+```

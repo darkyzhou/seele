@@ -29,7 +29,7 @@ export default {
   ),
   logo: (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      <img src="/logo.svg" width="30px" />
+      <img src="/logo.svg" width="24px" />
       Seele
     </div>
   ),
@@ -51,25 +51,16 @@ export default {
   },
   footer: {
     text: (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          width: "100%",
-        }}
-      >
-        <span>别把看重的东西附上无边的价值</span>
-        <span>
-          Made with ❤️ by{" "}
-          <a
-            style={{ textDecoration: "underline" }}
-            href="https://darkyzhou.net"
-            target="_blank"
-            rel="noopener"
-          >
-            darkyzhou
-          </a>
-        </span>
+      <div style={{ width: "100%", textAlign: "center" }}>
+        Made with ❤️ by{" "}
+        <a
+          style={{ textDecoration: "underline" }}
+          href="https://darkyzhou.net"
+          target="_blank"
+          rel="noopener"
+        >
+          darkyzhou
+        </a>
       </div>
     ),
   },
