@@ -34,15 +34,9 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
 
 <Tabs items={['Docker 部署', '裸机部署', 'Kubernetes 部署']} storageKey="selected-installation-method">
   <Tab>
-    使用下列命令拉取 Seele 的最新版容器镜像：
-
-    ```sh
-    docker pull ghcr.io/darkyzhou/seele
-    ```
-
     在当前目录中准备一份配置文件 `config.toml`，内容如下：
 
-    ```toml
+    ```toml copy filename="config.toml"
     # 配置评测系统在 8080 端口上运行一个 Http 服务以接收我们发送的评测任务
     [exchange.demo]
     type = "http"
@@ -57,13 +51,13 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
     userns_gid = 1000
     ```
 
-    拉取完成后，运行下列命令：
+    使用 Docker 运行下列命令，等待 Docker 下载镜像并启动 Seele。
 
     <Callout type="info">
       请尽可能使用最新版的 Docker 以避免出现功能不支持的问题。
     </Callout>
 
-    ```sh
+    ```sh copy
     docker run \
       --security-opt seccomp=unconfined \
       --security-opt apparmor=unconfined \
@@ -102,7 +96,7 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
 我们准备了一个简单的评测任务，它会添加一个 `main.py` 源文件，并使用 Python 官方镜像运行源文件得到输出。
 为了方便，我们将这个文件保存为 `task.yaml`。
 
-```yaml
+```yaml copy filename="task.yaml"
 steps:
   prepare:
     action: "seele/add-file@1"
@@ -129,7 +123,7 @@ steps:
 
 使用像 `curl` 这样的工具可以让我们向 Seele 的 Http 服务发送一个含有评测任务的请求：
 
-```sh
+```sh copy
 curl --data-binary @task.yaml http://127.0.0.1:8080
 ```
 
