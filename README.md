@@ -1,12 +1,11 @@
-<div style="text-align: center">
-<img alt="Banner" src="docs/public/logo.svg">
+<p align="center"><img alt="Banner" src="docs/public/logo.svg"></p>
+<h1 align="center">Seele</h1>
 
-# Seele
-
-[![publish](https://github.com/darkyzhou/seele/actions/workflows/ci.yml/badge.svg)](https://github.com/darkyzhou/seele/actions/workflows/ci.yml)
-![version](https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square)
-![license](https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square)
-</div>
+<p align="center">
+  <img src="https://github.com/darkyzhou/seele/actions/workflows/ci.yml/badge.svg">
+  <img src="https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square">
+  <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
+</p>
 
 Seele 是一款面向云原生的在线评测（Online Judge）系统，主要面向计算机相关的在线课程系统、程序设计竞赛等场景。 它作为评测服务接收用户提交的代码，在安全沙箱中运行并返回评测报告。
 
