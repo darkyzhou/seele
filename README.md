@@ -2,7 +2,7 @@
 <h1 align="center">Seele</h1>
 
 <p align="center">
-  <img src="https://github.com/darkyzhou/seele/actions/workflows/ci.yml/badge.svg">
+  <img src="https://github.com/darkyzhou/seele/actions/workflows/build.yml/badge.svg">
   <img src="https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square">
   <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
 </p>
