@@ -142,7 +142,7 @@ fn execute_runj(
                 seele.container.signal = report.signal,
                 seele.container.cpu_user_time = report.cpu_user_time_ms,
                 seele.container.cpu_kernel_time = report.cpu_kernel_time_ms,
-                seele.memory_usage = report.memory_usage_kib,
+                seele.container.memory_usage = report.memory_usage_kib,
                 "Run container completed"
             );
             Ok(report)
