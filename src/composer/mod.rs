@@ -32,9 +32,9 @@ mod signal;
 pub type ComposerQueueTx = mpsc::Sender<ComposerQueueItem>;
 pub type ComposerQueueRx = mpsc::Receiver<ComposerQueueItem>;
 
-const SUBMISSION_ID: &str = "submission.id";
-const SUBMISSION_STATUS: &str = "submission.status";
-const SUBMISSION_ATTRIBUTE: &str = "submission.attribute";
+const SUBMISSION_ID: &str = "seele.submission.id";
+const SUBMISSION_STATUS: &str = "seele.submission.status";
+const SUBMISSION_ATTRIBUTE: &str = "seele.submission.attribute";
 
 #[derive(Debug)]
 pub struct ComposerQueueItem {
