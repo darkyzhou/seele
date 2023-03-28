@@ -19,6 +19,10 @@ pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
             "service.version",
             conf::env::COMMIT_TAG.or(*conf::env::COMMIT_SHA).unwrap_or("unknown"),
         ),
+        KeyValue::new(
+            "service.instance.id",
+            format!("{}-{}", *conf::HOSTNAME, nano_id::base62::<8>()),
+        ),
         KeyValue::new("host.name", conf::HOSTNAME.clone()),
     ];
 
