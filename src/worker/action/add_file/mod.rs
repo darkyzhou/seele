@@ -123,7 +123,7 @@ async fn download_http_file(
     let headers = response.headers();
     match (headers.get(http_cache::XCACHE), headers.get(http_cache::XCACHELOOKUP)) {
         (Some(cache), Some(cache_lookup)) => {
-            info!("Cache served: {:?}, cache existed {:?}", cache, cache_lookup);
+            info!("Cache served: {:?}, cache existed: {:?}", cache, cache_lookup);
         }
         (Some(cache), None) => {
             info!("Cache served: {:?}", cache);
