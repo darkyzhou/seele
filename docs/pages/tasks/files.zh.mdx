@@ -2,12 +2,13 @@ import { Callout } from "nextra-theme-docs";
 
 # 添加文件
 
-添加文件是一种动作任务，能够按照用户的参数向[根文件夹](/tasks/directory)中保存一些必要的文件。目前，添加文件为用户提供了三种添加文件的方法：通过内联纯文本、内联
-Base64 文本和 HTTP URL，它们分别通过 `plain`、`base64` 和 `url` 属性来被指定和传入参数。
+添加文件是一种动作任务，能够按照用户的参数向[根文件夹](/tasks/directory)中保存一些必要的文件。目前，此动作任务为用户提供了多种添加文件的方法。
 
 ## 内联纯文本
 
-下面的例子展示了一个添加文件任务，通过内联纯文本添加了两个源文件 `main.h` 和 `main.c`。
+使用 `plain` 属性来传入纯文本字符串。Seele 会将字符串的内容写入指定的文件中。
+
+下面的例子通过内联纯文本添加两个源文件 `main.h` 和 `main.c`。
 
 ```yaml
 steps:
@@ -39,7 +40,14 @@ steps:
 
 ## 内联 Base64 文本
 
-下面的例子展示了一个添加文件任务，通过内联 Base64 文本添加了两个源文件 `main.h` 和 `main.c`。Seele 会对 Base64 文本进行解码，将二进制数据直接存入文件中。
+使用 `base64` 属性来传入 Base64 文本字符串。Seele 会对 Base64 文本进行解码，将得到的数据写入指定的文件中。
+
+<Callout type="info">
+  Seele 仅接受**不含** Padding 的 Base64 文本。如果传入含 Padding 的 Base64
+  文本会导致报错。
+</Callout>
+
+下面的例子通过内联 Base64 文本添加两个源文件 `main.h` 和 `main.c`。Seele 会对 Base64 文本进行解码，将二进制数据直接存入文件中。
 
 ```yaml
 steps:
@@ -54,7 +62,9 @@ steps:
 
 ## HTTP URL
 
-下面的例子展示了一个添加文件任务，通过 HTTP URL添加了两个源文件 `main.h` 和 `main.c`。Seele 会使用内置的 HTTP 客户端向两个 URL 发送 GET 请求，将得到的响应写入文件中。
+使用 `url` 属性来传入 HTTP URL 字符串。Seele 会使用内置的 HTTP 客户端向两个 URL 发送 GET 请求，将得到的响应写入指定的文件中。
+
+下面的例子通过 HTTP URL 添加两个源文件 `main.h` 和 `main.c`。
 
 ```yaml
 steps:
@@ -70,3 +80,22 @@ steps:
 <Callout type="info">暂不支持身份验证、下载 HTTPS URL。</Callout>
 
 在默认情况下，添加文件任务会尝试使用 HTTP 响应头中的协商缓存头来将下载的文件缓存到内存中，这样能够加速后续评测任务对相同文件的下载。详见[添加文件的配置项](/configurations/files)。
+
+## 本地文件
+
+使用 `local` 属性来传入一个指向本地文件的**绝对路径**字符串。Seele 会将指定文件进行拷贝。
+
+<Callout type="info">
+  当在 Docker 或 Kubernetes 的容器中运行 Seele 时，请确保将相关文件挂载到了容器文件系统中
+</Callout>
+
+下面的例子将本地文件 `/tmp/foo.txt` 添加到提交根文件夹中。
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "foo.txt"
+        local: "/tmp/foo.txt"
+```

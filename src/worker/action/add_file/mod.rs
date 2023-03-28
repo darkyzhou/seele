@@ -1,4 +1,7 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
@@ -7,6 +10,7 @@ use once_cell::sync::Lazy;
 use tokio::{
     fs::File,
     io::{self, AsyncWriteExt},
+    task::spawn_blocking,
 };
 use tracing::{info, instrument};
 use triggered::Listener;
@@ -36,8 +40,10 @@ pub async fn execute(
             };
 
             match &item.ext {
-                FileItemExt::PlainText { plain } => handle_plain_text_file(file, &plain).await,
-                FileItemExt::Http { url } => handle_http_file(handle, file, url).await,
+                FileItemExt::PlainText { plain } => handle_plain_text(file, &plain).await,
+                FileItemExt::Http { url } => handle_http_url(handle, file, url).await,
+                FileItemExt::Base64 { base64 } => handle_base64(file, base64).await,
+                FileItemExt::LocalPath { local } => handle_local_path(file, local).await,
             }
         }
     }))
@@ -60,9 +66,28 @@ pub async fn execute(
     Ok(ActionReportExt::Success(ActionSuccessReportExt::AddFile))
 }
 
-async fn handle_plain_text_file(mut file: File, text: &str) -> Result<()> {
+async fn handle_plain_text(mut file: File, text: &str) -> Result<()> {
     let mut text = text.as_bytes();
-    io::copy_buf(&mut text, &mut file).await.context("Error writing the data")?;
+    io::copy_buf(&mut text, &mut file).await.context("Error writing the file")?;
+    Ok(())
+}
+
+async fn handle_base64(mut file: File, base64: &str) -> Result<()> {
+    use base64::prelude::*;
+
+    let data = spawn_blocking({
+        let base64 = base64.to_owned();
+        move || BASE64_STANDARD_NO_PAD.decode(base64)
+    })
+    .await?
+    .context("Error decoding base64 text")?;
+    io::copy_buf(&mut data.as_slice(), &mut file).await.context("Error writing the file")?;
+    Ok(())
+}
+
+async fn handle_local_path(mut file: File, path: &Path) -> Result<()> {
+    let mut source = File::open(path).await.context("Error opening the file")?;
+    io::copy(&mut source, &mut file).await.context("Error copying the file")?;
     Ok(())
 }
 
@@ -93,7 +118,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
 });
 
 #[instrument(skip(handle, file))]
-async fn handle_http_file(handle: Listener, mut file: File, url: &str) -> Result<()> {
+async fn handle_http_url(handle: Listener, mut file: File, url: &str) -> Result<()> {
     tokio::select! {
         _ = handle => bail!(shared::ABORTED_MESSAGE),
         result = download_http_file(url) => match result {
@@ -139,16 +164,18 @@ async fn download_http_file(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use tokio::fs::{self, File};
 
     #[tokio::test]
-    async fn test_handle_inline_file() {
+    async fn test_handle_inline() {
         const PATH: &str = "./test-inline.txt";
 
-        let file = File::open(PATH).await.unwrap();
+        let file = File::create(PATH).await.unwrap();
         let text = "EXAMPLE 测试".to_string();
 
-        super::handle_plain_text_file(file, &text).await.unwrap();
+        super::handle_plain_text(file, &text).await.unwrap();
 
         assert_eq!(fs::read_to_string(PATH).await.unwrap(), text);
 
@@ -156,17 +183,48 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_handle_http_file() {
+    async fn test_handle_base64() {
         const PATH: &str = "./test-base64.txt";
 
-        let file = File::open(PATH).await.unwrap();
+        let file = File::create(PATH).await.unwrap();
+        let base64 = "5biM5YS/5pyA5Y+v54ix5LqG".to_string();
+
+        super::handle_base64(file, &base64).await.unwrap();
+
+        assert_eq!(fs::read_to_string(PATH).await.unwrap(), "希儿最可爱了");
+
+        fs::remove_file(PATH).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_http_url() {
+        const PATH: &str = "./test-url.txt";
+
+        let file = File::create(PATH).await.unwrap();
         let (_trigger, listener) = triggered::trigger();
-        super::handle_http_file(listener, file, &"https://reqbin.com/echo/get/json".to_string())
+        super::handle_http_url(listener, file, &"https://reqbin.com/echo/get/json".to_string())
             .await
             .unwrap();
 
         assert_eq!(fs::read_to_string(PATH).await.unwrap(), "{\"success\":\"true\"}\n");
 
         fs::remove_file(PATH).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_handle_local_path() {
+        const SOURCE_PATH: &str = "./test-local-source.txt";
+        const TARGET_PATH: &str = "./test-local-target.txt";
+        const TEXT: &str = "希儿最可爱了test114514";
+
+        fs::write(SOURCE_PATH, TEXT).await.unwrap();
+
+        let file = File::create(TARGET_PATH).await.unwrap();
+        super::handle_local_path(file, Path::new(SOURCE_PATH)).await.unwrap();
+
+        assert_eq!(fs::read_to_string(TARGET_PATH).await.unwrap(), TEXT);
+
+        fs::remove_file(TARGET_PATH).await.unwrap();
+        fs::remove_file(SOURCE_PATH).await.unwrap();
     }
 }
