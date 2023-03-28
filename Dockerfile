@@ -14,13 +14,15 @@ RUN apt update -qq && \
 WORKDIR app
 
 FROM chef AS planner
+ENV COMMIT_TAG=$GIT_NAME
+ENV COMMIT_SHA=$GIT_SHA
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
 ENV COMMIT_TAG=$GIT_NAME
 ENV COMMIT_SHA=$GIT_SHA
+COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release --bin seele
@@ -31,7 +33,7 @@ RUN install_packages ca-certificates curl gpg gpg-agent umoci uidmap pkg-config 
     echo 'deb http://download.opensuse.org/repositories/home:/alvistack/Debian_11/ /' | tee /etc/apt/sources.list.d/home:alvistack.list && \
     curl -fsSL https://download.opensuse.org/repositories/home:alvistack/Debian_11/Release.key | apt-key add - > /dev/null && \
     install_packages skopeo
-ENV TINI_VERSION v0.19.0
+ENV TINI_VERSION=0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-amd64 /tini
 RUN chmod +x /tini
 ENTRYPOINT ["/tini", "--"]
