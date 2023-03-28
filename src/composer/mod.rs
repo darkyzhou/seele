@@ -2,6 +2,7 @@ use std::{num::NonZeroUsize, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
+use ellipse::Ellipse;
 use futures_util::StreamExt;
 use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
 use ring_channel::{RingReceiver, RingSender};
@@ -64,7 +65,7 @@ async fn handle_submission(
 
     let submission = serde_yaml::from_str::<Arc<SubmissionConfig>>(&config_yaml);
     let Ok(submission) = submission else {
-        let message = format!("Error parsing the submission: {:#}", submission.err().unwrap());
+        let message = format!("Error parsing the submission: {:#}, partial content: {}", submission.err().unwrap(), config_yaml.as_str().truncate_ellipse(256));
         error!(message);
 
         let ext = SubmissionSignalExt::Error(SubmissionErrorSignal { error: message });
