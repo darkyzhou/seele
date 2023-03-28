@@ -47,6 +47,7 @@ pub async fn apply_embeds_config(
                     if metadata.len() as usize <= truncate_bytes {
                         reader.read_to_end(&mut buffer).await?;
                     } else {
+                        buffer.resize(truncate_bytes, 0);
                         reader.read_exact(&mut buffer).await?;
                     }
                     String::from_utf8_lossy(&buffer).to_string()
