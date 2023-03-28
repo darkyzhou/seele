@@ -54,7 +54,7 @@ pub async fn composer_main(
     Ok(())
 }
 
-#[instrument(skip_all, fields(submission.id = field::Empty, submission.attribute = field::Empty, submission.status = field::Empty))]
+#[instrument(skip_all, fields(seele.submission.id = field::Empty, seele.submission.attribute = field::Empty, seele.submission.status = field::Empty))]
 async fn handle_submission(
     worker_queue_tx: WorkerQueueTx,
     config_yaml: String,
