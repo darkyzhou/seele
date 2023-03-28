@@ -13,7 +13,10 @@
 Seele 的仓库中提供了 `Dockerfile.dev` 用于本地开发的打包。可以通过 `docker build -f Dockerfile.dev .` 构建 Seele
 评测系统，包括评测服务程序和安全沙箱程序。构建完成后可按照 [Docker 部署](/getting-started)的方法启动评测系统。
 
-如果要使用调试器或 `cargo run` 直接启动评测服务，请参考下列配置文件：
+如果要使用调试器或 `cargo run` 直接启动评测服务，请参照下面的步骤：
+
+* 在 Archlinux 上需要额外安装 `systemd-libs` 和 `protobuf`，对于 Ubuntu 则需要额外安装 `libsystemd-dev` 和 `protobuf-compiler`
+* 参考下列的配置文件
 
 ```toml copy filename="config.toml"
 log_level = "info"
