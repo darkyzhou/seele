@@ -66,7 +66,7 @@ pub async fn apply_embeds_config(
 
 static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| shared::http::build_http_client());
 
-#[instrument(skip(root))]
+#[instrument(skip_all)]
 pub async fn apply_uploads_config(
     root: &Path,
     uploads: &[SubmissionReportUploadConfig],
