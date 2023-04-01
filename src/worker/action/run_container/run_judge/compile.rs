@@ -14,7 +14,7 @@ use tokio::{
 use tracing::{error, info, instrument, warn};
 use triggered::Listener;
 
-use super::DEFAULT_MOUNT_DIRECTORY;
+use super::{MountFile, DEFAULT_MOUNT_DIRECTORY};
 use crate::{
     conf,
     entities::{ActionReportExt, ActionSuccessReportExt},
@@ -31,7 +31,7 @@ pub struct Config {
     pub run_container_config: run_container::Config,
 
     #[serde(default)]
-    pub sources: Vec<String>,
+    pub sources: Vec<MountFile>,
 
     #[serde(default)]
     pub saves: Vec<String>,
@@ -156,8 +156,8 @@ pub async fn execute(
                     .sources
                     .iter()
                     .map(|file| runj::MountConfig {
-                        from: ctx.submission_root.join(file),
-                        to: DEFAULT_MOUNT_DIRECTORY.join(file),
+                        from: ctx.submission_root.join(&file.from_path),
+                        to: DEFAULT_MOUNT_DIRECTORY.join(&file.to_path),
                         options: None,
                     })
                     .map(run_container::MountConfig::Full),
@@ -246,10 +246,12 @@ async fn calculate_hash(submission_root: &Path, config: &Config) -> Result<Box<[
     sources.sort();
 
     for item in sources {
-        hasher.update(&item);
+        hasher.update(&item.from_path);
+        hasher.update(&item.to_path);
 
-        let mut file =
-            File::open(submission_root.join(&item)).await.context("Error opening the file")?;
+        let mut file = File::open(submission_root.join(&item.from_path))
+            .await
+            .context("Error opening the file")?;
 
         let metadata = file.metadata().await?;
         let mut data = Vec::with_capacity(metadata.len() as usize);
@@ -265,7 +267,6 @@ async fn calculate_hash(submission_root: &Path, config: &Config) -> Result<Box<[
 mod tests {
     use std::path::Path;
 
-    use hex_literal::hex;
     use tokio::fs;
 
     use super::Config;
@@ -286,7 +287,7 @@ mod tests {
                 mounts: vec![],
                 limits: Default::default(),
             },
-            sources: vec!["main.c".to_owned()],
+            sources: vec!["main.c".try_into().unwrap()],
             saves: vec!["main".to_owned()],
             cache: CacheConfig {
                 enabled: false,
@@ -302,7 +303,10 @@ mod tests {
 
         assert_eq!(
             hash,
-            Box::from(hex!("6f307650692d00dee3955a6ea605448e8ce0bc59fca2772225727342cf491673"))
+            Box::from([
+                82, 149, 220, 24, 143, 19, 85, 7, 99, 196, 213, 38, 158, 201, 135, 178, 214, 128,
+                38, 78, 70, 25, 170, 85, 181, 110, 238, 161, 33, 239, 43, 21
+            ])
         )
     }
 }

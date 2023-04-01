@@ -59,7 +59,6 @@ url = { version = "2.3.1", features = ["serde"] }
 users = "0.11.0"
 
 [dev-dependencies]
-hex-literal = "0.3.4"
 insta = { version = "1.23.0", features = ["glob", "redactions", "ron"] }
 map-macro = "0.2.5"
 rand = { version = "0.8.5" }

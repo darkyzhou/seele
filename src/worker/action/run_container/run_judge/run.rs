@@ -1,12 +1,12 @@
-use std::{fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf};
+use std::{fs::Permissions, os::unix::prelude::PermissionsExt};
 
 use anyhow::{bail, Context, Result};
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tracing::{instrument, warn};
 use triggered::Listener;
 
-use super::DEFAULT_MOUNT_DIRECTORY;
+use super::{MountFile, DEFAULT_MOUNT_DIRECTORY};
 use crate::{
     conf,
     entities::ActionReportExt,
@@ -23,66 +23,6 @@ pub struct Config {
 
     #[serde(default)]
     pub files: Vec<MountFile>,
-}
-
-#[derive(Debug, Clone)]
-pub struct MountFile {
-    pub from_path: PathBuf,
-    pub to_path: PathBuf,
-    pub exec: bool,
-}
-
-impl<'de> Deserialize<'de> for MountFile {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let str = String::deserialize(deserializer)?;
-        str.as_str().try_into().map_err(|err| de::Error::custom(format!("{err:#}")))
-    }
-}
-
-impl Serialize for MountFile {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&format!("{self}"))
-    }
-}
-
-impl TryFrom<&str> for MountFile {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(match value.split(':').collect::<Vec<_>>()[..] {
-            [from_path] => {
-                Self { from_path: from_path.into(), to_path: from_path.into(), exec: false }
-            }
-            [from_path, "exec"] => {
-                Self { from_path: from_path.into(), to_path: from_path.into(), exec: true }
-            }
-            [from_path, to_path] => {
-                Self { from_path: from_path.into(), to_path: to_path.into(), exec: false }
-            }
-            [from_path, to_path, "exec"] => {
-                Self { from_path: from_path.into(), to_path: to_path.into(), exec: true }
-            }
-            _ => bail!("Unexpected file item: {value}"),
-        })
-    }
-}
-
-impl Display for MountFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}:{}{}",
-            self.from_path.display(),
-            self.to_path.display(),
-            if self.exec { ":exec" } else { "" }
-        )
-    }
 }
 
 #[instrument(skip_all, name = "action_run_judge_run_execute")]
