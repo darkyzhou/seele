@@ -231,6 +231,9 @@ async fn calculate_hash(submission_root: &Path, config: &Config) -> Result<Box<[
     }
 
     let mut hasher = Sha256::new();
+
+    hasher.update(&format!("{}", config.run_container_config.command));
+
     for item in &config.cache.extra {
         hasher.update(&item);
     }
