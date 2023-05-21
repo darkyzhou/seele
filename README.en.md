@@ -17,7 +17,7 @@
 
 Seele is a cloud-native online judge system, mainly targeting computer-related online course systems, programming competitions, and other scenarios. It serves as a judging service to receive user-submitted code, run it in a sandbox, and return judge reports.
 
-The birth of Seele was to address the shortcomings of some popular open-source online judge systems in terms of scalability, extensibility, and observability. At the same time, its sandbox is based on the famous container runtime runc and uses [Rootless Containers](https://rootlesscontaine.rs/) to bring additional security. Currently, Seele serves the online course system of a university in South China, undertaking various experimental courses and machine test requirements, covering thousands of teachers and students from different colleges.
+The birth of Seele was to address the shortcomings of some popular open-source online judge systems in terms of scalability, extensibility, and observability. At the same time, its sandbox is based on the famous container runtime runc and uses [Rootless Containers](https://rootlesscontaine.rs/) to bring additional security. Currently, Seele serves the online course system of a university in South China, supporting various lab courses and tests, covering thousands of teachers and students from different colleges.
 
 This project is the author's undergraduate graduation design and is in the early stages. There may be many shortcomings in terms of functionality and stability, so please bear with us. If you have any suggestions or find any bugs, please feel free to submit an issue and leave a star.
 
