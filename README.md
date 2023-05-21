@@ -11,9 +11,15 @@
 
 Seele 是一款面向云原生的在线评测（Online Judge）系统，主要面向计算机相关的在线课程系统、程序设计竞赛等场景。 它作为评测服务接收用户提交的代码，在安全沙箱中运行并返回评测报告。
 
-Seele 的诞生是为了解决当前一些流行的开源在线评测系统在伸缩性、扩展性和观测性上存在的不足。 同时，它的安全沙箱基于著名的容器运行时 runc，并使用 Rootless Containers 技术带来额外的安全性。 目前，Seele 服务于华南某高校的在线课程系统，承接各类实验课程和机试的需求，覆盖来自不同学院的数以千计的师生。
+Seele 的诞生是为了解决当前一些流行的开源在线评测系统在伸缩性、扩展性和观测性上存在的不足。 同时，它的安全沙箱基于著名的容器运行时 [runc](https://github.com/opencontainers/runc/)，并使用 [Rootless Containers](https://rootlesscontaine.rs/) 技术带来额外的安全性。 目前，Seele 服务于华南某高校的在线课程系统，承接各类实验课程和机试的需求，覆盖来自不同学院的数以千计的师生。
 
 本项目是作者的本科毕业设计，并且处于早期阶段，在功能性和稳定性上可能存在许多不足之处，敬请谅解。 如果你有好的建议或发现了 bug，欢迎发表 issue 并顺便点一下 star。
+
+Seele is a cloud-native online judge system, mainly targeting computer-related online course systems, programming competitions, and other scenarios. It serves as a judging service to receive user-submitted code, run it in a sandbox, and return judge reports.
+
+The birth of Seele was to address the shortcomings of some popular open-source online judge systems in terms of scalability, extensibility, and observability. At the same time, its sandbox is based on the famous container runtime [runc](https://github.com/opencontainers/runc/) and uses [Rootless Containers](https://rootlesscontaine.rs/) to bring additional security. Currently, Seele serves the online course system of a university in South China, undertaking various experimental courses and machine test requirements, covering thousands of teachers and students from different colleges.
+
+This project is the author's undergraduate graduation design and is in the early stages. There may be many shortcomings in terms of functionality and stability, so please bear with us. If you have any suggestions or find any bugs, please feel free to submit an issue and leave a star.
 
 ## 伸缩性
 

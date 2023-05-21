@@ -1,0 +1,13 @@
+import { Callout } from "nextra-theme-docs";
+
+# Root Folder
+
+For each judge task, Seele creates a folder on tmpfs for all subtasks to access, which we refer to as the "root folder." For example, when Seele performs an [Add File](/tasks/files) action, the file is actually saved to the root folder. When [running the judge program](/tasks/judge), the files mounted in the container also come from the root folder.
+
+Placing the root folder on tmpfs is mainly to reduce the impact of IO factors on the efficiency of running judge programs. For more information, see [Fairness](/advanced/fairness).
+
+<Callout type="info">
+  It is the user's responsibility to ensure that no duplicate files appear in
+  the root folder. Seele does not check whether it is overwriting an existing
+  file when writing a new one.
+</Callout>

@@ -129,7 +129,7 @@ steps:
 
 <Callout type="info">
   Seele 解析 `image` 中指定的容器镜像的方式和 Docker 类似，下面是一些合法的
-  `image` 取值例子： * `gcc` * `debian:slim` * `library/ubuntu:focal` *
+  `image` 取值例子： `gcc`、`debian:slim`、`library/ubuntu:focal`、
   `quay.io/foo/bar:latest`
 </Callout>
 
@@ -186,7 +186,7 @@ steps:
 | `signal`           | `string` | **仅当程序被信号终止时提供**，程序终止对应的信号名称。参见 [zerrors_linux_amd64.go](https://github.com/golang/sys/blob/00d8004a14487f8c7b7fdfe44b95e9f6c4590f5f/unix/zerrors_linux_amd64.go#L793) |
 | `wall_time_ms`     | `number` | 程序从启动到终止经过的时间，单位为 ms                                                                                                                                                             |
 | `cpu_user_time_ms` | `number` | 程序执行总共消耗的用户态 CPU 时间，单位为 ms                                                                                                                                                      |
-| `cpu_user_time_ms` | `number` | 程序执行总共消耗的内核态 CPU 时间，单位为 ms                                                                                                                                                      |
+| `cpu__time_ms`     | `number` | 程序执行总共消耗的内核态 CPU 时间，单位为 ms                                                                                                                                                      |
 | `memory_usage_kib` | `number` | 程序从启动到终止消耗的**最大**内存占用。单位为 KiB                                                                                                                                                |
 
 <Callout type="info">

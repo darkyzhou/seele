@@ -1,0 +1,37 @@
+import { Callout } from "nextra-theme-docs";
+
+# Embedding and Uploading Files
+
+Sequential tasks, concurrent tasks, and action tasks configuration provide a `report` property. Its parameters are shown in the table below:
+
+| Name      |    Type    | Description                                                                                                                  |
+| :-------- | :--------: | :--------------------------------------------------------------------------------------------------------------------------- |
+| `embeds`  | `object[]` | At the end of task execution, embed the contents of specified files in the [root folder](/tasks/files) into the judge report |
+| `uploads` | `object[]` | At the end of the entire judge task, upload specified files in the root folder through an HTTP request                       |
+
+## `embeds` Property
+
+The parameters for the `embeds` property are shown in the table below:
+
+| Name                |   Type    | Description                                                                                            |
+| :------------------ | :-------: | :----------------------------------------------------------------------------------------------------- |
+| `path`              | `string`  | The path of the file to embed content from                                                             |
+| `field`             | `string`  | The attribute name used when embedding file content into the judge report                              |
+| `truncate_kib`      | `number`  | Embed only the specified size of file content, in KiB                                                  |
+| `ignore_if_missing` | `boolean` | If the file does not exist, whether to ignore and not report an error. **The default value is `true`** |
+
+## `uploads` Property
+
+The parameters for the `uploads` property are shown in the table below:
+
+| Name                |        Type         | Description                                                                                            |
+| :------------------ | :-----------------: | :----------------------------------------------------------------------------------------------------- |
+| `path`              |      `string`       | The path of the file to upload                                                                         |
+| `target`            |      `string`       | The URL of the HTTP request for uploading the file                                                     |
+| `method`            | `'POST'` or `'PUT'` | The method of the HTTP request for uploading the file                                                  |
+| `ignore_if_missing` |      `boolean`      | If the file does not exist, whether to ignore and not report an error. **The default value is `true`** |
+
+<Callout type="info">
+  Seele will begin asynchronously uploading files after the judge task is
+  completed and the completion report or error report has been sent.
+</Callout>

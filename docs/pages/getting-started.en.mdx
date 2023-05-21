@@ -1,3 +1,5 @@
+import { Callout, Tabs, Tab } from "nextra-theme-docs";
+
 # Quick Start
 
 ## System Requirements
@@ -35,7 +37,7 @@ Seele supports running in various environments, including bare-metal deployment,
     Prepare a configuration file `config.toml` in the current directory with the following content:
 
     ```toml copy filename="config.toml"
-    # Configure the evaluation system to run an Http service on port 8080 to receive our evaluation tasks
+    # Configure the judge system to run an Http service on port 8080 to receive our judge tasks
     [exchange.demo]
     type = "http"
     address = "0.0.0.0"
@@ -91,7 +93,7 @@ When Seele runs successfully, you will see an output similar to the following:
 2023-03-25T02:57:16.050962Z  INFO seele::exchange::http:27: Starting http exchange demo on 0.0.0.0:23335
 ```
 
-We've prepared a simple evaluation task that adds a `main.py` source file and uses the official Python image to run the source file and get the output.
+We've prepared a simple judge task that adds a `main.py` source file and uses the official Python image to run the source file and get the output.
 For convenience, we'll save this file as `task.yaml`.
 
 ```yaml copy filename="task.yaml"
@@ -119,13 +121,13 @@ steps:
           truncate_kib: 8
 ```
 
-Using a tool like `curl`, we can send a request containing the evaluation task to Seele's Http service:
+Using a tool like `curl`, we can send a request containing the judge task to Seele's Http service:
 
 ```sh copy
 curl --data-binary @task.yaml http://127.0.0.1:8080
 ```
 
-After Seele receives this evaluation task, it will attempt to connect to [Docker Hub](https://hub.docker.com) to download the official Python image and run the task.
+After Seele receives this judge task, it will attempt to connect to [Docker Hub](https://hub.docker.com) to download the official Python image and run the task.
 If everything goes smoothly, and your network can access Docker Hub without any issues, you'll quickly get a result similar to the following:
 
 ```jsonc
@@ -175,8 +177,8 @@ If everything goes smoothly, and your network can access Docker Hub without any 
 
 You've now learned the basic usage of Seele. If you want to learn more, you can continue reading the documentation from the following sections:
 
-- If you want to learn more about Seele's evaluation tasks, please read [Evaluation Tasks](/tasks/description).
-- If you want to review Seele's various configuration options, please read [Configuration Items](/configurations/file).
+- If you want to learn more about Seele's judge tasks, please read [Judge Tasks](/tasks/description).
+- If you want to review Seele's various configuration options, please read [Configurations](/configurations/file).
 - If you're interested in the technical details and advanced usage of Seele, please read [Advanced](/advanced/architecture).
 
 <Callout type="info">

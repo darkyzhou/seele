@@ -1,0 +1,47 @@
+# Observability
+
+Seele exports Tracing and Metrics data using the SDK provided by OpenTelemetry.
+
+## Tracing
+
+Seele's Tracing data starts from when Composer receives the judge task from Exchange and ends when Composer sends the judge report to Exchange. Each Tracing contains multiple Spans, which include sufficient Log Events for tracking the execution status of the judge task.
+
+The various Spans in Tracing mainly come from:
+
+- Composer tracks the execution of each subtask.
+- Worker receives the action task sent by Composer.
+- Worker performs the [add file task](/tasks/files).
+- Worker performs the [compilation task and execution task](/tasks/judge).
+
+Composer adds the following attributes to the root Span reported before and after processing the judge task:
+
+- `seele.submission.id`, taken from the ID of the judge task.
+- `seele.submission.attribute`, taken from the `tracing_attributes` of the judge task.
+- `seele.submission.status`, indicating the type of judge report, with values `COMPLETED` or `ERROR`.
+
+When the Worker performs the compilation task or execution task, it adds additional attributes to the Log Events in the Span, which come from the corresponding judge report](/tasks/judge#judge-report).
+
+- `seele.container.status`
+- `seele.container.code`
+- `seele.container.signal`
+- `seele.container.cpu_user_time`
+- `seele.container.cpu_kernel_time`
+- `seele.container.memory_usage`
+
+Users can use the above attributes to assist in querying specific Tracing records, thus quickly locating problems.
+
+## Metrics
+
+### `seele.submission.duration`
+
+A `float64` Histogram with units of `s`. It records the overall execution time of each judge task received by the judge system. This Histogram can also be used to count the total number of judge tasks performed by the judge system and the number of requests in a period.
+
+Seele adds a `submission.status` attribute to each reported record, indicating the type of judge report, with values `COMPLETED` or `ERROR`. Users can monitor the occurrence of failed judge tasks based on the value of this attribute and promptly alert and handle them.
+
+### `seele.runner.count`
+
+A `uint64` Gauge, indicating the number of online [Runner threads](/advanced/architecture) in the current instance.
+
+### `seele.action.container.pending.count`
+
+A `uint64` Gauge, indicating the number of [compilation tasks or execution tasks](/tasks/judge) waiting to be executed in the secure sandbox thread pool task queue in the current instance. If this data remains at a consistently high value and continues to rise, it often indicates that the number of CPU cores allocated by the user for the judge system is insufficient to support the large volume of requests.

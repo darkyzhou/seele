@@ -4,10 +4,13 @@
     "private": true,
     "scripts": {},
     "dependencies": {
-        "next": "^13.2.4",
-        "nextra": "^2.2.20",
-        "nextra-theme-docs": "^2.2.20",
+        "next": "^13.4.3",
+        "nextra": "^2.5.2",
+        "nextra-theme-docs": "^2.5.2",
         "react": "^18.2.0",
         "react-dom": "^18.2.0"
+    },
+    "devDependencies": {
+        "@opentelemetry/api": "^1.4.1"
     }
 }

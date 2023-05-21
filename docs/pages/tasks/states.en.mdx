@@ -1,0 +1,9 @@
+# Task States
+
+The execution states of sequential tasks, concurrent tasks, and action tasks are shown in the diagram below.
+
+- Each task is in the `PENDING` state after it is created, indicating that it is waiting for execution.
+- When a task cannot be executed due to the failure of its predecessor node or the relationship specified by [`when`](/tasks/order) is not satisfied, it will be set to the `SKIPPED` state.
+- When the task is completed, it will be set to the `SUCCESS` state if the execution is successful, otherwise, it will be set to the `FAILED` state.
+
+![States](/states.png)

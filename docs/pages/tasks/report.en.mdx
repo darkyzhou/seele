@@ -1,0 +1,205 @@
+# Judge Report
+
+During the execution of judge tasks, Seele returns judge reports to users based on their configuration and the structure of the judge tasks. There are three types of judge reports: progress reports, error reports, and completed reports. Their relationships are shown in the diagram below.
+
+![Seele reports](/report.png)
+
+If the user does not configure progress reports, Seele will only return **one** error report or completed report for each judge task. Otherwise, Seele will return several progress reports during the execution process and **finally** return an error report or completed report.
+
+## Report types
+
+Judge reports are based on the JSON format, with TypeScript representations as follows:
+
+```typescript
+interface SeeleProgressReport {
+  // Corresponds to the `id` in the judge task
+  id: string;
+
+  // Distinguishes the three types of reports
+  type: "PROGRESS";
+
+  // Timestamp that conforms to RFC 3339, indicating the report generation time
+  report_at: string;
+
+  // Status of the various subtask structures in the judge task
+  status: Record<string, unknown>;
+}
+
+interface SeeleErrorReport {
+  // Corresponds to the `id` in the judge task
+  // If the submitted yaml syntax is incorrect, Seele cannot parse the `id`, and this attribute will be set to empty
+  id?: string;
+
+  // Distinguishes the three types of reports
+  type: "ERROR";
+
+  // Error information
+  error: string;
+}
+
+interface SeeleCompletedReport {
+  // Corresponds to the `id` in the judge task
+  id: string;
+
+  // Distinguishes the three types of reports
+  type: "COMPLETED";
+
+  // Timestamp that conforms to RFC 3339, indicating the report generation time
+  report_at: string;
+
+  // Status of the various subtask structures in the judge task
+  status: Record<string, unknown>;
+}
+```
+
+## Error Report
+
+An error report indicates that Seele encountered unexpected errors during the execution of the judge task, including internal errors in the judge system and abnormal errors in action tasks. In this case, users should consider the execution of the judge task as failed and the results invalid. In the following example, we submitted a judge task that does not conform to Seele's specifications.
+
+```yaml
+id: example
+steps: 114514
+```
+
+Seele returns the following error report:
+
+```json
+{
+  "type": "ERROR",
+  "error": "Error parsing the submission: steps: invalid type: integer `114514`, expected a map at line 1 column 8"
+}
+```
+
+## Completed Report
+
+When Seele does not encounter unexpected errors during the execution of the judge task, it returns a completed report after the execution is finished. This report provides the execution status of each subtask, including the state and some additional information. Even if some subtasks enter the `FAILED` state instead of the `SUCCESS` state, as long as there are no unexpected errors, Seele will still return a completed report.
+
+In the completed report, the structure of each task's corresponding attributes is consistent with the definition in the judge task. For example, a task defined in the judge task's `.steps.first` is still located at `.steps.first` in the completed report.
+
+In the example below, we run a Python container and use Python to calculate the value of `1 / 0`.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      stderr: "err.txt"
+    report:
+      embeds:
+        - path: "err.txt"
+          field: output
+          truncate_kib: 8
+```
+
+After the execution is completed, Seele returns the following completed report. In it, the action task that runs the judge program enters the `FAILED` state and returns the content of the specified file, which contains Python's output.
+
+```json
+{
+  "id": "rQrUL3UXOrAAUBgE",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T03:02:21.001006976Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:02:20.883136036Z",
+    "id": "rQrUL3UXOrAAUBgE",
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:02:20.884004210Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "FAILED",
+        "report": {
+          "run_at": "2023-03-26T03:02:20.884799397Z",
+          "time_elapsed_ms": 115,
+          "type": "run_container",
+          "status": "RUNTIME_ERROR",
+          "exit_code": 1,
+          "wall_time_ms": 69,
+          "cpu_user_time_ms": 8,
+          "cpu_kernel_time_ms": 16,
+          "memory_usage_kib": 13640
+        },
+        "embeds": {
+          "output": "Traceback (most recent call last):\n  File \"/seele/main.py\", line 1, in <module>\n    print(f\"{1/0}\")\n             ~^~\nZeroDivisionError: division by zero\n"
+        }
+      }
+    }
+  }
+}
+```
+
+## Progress Report
+
+To provide users with real-time execution status of judge tasks and improve user experience, Seele supports progress reports. For sequential tasks, concurrent tasks, and action tasks, passing `true` to the `progress` attribute adds an identifier to the task. After Seele completes the execution of this subtask, it will generate a progress report for the **entire judge task**.
+
+Taking the example of running Python code above, we added `progress: true` to the `prepare` subtask:
+
+```yaml
+steps:
+  prepare:
+    progress: true
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      stderr: "err.txt"
+    report:
+      embeds:
+        - path: "err.txt"
+          field: output
+          truncate_kib: 8
+```
+
+Before returning the completed report mentioned above, Seele returns a progress report as shown below. In the progress report, the structure of each task's corresponding attributes is consistent with the definition in the judge task.
+
+```json
+{
+  "id": "NlkFFgPUMAbqUvWc",
+  "type": "PROGRESS",
+  "report_at": "2023-03-26T03:22:39.100246877Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:22:39.098968341Z",
+    "id": "NlkFFgPUMAbqUvWc",
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:22:39.099682421Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "RUNNING",
+        "embeds": {}
+      }
+    }
+  }
+}
+```
+
+For performance reasons, Seele **does not guarantee** that each progress report generation point defined by the user with `progress: true` will correspond to a progress report.

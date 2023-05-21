@@ -1,0 +1,63 @@
+# Sandbox
+
+The sandbox of the Seele judge system is an independent program called Runj, written in [Go](https://go.dev/) language. When the judge system runs [compilation tasks and execution tasks](/tasks/judge), it starts Runj, which creates an isolated environment and starts the program to be evaluated in the isolated environment.
+
+Runj ensures that the program runs in an independent environment with limited permissions to prevent interference between different judge tasks and malicious code from stealing data or damaging the system. For further security, Runj has the lowest possible permission requirements and does not use root permissions. In addition, it does not significantly affect the execution efficiency of the judge program.
+
+Common online judge systems use technologies such as `ptrace`, `chroot`, `seccomp`, and container technology. Seele chooses to build a sandbox based on [runc](https://github.com/opencontainers/runc) using container technology.
+
+## `ptrace` and `chroot`
+
+`ptrace` is a system call provided by the Linux operating system, originally used for debugging programs, controlling program execution, monitoring resource usage, and thus used by judge systems to build sandboxes to prevent programs from executing unsafe system calls. `chroot` is also a system call provided by the Linux kernel, which can modify the root directory of a process. judge systems can use `chroot` to set the root directory of a program to an independent folder, making it impossible for the program to access other files in the system, thus achieving environment isolation.
+
+[virusdefender found through experiments](https://github.com/virusdefender/UndergraduateThesis) that `ptrace` has a significant negative impact on program execution speed: a C++ program running 9 million times `cin` and `cout`, compared to not using a `ptrace` sandbox, consumes nearly twice the CPU time and nearly five times the actual running time. Therefore, `ptrace` technology may cause the judge system to mistakenly judge that student-submitted code exceeds the user-set time limit and give incorrect scores, causing a negative impact on the fairness of courses and exams.
+
+When using `chroot` in a sandbox, root permissions are required, which poses some security risks. At the same time, the nature of `chroot` is to modify the relevant fields of the process structure in the kernel and is not designed for sandboxes, so it cannot completely prevent attacks. Malicious code may exploit these potential attack surfaces to gain root permissions or access external files, leading to data theft and other behaviors.
+
+## `seccomp`
+
+In recent years, some new judge systems have started using the `seccomp` provided by the Linux kernel to replace the `ptrace` to limit the system calls made by programs. `seccomp` can set a rule list consisting of system calls and their related parameters for programs, allowing users to specify executable and non-executable system calls. Compared to `ptrace`, it has almost no negative impact on program performance.
+
+Different programs generate different system calls and parameters during execution, so these judge systems usually set a `seccomp` rule list specifically for each programming language environment. Maintaining these rule lists requires time and effort, and any loopholes in the rules may expose attack surfaces, posing security risks to the judge system. Also, if the rules are too restrictive, students' submitted programs may not run properly. Moreover, some languages, such as Haskell, generate system calls during execution that are difficult to enumerate completely. The poor versatility and high configuration complexity of `seccomp` make it difficult to meet the needs of this judge system.
+
+## Container Technology
+
+Traditional virtualization creates multiple operating systems on a physical server using virtual machines to achieve environment isolation. Software like Docker has proposed a new form of virtualization: container virtualization. They use Linux container-related technology to provide an isolated environment for programs. Container virtualization brings features that are very suitable for the needs of a sandbox. For example, Docker uses the following technologies provided by the Linux kernel to build containers, in addition to the `seccomp` mentioned earlier:
+
+### Namespaces
+
+Linux namespaces can separate various system resources so that specified programs can only access a portion of the resources and cannot access other resources. Since this technology was introduced in 2006, many types of namespaces have been added to the Linux kernel to separate different system resources:
+
+- User namespaces: Isolate user IDs and related permissions. User namespaces have special features that will be introduced separately later.
+- Cgroup namespaces: Isolate the processes that a process can access and configure in the cgroup directory.
+- IPC namespaces: Isolate processes' access to SystemV IPC and POSIX message queues.
+- Network namespaces: Isolate processes' use of network stacks, network devices, ports, etc.
+- Mount namespaces: Isolate processes' access to various mount points.
+- PID namespaces: Isolate processes' process ID spaces, allowing processes in different process namespaces to have the same PID.
+- Time namespaces: Isolate processes' system clock time.
+- UTS namespaces: Isolate processes' hostname.
+
+### cgroup
+
+cgroup can limit various resource usage of programs, terminate programs that exceed the limit when necessary, and collect resource usage information of programs. Cgroup is currently divided into `v1` and `v2` versions, the latter of which has been significantly improved, and most new Linux distributions now default to using the `v2` version, so Seele uses the `v2` version. Cgroup implements different types of resource usage through different controllers:
+
+- Cpu controller: Controls the Cpu time, priority, etc., used by processes and can also collect the Cpu time consumed by processes during execution, including kernel mode time and user mode time.
+- Cpuset controller: Controls which Cpu cores or nodes and which NUMA nodes a process is in.
+- Memory controller: Controls the memory used by processes in user mode, kernel mode, and TCP sockets, and can also collect the amount of memory consumed by processes during execution.
+- Pid controller: Controls the process so that it cannot generate new processes through the `fork()` or `clone()` system calls after reaching the quantity limit.
+
+### rlimit
+
+The rlimit provided by Linux can limit certain resource usage of programs, such as limiting the total amount of data that a program can write to a file descriptor through `RLIMIT_FSIZE`, and enabling or disabling the system's collection of Core dump information when a program crashes through `RLIMIT_CORE`.
+
+### overlayfs
+
+Each process running using container technology has an isolated file system, which contains various files and folders commonly found in Linux systems, such as `/proc`, `/var`, etc., as well as tools like `bash`, `ls`, and the `glibc` library.
+
+### Summary
+
+To save disk space and implement image layered storage, container technology uses Linux's `overlayfs` to build an isolated file system for processes in containers. `overlayfs` can merge multiple file systems or folders into a single file system, allowing different containers to share the same system image. They can access the same `glibc` library files on the disk and write to their file systems. `overlayfs` automatically isolates these writes, preventing interference between containers and ensuring file system isolation.
+
+Compared to the previously introduced `ptrace`, `chroot`, and `seccomp` technologies, container technology theoretically provides better security. With the help of namespace, we can isolate various critical resources of the operating system and place different programs in isolated environments. For example, by isolating IPC namespaces, processes cannot access the shared memory of other processes on the host system. Similarly, by isolating mount namespaces, processes cannot access the host system's file system or the file system of other container processes.
+
+Container technology also has better versatility compared to the previously introduced technologies. Users no longer need to prepare a set of rule lists for each judge scenario, as they do when using `seccomp` technology. Container technology builds an independent environment for programs in containers, and even if the program contains malicious code, it can only access resources within the isolated environment, making it difficult to break through to the external judge system environment.

@@ -7,9 +7,9 @@
   <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
 </p>
 
-Seele is a cloud-native online judge system, mainly targeting computer-related online course systems, programming competitions, and other scenarios. It serves as a judging service to receive user-submitted code, run it in a sandbox, and return evaluation reports.
+Seele is a cloud-native online judge system, mainly targeting computer-related online course systems, programming competitions, and other scenarios. It serves as a judging service to receive user-submitted code, run it in a sandbox, and return judge reports.
 
-The birth of Seele was to address the shortcomings of some popular open-source online judge systems in terms of scalability, extensibility, and observability. At the same time, its sandbox is based on the famous container runtime runc and uses Rootless Containers technology to bring additional security. Currently, Seele serves the online course system of a university in South China, undertaking various experimental courses and machine test requirements, covering thousands of teachers and students from different colleges.
+The birth of Seele was to address the shortcomings of some popular open-source online judge systems in terms of scalability, extensibility, and observability. At the same time, its sandbox is based on the famous container runtime runc and uses [Rootless Containers](https://rootlesscontaine.rs/) to bring additional security. Currently, Seele serves the online course system of a university in South China, undertaking various experimental courses and machine test requirements, covering thousands of teachers and students from different colleges.
 
 This project is the author's undergraduate graduation design and is in the early stages. There may be many shortcomings in terms of functionality and stability, so please bear with us. If you have any suggestions or find any bugs, please feel free to submit an issue and leave a star.
 
@@ -21,12 +21,11 @@ In addition, Seele can run in various environments. It can be run directly as a 
 
 ## Extensibility
 
-Seele allows users to use YAML to describe the specific content of each step of the evaluation task in a structure similar to GitHub Actions and determine the dependencies, concurrency relationships, etc., between each step. To run any program, users only need to provide the corresponding container image names. Seele will automatically install these images and then start containers to run the specified programs.
+Seele allows users to use YAML to describe the specific content of each step of the judge task in a structure similar to GitHub Actions and determine the dependencies, concurrency relationships, etc., between each step. To run any program, users only need to provide the corresponding container image names. Seele will automatically install these images and then start containers to run the specified programs.
 
-Following is a simple evaluation task, divided into three steps: adding source files, compiling source files, and executing programs. This evaluation task also provides a snippet of JavaScript code. When the evaluation task is executed, Seele will run this code to attach additional content to the returned evaluation report.
+Following is a simple judge task, divided into three steps: adding source files, compiling source files, and executing programs. This judge task also provides a snippet of JavaScript code. When the judge task is executed, Seele will run this code to attach additional content to the returned judge report.
 
-In this way, Seele delegates the responsibility for defining the evaluation process to the user, allowing them to freely customize the evaluation process to cope with complex and changing course requirements.
-
+In this way, Seele delegates the responsibility for defining the judge process to the user, allowing them to freely customize the judge process to cope with complex and changing course requirements.
 
 ```yaml
 reporter:
@@ -71,27 +70,27 @@ steps:
 
 ## Observability
 
-Seele provides good observability based on [OpenTelemetry](https://opentelemetry.io/), making it easy for maintainers to understand the current load of the evaluation system and set up related alerts. It mainly provides Tracing and Metrics indicators. Tracing can track the execution process of each input evaluation task in various components of the evaluation system. Metrics can provide information on the load of the evaluation system and the speed of processing requests.
+Seele provides good observability based on [OpenTelemetry](https://opentelemetry.io/), making it easy for maintainers to understand the current load of the judge system and set up related alerts. It mainly provides Tracing and Metrics indicators. Tracing can track the execution process of each input judge task in various components of the judge system. Metrics can provide information on the load of the judge system and the speed of processing requests.
 
 The following image shows an example of monitoring Metrics indicators using [Grafana](https://grafana.com/).
 
 ![Grafana Sample Panel](docs/public/grafana.png)
 
-The following image shows Tracing data for an evaluation task collected and displayed by [Tempo](https://grafana.com/oss/tempo/).
+The following image shows Tracing data for a judge task collected and displayed by [Tempo](https://grafana.com/oss/tempo/).
 
 ![Sample Tracing Data](docs/public/tempo.png)
 
 ## Security
 
-Seele's sandbox is based on container technology provided by the Linux kernel, including [Control Group v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) and [Namespaces](https://www.kernel.org/doc/html/latest/admin-guide/namespaces/index.html) technology. It also uses [Rootless Containers](https://rootlesscontaine.rs/) technology, so it does **not** require `root` privileges. Compared to many sandboxes based on `ptrace` technology, it has better security, scalability, and does not significantly impact program execution efficiency. Compared to many sandboxes based on `seccomp` technology, it has better flexibility and does not require system call whitelists for each evaluation scenario.
+Seele's sandbox is based on container technology provided by the Linux kernel, including [Control Group v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) and [Namespaces](https://www.kernel.org/doc/html/latest/admin-guide/namespaces/index.html). It also uses [Rootless Containers](https://rootlesscontaine.rs/), so it does **not** require `root` privileges. Compared to many sandboxes based on `ptrace`, it has better security, scalability, and does not significantly impact program execution efficiency. Compared to many sandboxes based on `seccomp`, it has better flexibility and does not require system call whitelists for each judge scenario.
 
-The underlying sandbox is based on the famous container runtime [runc](https://github.com/opencontainers/runc/), allowing the sandbox to continuously provide fixes for security vulnerabilities appearing in the Linux kernel alongside updates, ensuring the correctness of container technology usage. We have prepared dozens of test cases for Seele's sandbox integration test, coming from [Qingdao University's evaluation system](https://github.com/QingdaoU/Judger), [Vijos](https://github.com/vijos/malicious-code), and [Matrix course system](https://matrix.sysu.edu.cn/about), covering malicious behaviors such as consuming computing resources and outputting large amounts of data. The results show that the sandbox can pass these test cases and protect system security.
+The underlying sandbox is based on the famous container runtime [runc](https://github.com/opencontainers/runc/), allowing the sandbox to continuously provide fixes for security vulnerabilities appearing in the Linux kernel alongside updates, ensuring the correctness of container technology usage. We have prepared dozens of test cases for Seele's sandbox integration test, coming from [Qingdao University's judge system](https://github.com/QingdaoU/Judger), [Vijos](https://github.com/vijos/malicious-code), and [Matrix course system](https://matrix.sysu.edu.cn/about), covering malicious behaviors such as consuming computing resources and outputting large amounts of data. The results show that the sandbox can pass these test cases and protect system security.
 
 ## Missing Features
 
-Seele is a relatively pure evaluation system with only one function: to receive externally submitted evaluation tasks, execute them, and return evaluation reports. It **does not have** other features that many other evaluation systems often possess, such as user management, course management, competition features, leaderboards, and web management frontends.
+Seele is a relatively pure judge system with only one function: to receive externally submitted judge tasks, execute them, and return judge reports. It **does not have** other features that many other judge systems often possess, such as user management, course management, competition features, leaderboards, and web management frontends.
 
-Seele does not have the ability to save evaluation tasks. When the system is shut down or crashes during the evaluation task execution, it will not re-execute the evaluation tasks. Therefore, users need to maintain their own mechanism for saving and tracking submitted evaluation tasks.
+Seele does not have the ability to save judge tasks. When the system is shut down or crashes during the judge task execution, it will not re-execute the judge tasks. Therefore, users need to maintain their own mechanism for saving and tracking submitted judge tasks.
 
 ## Online Documentation
 

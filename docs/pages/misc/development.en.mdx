@@ -1,0 +1,39 @@
+# Local Development
+
+It is recommended to use a distribution with a newer kernel, such as Archlinux, for local development. Local development only requires a regular user, not `root` privileges.
+
+## Environment Requirements
+
+- Golang 1.19
+- Cargo 1.69.0+
+- rustc 1.69.0+
+
+## Debugging the Security Sandbox
+
+There is a `Makefile` in the `runj` folder. You can build the sandbox and save the executable file to `runj/bin` by running `make build`.
+
+For integration tests, you need to prepare the `gcc:11-bullseye` image file in the `runj/tests/image` folder. Then, run `pnpm install` and `node run.mjs` in the `runj/tests` folder to start the integration tests.
+
+## Debugging the Judge Service
+
+The Seele repository provides a `Dockerfile.dev` for local development packaging. You can build Seele, including the judge service program and the sandbox program, by running `docker build -f Dockerfile.dev .`. After the build is complete, you can start Seele following the [Docker Deployment](/getting-started) method.
+
+If you want to use a debugger or start the judge service directly with `cargo run`, follow the steps below:
+
+- On Archlinux, you need to install additional packages `systemd-libs` and `protobuf`. On Ubuntu, you need to install additional packages `libsystemd-dev` and `protobuf-compiler`.
+- Refer to the configuration file below:
+
+```toml copy filename="config.toml"
+log_level = "info"
+work_mode = "bare"
+
+[paths]
+root = '/home/user/seele/root'
+runj = '/home/user/seele/runj/bin/runj'
+
+[worker.action.run_container]
+userns_uid = 1000
+userns_user = "user"
+userns_gid = 1000
+userns_group = "user"
+```

@@ -6,7 +6,7 @@ Seele 允许用户指定评测程序的运行时间限制和内存占用限制�
 
 Linux 作为抢占式调度的操作系统，依据优先级为每个进程分配 CPU 时间片运行。并且在多核心系统中，进程可能会被先后分配到多个 CPU 核心上运行。当某个 CPU 核心上运行的进程被切换为另一个进程时，CPU 中的缓存很可能会被另一个进程使用的内存所占用。导致原有的进程重新运行或者被调度到另一个核心时，容易出现缓存不命中的问题，最终需要花费额外的时间从内存中重新读取数据。
 
-为了缓解缓存未命中的问题，我们需要使用 cgroup 提供的 cpuset controller，将评测进程限制为只能在某个 CPU 核心上运行，从而阻止 Linux 内核的进程调度器将其调离原来的 CPU 核心。此外，也需要控制系统上其它线程能够使用的 CPU 核心，确保它们不使用评测进程正在使用的 CPU 核心。[B. Merry 的实验](https://www.semanticscholar.org/paper/Performance-Analysis-of-Sandboxes-for-Reactive-Merry/8d9051d833ad39b33d061221893139ce1f325705)表明，当评测进程被固定到同一个 CPU 核心上时，其运行时间的稳定性表现要显著优于未被固定的情况。
+为了缓解缓存未命中的问题，我们需要使用 cgroup 提供的 cpu controller，将评测进程限制为只能在某个 CPU 核心上运行，从而阻止 Linux 内核的进程调度器将其调离原来的 CPU 核心。此外，也需要控制系统上其它线程能够使用的 CPU 核心，确保它们不使用评测进程正在使用的 CPU 核心。[B. Merry 的实验](https://www.semanticscholar.org/paper/Performance-Analysis-of-Sandboxes-for-Reactive-Merry/8d9051d833ad39b33d061221893139ce1f325705)表明，当评测进程被固定到同一个 CPU 核心上时，其运行时间的稳定性表现要显著优于未被固定的情况。
 
 Seele 在启动时会通过 cgroup 将进程的所有线程（包括[主线程和辅助线程](/advanced/architecture)）绑定到不同的 CPU 核心上。并且，Seele 还会在每次启动安全沙箱时，配置安全沙箱运行在辅助线程所在的 CPU 核心上并让辅助线程陷入休眠态来实现 CPU 核心的让渡，确保评测进程能够独占一个 CPU 核心运行。
 
@@ -14,7 +14,7 @@ Seele 在启动时会通过 cgroup 将进程的所有线程（包括[主线程�
 
 许多专业服务器会在主板上会配备 2 个或以上的 CPU，并在操作系统中启用 NUMA 来让每个处理器能够访问归属于另一个处理器的内存。然而，每个处理器访问非本地内存的速度往往慢于本地内存。因此，如果评测进程的内存访问出现了上述的非本地内存访问，那么其运行时间会出现明显波动。同时，内存交换也可能造成内存访问性能的波动。当进程的内存被交换到磁盘上时，进程访问对部分内存的访问速度会严重下降，拖慢其运行时间。
 
-为了解决跨 NUMA 内存访问的问题，Seele 使用 cgroup 提供的 cpuset controller，将评测进程限制为只能在某个内存节点上运行，从而防止进程发生非本地内存访问。同时，Seele 的安全沙箱通过 cgroup 的 memory controller 阻止 Linux 内核将评测进程的内存交换到磁盘上。
+为了解决跨 NUMA 内存访问的问题，Seele 使用 cgroup 提供的 cpu controller，将评测进程限制为只能在某个内存节点上运行，从而防止进程发生非本地内存访问。同时，Seele 的安全沙箱通过 cgroup 的 memory controller 阻止 Linux 内核将评测进程的内存交换到磁盘上。
 
 ## 磁盘访问性能
 
@@ -29,7 +29,7 @@ cgroup v1 提供的 `mem.max_usage_in_bytes`。本安全沙盒使用 cgroup v2 �
 这两项数据均取自相同的进程内存数据结构。
 
 Linux 内核的内存管理机制中存在 swap 机制，在系统内存压力变高时会将进程使用的内存页写入到磁盘中，并从内存中将其驱逐。RSS 并不会将这部分换入磁盘的内存计算在内。而
-cgroup 可能会通过 SwapCache 的方式仍然将其计算在内。为了确保内存访问性能的稳定，以及避免上述计算方式的偏差，我们需要阻止评测进程的 swap 机制，让 cgroup 计算的 SwapCache 始终为 0。在 cgroup v2 中，可通过将 memory.swap.max 设为 0 来实现这一点。
+cgroup 可能会通过 SwapCache 的方式仍然将其计算在内。为了确保内存访问性能的稳定，以及避免上述计算方式的偏差，我们需要阻止评测进程的 swap 机制，让 cgroup 计算的 SwapCache 始终为 0。在 cgroup v2 中，可通过将 `memory.swap.max` 设为 0 来实现这一点。
 
 除了上述的 SwapCache，cgroup v1 的 `mem.max_usage_in_bytes` 和 cgroup v2 的 `memory.peak` 均会将进程占用的 RSS、页缓存和共享页纳入计算，并且对于共享页的计算机制是：[如果进程积极地使用共享页，那么它所使用的共享页就会被纳入计算](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)。一个进程使用的共享页主要包括它所使用的动态链接库，例如
 libc。而在 RSS 的计算中并不包括这部分动态链接库的计算。因此，cgroup 相比 `ru_maxrss` 是一种更加准确的内存占用计算方式。cgroup v1 的文档中还提到任意时刻读取 `mem.usage_in_bytes` 得到的内存占用值[有可能不准确](https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt)。由此推断 `memory.peak` 也可能存在波动性。因此，Seele 的安全沙箱会结合 `ru_maxrss` 和 `memory.peak` 来共同决定进程的最大内存占用。

@@ -1,0 +1,36 @@
+# Worker Configuration
+
+Worker receives action tasks from Composer and executes the corresponding action tasks according to the parameters in them. Finally, it sends the execution report to Composer. The configuration items of Worker are shown in the table below:
+
+| Name     |   Type   | Description                     |
+| :------- | :------: | :------------------------------ |
+| `action` | `object` | Action task configuration items |
+
+The properties of the `action` configuration item are shown in the table below:
+
+| Name            |   Type   | Description                                  |
+| :-------------- | :------: | :------------------------------------------- |
+| `add_file`      | `object` | [Add File](/tasks/files) configuration items |
+| `run_container` | `object` | [Sandbox](/tasks/judge) configuration items  |
+
+## `add_file` Configuration
+
+| Name             |   Type   | Default Value | Description                                                                                                                                                                                                     |
+| :--------------- | :------: | :-----------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cache_strategy` | `string` |  `'default'`  | Cache strategy for HTTP URL downloads, see [lib.rs](https://github.com/06chaynes/http-cache/blob/427438ce590aeba88ab2de6936a85bb5db4d7193/http-cache/src/lib.rs#L248).<br />Note that the value uses Snake case |
+| `cache_size_mib` | `number` |     `512`     | Maximum cache size. This cache is stored in memory                                                                                                                                                              |
+| `cache_ttl_hour` | `number` |     `72`      | TTL time for each cache item, in hours                                                                                                                                                                          |
+
+## `run_container` Configuration
+
+| Name                           |    Type    |  Default Value   | Description                                                                                               |
+| :----------------------------- | :--------: | :--------------: | :-------------------------------------------------------------------------------------------------------- |
+| `pull_image_timeout_seconds`   |  `number`  |      `600`       | Timeout for skopeo to pull the image, in seconds                                                          |
+| `unpack_image_timeout_seconds` |  `number`  |      `600`       | Timeout for umoci to unpack the image, in seconds                                                         |
+| `userns_uid`                   |  `number`  | Current user ID  | User ID used by the secure sandbox                                                                        |
+| `userns_user`                  |  `string`  | Current username | Username used by the secure sandbox                                                                       |
+| `userns_gid`                   |  `number`  | Current group ID | Group ID used by the secure sandbox                                                                       |
+| `userns_group`                 |  `string`  |  Current group   | Group name used by the secure sandbox                                                                     |
+| `cache_size_mib`               |  `number`  |      `512`       | Maximum size of the [compilation task cache](/tasks/judge#cache-property). This cache is stored in memory |
+| `cache_ttl_hour`               |  `number`  |       `72`       | TTL time for each cache item, in hours                                                                       |
+| `preload_images`               | `string[]` |       `[]`       | List of image names to be downloaded and unpacked before Seele starts receiving requests                  |

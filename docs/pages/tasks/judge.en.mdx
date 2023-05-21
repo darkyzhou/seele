@@ -1,0 +1,226 @@
+import { Callout, Tabs, Tab } from "nextra-theme-docs";
+
+# Running Judge Programs
+
+Seele provides two action tasks for performing judge-related tasks. They are used by specifying `seele/run-judge/compile@1` and `seele/run-judge/run@1` for the `action`. The former is mainly for compiling some source files and saving the generated files, and the latter is for running the program to be evaluated.
+
+<Callout type="info">
+  For convenience, we use "compilation task" to refer to the former and
+  "execution task" to refer to the latter in this document.
+</Callout>
+
+Compilation tasks and execution tasks [build sandboxes using Linux container technology](/advanced/sandbox) to ensure that the programs to be run are executed in an isolated environment. This not only prevents interference between different judge tasks but also prevents malicious programs from damaging the system while limiting the resources the program can use. To properly use compilation tasks and execution tasks, you may need to master some knowledge about Linux containers.
+
+## Compilation Task
+
+The compilation task is usually combined with the [Add File task](/tasks/files), adding the files from the latter to the container for the compilation program to use. After the compilation program runs successfully, the compilation task will copy the specified files from the container to the [root folder](/tasks/directory).
+
+### Parameter List
+
+The parameters accepted by the compilation task are as follows:
+
+| Name             |       Type        |  Default  | Description                                                              |
+| :--------------- | :---------------: | :-------: | :----------------------------------------------------------------------- |
+| `sources`        |    `string[]`     |   `[]`    | List of files to be mounted from the root folder to the container        |
+| `saves`          |    `string[]`     |   `[]`    | List of files to be saved from the container when the task is successful |
+| `cache`          |     `object`      | See below | Cache configuration                                                      |
+| Other attributes | `ContainerConfig` | See below | Other container configurations                                           |
+
+### `cache` Property
+
+Seele supports caching for compilation tasks through the `cache` property. Its parameters are as follows:
+
+| Name      |    Type    | Default | Description                                                                      |
+| :-------- | :--------: | :-----: | :------------------------------------------------------------------------------- |
+| `enabled` | `boolean`  | `false` | Whether to enable caching functionality                                          |
+| `extra`   | `string[]` |  `[]`   | List of additional parameters to be included in the hash calculation for caching |
+
+The compilation task calculates the SHA-256 hash value using the values listed below in order to determine whether the cache is hit. When the cache is hit, the compilation task will skip running the container and directly reuse the files specified in `saves` from the cache.
+
+1. The value of `command`.
+2. Each string in `extra`.
+3. Each string in `saves`, sorted in dictionary order.
+4. Each string in `sources`, sorted in dictionary order.
+5. The content of the file pointed to by each string in `sources`.
+
+### Example
+
+The example below adds a `main.c` file to the root folder in the `prepare` step, mounts this `main.c` file to the container and runs the `gcc` program in the container for compilation in the `compile` step, and finally saves the output `main` program to the root folder for use in subsequent steps.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main.c"
+        plain: |
+          #include <stdio.h>
+          int main(void) {
+            printf("Hello, world!\n");
+            return 0;
+          }
+
+  compile:
+    action: "seele/run-judge/compile@1"
+    image: "gcc:11-bullseye"
+    command: "gcc -O2 -Wall main.c -o main"
+    sources: ["main.c"]
+    saves: ["main"]
+```
+
+## Execution Tasks
+
+Execution tasks are generally used to run programs that need to be judged. Users often need to limit the runtime, memory usage, etc., of the programs being judged.
+
+### Parameter List
+
+The parameter list accepted by the execution task is shown in the table below:
+
+| Name             |       Type        |  Default  | Description                                                 |
+| :--------------- | :---------------: | :-------: | :---------------------------------------------------------- |
+| `files`          |    `string[]`     |   `[]`    | List of files mounted from the root folder to the container |
+| Other properties | `ContainerConfig` | See below | Other container configurations                              |
+
+<Callout type="info">
+  For mounting executable files, we recommend adding the `:exec` suffix to the
+  file names in `files` so that Seele ensures that the executable file has
+  execute permissions.
+</Callout>
+
+### Example
+
+The example below adds a `main` executable file to the root folder in the `prepare` step, and then runs the program in the `run` step.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main"
+        url: "http://darkyzhou.net/main"
+
+  compile:
+    action: "seele/run-judge/run@1"
+    image: "gcc:11-bullseye"
+    command: "main"
+    files: ["main:exec"]
+```
+
+## Common Configurations
+
+### `ContainerConfig`
+
+Some parameters shared by compilation tasks and execution tasks for building sandboxes are as follows:
+
+| Name      |           Type           |  Default  | Description                                                                                 |
+| :-------- | :----------------------: | :-------: | :------------------------------------------------------------------------------------------ |
+| `image`   |         `string`         |    N/A    | Container image to be used                                                                  |
+| `cwd`     |         `string`         |   `[]`    | Current directory when running programs in the container                                    |
+| `command` |  `string` or `string[]`  |    N/A    | Program to be run in the container                                                          |
+| `fd`      |         `object`         |  `null`   | Configuration for input and output streams of the running program                           |
+| `paths`   |        `string[]`        |   `[]`    | Additional `PATH` environment variable items provided for the container running the program |
+| `mounts`  | `string[]` or `object[]` |   `[]`    | List of files mounted from the root folder to the container                                 |
+| `limits`  |         `object`         | See below | Some resource limits set for the container                                                  |
+
+<Callout type="warning">
+  When a property has a default value of `N/A`, you must provide a value for it,
+  otherwise Seele may not be able to parse the judge task.
+</Callout>
+
+<Callout type="info">
+  Seele parses the container image specified in `image` in a similar way to
+  Docker. Below are some valid examples of `image` values: `gcc`, `debian:slim`,
+  `library/ubuntu:focal`, `quay.io/foo/bar:latest`
+</Callout>
+
+### `fd` Configuration
+
+The `fd` configuration can redirect the standard input, output, and error streams of the judge program to files in the root folder. Its parameters are as follows:
+
+| Name               |   Type    | Description                                                                                                            |
+| :----------------- | :-------: | :--------------------------------------------------------------------------------------------------------------------- |
+| `stdin`            | `string`  | Redirect the program's standard input stream from the given file                                                       |
+| `stdout`           | `string`  | Redirect the program's standard output stream to the given file, the sandbox will automatically create the file |
+| `stderr`           | `string`  | Redirect the program's standard error stream to the given file, the sandbox will automatically create the file  |
+| `stdout_to_stderr` | `boolean` | Redirect the program's standard output stream to the standard error stream                                             |
+| `stderr_to_stdout` | `boolean` | Redirect the program's standard error stream to the standard output stream                                             |
+
+<Callout type="info">
+  If the user does not set a redirection relationship for a certain stream, the
+  sandbox will redirect the stream to the `/dev/null` provided by the
+  Linux kernel.
+</Callout>
+
+### `limits` Configuration
+
+The `limits` configuration can limit the resources used by the judge program. The sandbox will terminate the program when it uses resources beyond the limit.
+
+Its parameters are as follows:
+
+| Name         |   Type   | Default | Description                                      |
+| :----------- | :------: | :-----: | :----------------------------------------------- |
+| `time_ms`    | `number` |   10s   | User-mode CPU time limit. Unit: ms               |
+| `memory_kib` | `number` | 256 MiB | Memory usage limit. Unit: KiB                    |
+| `pids_count` | `number` |   32    | Number of child processes the program can create |
+| `fsize_kib`  | `number` | 64 MiB  | Maximum output data size the program can produce |
+
+<Callout type="info">
+  The sandbox starts an additional timer with a time of `time_ms * 3`
+  after launching the program. If the program execution has not ended when the
+  timer expires, the sandbox will terminate the program with the
+  `SIGKILL` signal.
+</Callout>
+
+<Callout type="warning">
+  Do not set `memory_kib` to a value lower than 20 MiB. Due to the principle
+  limitations of Seele's sandbox, it always occupies about 16 MiB of
+  memory **before** starting the judge program. If the value of `memory_kib` is
+  too small, it may cause the sandbox to fail to be created.
+</Callout>
+
+## Judge Report
+
+The judge report returned by compilation tasks and execution tasks contains the following properties:
+
+| Name                 |   Type   | Description                                                                                                                                                                                                                                    |
+| :------------------- | :------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`             | `string` | The exit status of the program                                                                                                                                                                                                                 |
+| `exit_code`          | `number` | The exit code returned by the program                                                                                                                                                                                                          |
+| `signal`             | `string` | **Provided only when the program is terminated by a signal**, the name of the corresponding signal. See [zerrors_linux_amd64.go](https://github.com/golang/sys/blob/00d8004a14487f8c7b7fdfe44b95e9f6c4590f5f/unix/zerrors_linux_amd64.go#L793) |
+| `wall_time_ms`       | `number` | The time elapsed from the program's launch to termination, in ms                                                                                                                                                                               |
+| `cpu_user_time_ms`   | `number` | The total user-mode CPU time consumed by the program execution, in ms                                                                                                                                                                          |
+| `cpu_kernel_time_ms` | `number` | The total kernel-mode CPU time consumed by the program execution, in ms                                                                                                                                                                        |
+| `memory_usage_kib`   | `number` | The peak memory usage of the program during execution, in KiB                                                                                                                                                                                  |
+
+<Callout type="info">
+  `wall_time_ms` is the time measured externally by the sandbox, and
+  there may be some deviation compared to the actual elapsed time from the start
+  to the end of the program execution. Tests show that this error is generally
+  at the level of a few milliseconds. We recommend users to use
+  `cpu_user_time_ms` to compare the pros and cons of different judge
+  programs in terms of execution time.
+</Callout>
+
+<Callout type="warning">
+  Due to the reasons mentioned above for the sandbox, the
+  `memory_usage_kib` in the judge report is often greater than
+  approximately 12 MiB. When the memory used by the judge program is less
+  than the memory occupied by the sandbox **before** starting the
+  judge program, `memory_usage_kib` cannot reflect the true memory size
+  occupied by the judge program.
+</Callout>
+
+### `status` attribute
+
+Indicates the reason for the program termination. Its values are as shown in the table below:
+
+| Value                      | Description                                                                                                                                         |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NORMAL`                   | The program ends normally, without any runtime crashes or resource limit violations                                                                 |
+| `RUNTIME_ERROR`            | The program ends with a runtime crash, and the exit code is not `0`                                                                                 |
+| `SIGNAL_TERMINATE`         | The program is terminated by a signal sent by the Linux kernel. For example, when dividing by `0`, the program is terminated by the `SIGFPE` signal |
+| `USER_TIME_LIMIT_EXCEEDED` | The user-mode CPU time consumed by the program exceeds the limit                                                                                    |
+| `WALL_TIME_LIMIT_EXCEEDED` | The program is terminated due to prolonged execution time                                                                                           |
+| `MEMORY_LIMIT_EXCEEDED`    | The program is terminated for attempting to allocate memory beyond the limit                                                                        |
+| `OUTPUT_LIMIT_EXCEEDED`    | The program outputs more data than the limit                                                                                                        |
+| `UNKNOWN`                  | Unknown reason, the sandbox may have a bug                                                                                                   |
