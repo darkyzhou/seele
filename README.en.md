@@ -1,11 +1,13 @@
 <p align="center"><img alt="Banner" src="docs/public/logo.svg"></p>
-<h1 align="center">Seele</h1>
-
-<p align="center">
+<h1 align="center">
+  Seele
+  <br>
   <img src="https://github.com/darkyzhou/seele/actions/workflows/build.yml/badge.svg">
   <img src="https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square">
   <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
-  <br>
+</h1>
+
+<p align="center">
   <b><a target="_blank" href="https://github.com/darkyzhou/seele/blob/main/README.en.md">[View in English]</a></b>
   &nbsp;
   <b><a target="_blank" href="https://seele.darkyzhou.net/en">[English Docs]</a></b>
