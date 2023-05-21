@@ -1,0 +1,17 @@
+import { Callout } from "nextra-theme-docs";
+
+# Describing Judge Tasks
+
+Seele requires users to describe judge tasks using the YAML language. Each judge task consists of the properties listed in the table below:
+
+| Name                |   Type   | Description                                                                   |
+| :------------------ | :------: | :---------------------------------------------------------------------------- |
+| `id`                | `string` | The ID of the judge task                                                      |
+| `tracing_attribute` | `string` | Optional. Attach [observability](/advanced/telemetry) attributes to this task |
+| `reporter`          | `object` | Optional. [Report scripts](/tasks/script) configuration                       |
+| `steps`             | `object` | The parameters for the root sequential task, see [Task Types](/tasks/types)   |
+
+<Callout type="info">
+  For beginner users, only `id` and `steps` are necessary from the properties
+  listed above.
+</Callout>

@@ -1,0 +1,69 @@
+# Report Scripts
+
+Seele allows specifying a report script for judge tasks through the `reporter` attribute. When returning [progress and completed reports](/tasks/types), the judge system runs the report script with the judge report as input and performs corresponding actions based on the script's return value. Currently, Seele only supports JavaScript as the report script language.
+
+The parameters for the `reporter` attribute are shown in the table below:
+
+| Attribute    |   Type   | Description                         |
+| :----------- | :------: | :---------------------------------- |
+| `javascript` | `string` | Use JavaScript as the report script |
+
+The return value of the script **must** conform to the structure shown in the table below:
+
+| Attribute |   Type   | <span style={{whiteSpace: 'nowrap'}}>Optional</span> | Description                                                                                                                                                                                                                                         |
+| :-------- | :------: | :--------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `report`  | `object` |                          No                          | Additional report content, which will be used as the `report` attribute of the judge report                                                                                                                                                    |
+| `embeds`  | `object` |                         Yes                          | Configuration for embedding file content, see [Embedding and Uploading Files](/tasks/embed-and-upload)                                                                                                                                              |
+| `uploads` | `object` |                         Yes                          | Configuration for uploading files, see [Embedding and Uploading Files](/tasks/embed-and-upload). For progress reports, the `uploads` returned by the script will be ignored, and this attribute is only valid when the input is a completed report. |
+
+## JavaScript Report Script
+
+When the report script is run, Seele provides a global variable `DATA` pointing to the input judge report object, giving users access to the status of each subtask. Users can determine the return value of the script based on the content of `DATA`.
+
+In the script example below, we check the completion status of the `check` subtask and additionally return a `grade` attribute representing the score of the judge task.
+
+```javascript
+function getGrade() {
+  const status = DATA.steps.check.status;
+
+  switch (status) {
+    case "PENDING":
+    case "RUNNING":
+      return null;
+    case "SKIPPED":
+      return -1;
+    case "FAILED":
+      return 0;
+    case "SUCCESS":
+      return 100;
+  }
+}
+
+return {
+  report: {
+    grade: getGrade(),
+  },
+};
+```
+
+The completed report returned by Seele is shown below:
+
+```jsonc
+{
+  "id": "F7UAO37LMPYQRqLo",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T13:33:10.934345832Z",
+  "report": {
+    "grade": 100
+  },
+  "status": {
+    // ...
+  }
+}
+```
+
+Seele uses the [QuickJS](https://bellard.org/quickjs/) engine to execute JavaScript report scripts. This engine basically supports the newer ES2020 specification and provides full support for basic APIs such as `Date`, `Math`, `JSON`, etc. JavaScript report scripts have limitations including but not limited to the following:
+
+- Seele does not integrate asynchronous features, so asynchronous APIs like `Promise` will not work.
+- The QuickJS engine does not provide Web APIs, such as `fetch()`.
+- Access to the file system and network is not available.

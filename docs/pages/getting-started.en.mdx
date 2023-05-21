@@ -1,0 +1,190 @@
+import { Callout, Tabs, Tab } from "nextra-theme-docs";
+
+# Quick Start
+
+## System Requirements
+
+<Callout type="info">
+  If you're not familiar with these requirements, we recommend using [Ubuntu
+  22.04](https://www.releases.ubuntu.com/jammy/) or a later version, as this
+  distribution meets the conditions listed below.
+</Callout>
+
+Seele is based on the container technology and Rootless Containers technology provided by the Linux kernel, which requires the Linux system to meet the following conditions.
+
+- At least 4 CPU cores and 4 GiB or more of memory.
+- Linux kernel version at least `5.11` or higher, with newer versions recommended for security vulnerability fixes and stability improvements.
+- [Control Group v2](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html) enabled by default instead of v1.
+- At least one regular user, with [corresponding `/etc/subuid` and `/etc/subgid` configured](https://rootlesscontaine.rs/getting-started/common/subuid/).
+- If running as a regular user, Systemd version 243 or higher is required, with [relevant delegation enabled](https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation).
+
+<Callout type="info">
+We recommend creating a dedicated user account for Seele to ensure that it has low permissions and a small impact on the system:
+```sh
+adduser --no-create-home --disabled-login --disabled-password --gecos "" seele
+```
+
+The installation steps below assume the use of the `seele` user and group, with both uid and gid set to `1000`.
+
+</Callout>
+
+## Installation Steps
+
+Seele supports running in various environments, including bare-metal deployment, Docker deployment, and Kubernetes deployment, with Docker deployment being the simplest method.
+
+<Tabs items={['Docker Deployment', 'Bare-metal Deployment', 'Kubernetes Deployment']} storageKey="selected-installation-method">
+  <Tab>
+    Prepare a configuration file `config.toml` in the current directory with the following content:
+
+    ```toml copy filename="config.toml"
+    # Configure the judge system to run an Http service on port 8080 to receive our judge tasks
+    [exchange.demo]
+    type = "http"
+    address = "0.0.0.0"
+    port = 8080
+
+    # The security sandbox needs to know which user on the system to use to create containers
+    [worker.action.run_container]
+    userns_user = "seele"
+    userns_group = "seele"
+    userns_uid = 1000
+    userns_gid = 1000
+    ```
+
+    Run the following command using Docker. Wait for Docker to download the image and start Seele.
+
+    <Callout type="info">
+      Please use the latest version of Docker as much as possible to avoid issues with unsupported features.
+    </Callout>
+
+    ```sh copy
+    docker run \
+      --security-opt seccomp=unconfined \
+      --security-opt apparmor=unconfined \
+      --security-opt systempaths=unconfined \
+      -v /etc/subuid:/etc/subuid \
+      -v /etc/subgid:/etc/subgid \
+      -v /sys/fs/cgroup:/sys/fs/cgroup \
+      -v `pwd`/config.toml:/etc/seele/config.toml \
+      --tmpfs /tmp:exec,mode=777,size=1G \
+      --cgroupns host \
+      --net host \
+      ghcr.io/darkyzhou/seele
+    ```
+
+  </Tab>
+  <Tab>
+  The documentation for bare-metal deployment is still being written.
+  </Tab>
+  <Tab>
+  The documentation for Kubernetes deployment is still being written.
+  </Tab>
+</Tabs>
+
+When Seele runs successfully, you will see an output similar to the following:
+
+```log
+2023-03-25T02:57:16.048480Z  INFO seele:154: Checking cpu counts
+2023-03-25T02:57:16.048882Z  INFO seele:167: Checking id maps
+2023-03-25T02:57:16.048988Z  INFO seele:182: Creating necessary directories in /home/seele/seele/root
+2023-03-25T02:57:16.049601Z  INFO seele:200: Worker started bootstrap
+2023-03-25T02:57:16.050193Z  INFO seele:208: Initializing seele components
+2023-03-25T02:57:16.050350Z  INFO seele::exchange:16: Initializing exchanges based on the configuration
+2023-03-25T02:57:16.050962Z  INFO seele::exchange::http:27: Starting http exchange demo on 0.0.0.0:23335
+```
+
+We've prepared a simple judge task that adds a `main.py` source file and uses the official Python image to run the source file and get the output.
+For convenience, we'll save this file as `task.yaml`.
+
+```yaml copy filename="task.yaml"
+steps:
+  prepare:
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print("Hello, world!")
+
+  run:
+    action: "seele/run-judge/run@1"
+    image: "python:3.11-bullseye"
+    command: "python main.py"
+    files: ["main.py"]
+    fd:
+      # Redirect the stdout stream to a file called `out.txt`
+      stdout: "out.txt"
+    report:
+      embeds:
+        # Instruct seele to save the content from `out.txt`
+        - path: "out.txt"
+          field: output
+          truncate_kib: 8
+```
+
+Using a tool like `curl`, we can send a request containing the judge task to Seele's Http service:
+
+```sh copy
+curl --data-binary @task.yaml http://127.0.0.1:8080
+```
+
+After Seele receives this judge task, it will attempt to connect to [Docker Hub](https://hub.docker.com) to download the official Python image and run the task.
+If everything goes smoothly, and your network can access Docker Hub without any issues, you'll quickly get a result similar to the following:
+
+```jsonc
+{
+  "id": "X66BLePg2osQqFsN",
+  "type": "COMPLETED",
+  "report_at": "2023-03-25T03:10:50.077941185Z",
+  "status": {
+    "submitted_at": "2023-03-25T03:10:49.926655435Z",
+    "id": "X66BLePg2osQqFsN",
+    // This JSON object indicates the execution status of each step in the submission
+    "steps": {
+      "prepare": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-25T03:10:49.927670519Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      },
+      "run": {
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-25T03:10:49.928582962Z",
+          "time_elapsed_ms": 148,
+          "type": "run_container",
+          // Following are the container's status
+          "status": "NORMAL",
+          "exit_code": 0,
+          "wall_time_ms": 103,
+          "cpu_user_time_ms": 15,
+          "cpu_kernel_time_ms": 15,
+          "memory_usage_kib": 18000
+        },
+        "embeds": {
+          // The file's content we haved asked in the submission
+          "output": "Hello, world!\n"
+        }
+      }
+    }
+  }
+}
+```
+
+## Next Steps
+
+You've now learned the basic usage of Seele. If you want to learn more, you can continue reading the documentation from the following sections:
+
+- If you want to learn more about Seele's judge tasks, please read [Judge Tasks](/tasks/description).
+- If you want to review Seele's various configuration options, please read [Configurations](/configurations/file).
+- If you're interested in the technical details and advanced usage of Seele, please read [Advanced](/advanced/architecture).
+
+<Callout type="info">
+  Seele is still in the early stages of development. If you have any suggestions
+  or find any bugs, feel free to visit the project's [GitHub
+  repository](https://github.com/darkyzhou/seele) to submit an issue and give it
+  a star. Also, Seele's documentation may not cover all the details, so if you
+  have any questions, please don't hesitate to submit an issue.
+</Callout>

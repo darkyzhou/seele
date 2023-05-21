@@ -1,0 +1,67 @@
+import { Callout } from "nextra-theme-docs";
+
+# Exchange Configuration
+
+Exchange receives user-submitted judge tasks and hands them over to Composer, then returns the judge reports sent by Composer to the users. To improve flexibility, the judge system allows users to configure multiple Exchanges to work together. Currently, Seele provides two Exchange implementations, offering users various ways to interact with the judge system: HTTP Exchange and AMQP Exchange.
+
+The configuration accepts a dictionary, with keys being strings representing the Exchange's name, and values being one of the two types of Exchange configurations, as described below.
+
+## HTTP Exchange
+
+HTTP Exchange starts an HTTP endpoint to listen for user-submitted judge task requests, with the request body being YAML text. Its configuration is shown in the table below:
+
+| Name                  |   Type   | Optional | Description                                                                                                                              |
+| :-------------------- | :------: | :------: | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`                | `'http'` |    No    | Indicates the Exchange type is HTTP Exchange                                                                                             |
+| `address`             | `string` |   Yes    | The address the HTTP endpoint listens to. Default value is `127.0.0.1`                                                                   |
+| `port`                | `number` |    No    | The port the HTTP endpoint listens to                                                                                                    |
+| `max_body_size_bytes` | `number` |   Yes    | The maximum size of the received HTTP request body, requests exceeding the limit will be rejected. Unit is Bytes. Default value is 8 MiB |
+
+By default, HTTP Exchange only returns completion reports or error reports. Users need to add `progress=true` to the request's Query params to additionally obtain progress reports. HTTP Exchange separates each judge report JSON data with `\n`.
+
+## AMQP Exchange
+
+AMQP Exchange uses the popular message communication protocol [Amqp 0.9.1](https://www.amqp.org/) in conjunction with message queues like [RabbitMQ](https://www.rabbitmq.com/) to obtain judge tasks and output judge reports. Compared to HTTP Exchange, it is a more ideal way to handle large-scale traffic in production environments.
+
+<Callout type="info">
+  Do not confuse Seele's Exchange concept with the Exchange concept in Amqp
+  protocol.
+</Callout>
+
+Its configuration is shown in the table below:
+
+| Name         |   Type   | Description                                        |
+| :----------- | :------: | :------------------------------------------------- |
+| `type`       | `'amqp'` | Indicates the Exchange type is AMQP Exchange       |
+| `url`        | `string` | The Amqp endpoint URL                              |
+| `submission` | `object` | Configuration for receiving judge tasks, see below |
+| `report`     | `object` | Configuration for sending judge reports, see below |
+
+### `submission` Configuration
+
+Seele listens for submitted judge tasks by creating the corresponding queue and binding it to the exchange using the routing key according to the configuration listed in the table below.
+
+| Name            |   Type   | Description                                                                                                                                                                           |
+| :-------------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `exchange`      | `object` | Amqp exchange configuration, see below                                                                                                                                                |
+| `routing_key`   | `string` | Routing key for judge tasks                                                                                                                                                           |
+| `queue`         | `string` | Queue name for listening to exchange messages                                                                                                                                         |
+| `queue_options` | `object` | Optional. Queue settings for listening to exchange messages. See [generated.rs](https://github.com/amqp-rs/lapin/blob/ae89cf67b169f59b5187419fc074d3a1257dff02/src/generated.rs#L147) |
+
+### `report` Configuration
+
+Seele sends judge reports to the exchange using the corresponding routing key according to the configuration listed in the table below. The sent message body is JSON plain text.
+
+| Name                   |   Type   | Description                                                                                      |
+| :--------------------- | :------: | :----------------------------------------------------------------------------------------------- |
+| `exchange`             | `object` | Amqp exchange configuration, see below                                                           |
+| `report_routing_key`   | `string` | Routing key used when sending completion reports or error reports                                |
+| `progress_routing_key` | `string` | Optional. Routing key used when sending progress reports. If empty, no progress reports are sent |
+
+### `exchange` Configuration
+
+| Name      |   Type   | Description                                                                                                                                                              |
+| :-------- | :------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | `string` | Exchange name                                                                                                                                                            |
+| `kind`    | `string` | Optional. Amqp exchange type. See [exchange.rs](https://github.com/amqp-rs/lapin/blob/main/src/exchange.rs)                                                              |
+| `options` | `object` | Optional. Settings for declaring Amqp exchange. See [generated.rs](https://github.com/amqp-rs/lapin/blob/ae89cf67b169f59b5187419fc074d3a1257dff02/src/generated.rs#L113) |

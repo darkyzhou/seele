@@ -1,0 +1,37 @@
+import { Callout } from "nextra-theme-docs";
+
+# Control Execution
+
+Sequential tasks can execute their subtasks in a certain order, defined by `steps`. By default, sequential tasks execute each subtask in the order they appear. When a subtask fails and enters the [`FAILED`](/tasks/states) state, the sequential task stops executing and sets the remaining subtask states to `SKIPPED`. To allow users to model more complex task execution flows, Seele provides two attributes to change the default behavior: `when` and `needs`.
+
+## `when`
+
+Accepts a string, with possible values: `true` or `previous.ok`. The default value is `previous.ok`.
+
+When a subtask in a sequential task fails, Seele checks the `when` value of its successor nodes. By default, `previous.ok` means that the current node will only continue to run if the predecessor node executes successfully. Setting it to `true` allows Seele to execute the current node even if the predecessor node fails.
+
+<Callout type="info">
+  If you have better suggestions for this attribute, feel free to open an issue
+  in this project's [GitHub repository](https://github.com/darkyzhou/seele).
+</Callout>
+
+## `needs`
+
+Accepts a string specifying the name of the predecessor task as a subtask in the sequential task.
+
+By default, sequential tasks execute subtasks in the order they are declared. Each subtask's predecessor node is the task immediately preceding it. For example, in the following case, the `one`, `two`, and `three` subtasks will be executed in order, as shown in the diagram below.
+
+```yaml
+steps:
+  one: # ...
+  two: # ...
+  three: # ...
+```
+
+![Order of the three tasks](/order-1.png)
+
+By adding `when: one` to the `three` configuration, we change the predecessor node of `three` from `two` to `one`. Now, the execution order of the sequential task changes. It still starts with `one`, but then **concurrently executes** `two` and `three`. Their relationship is shown in the diagram below.
+
+![Order of the three tasks when using needs](/order-2.png)
+
+When used with `when`, `previous.ok` points to the state of its predecessor task, i.e., the task specified by `when`. `when` can only specify the names of tasks declared before it. For example, in the above case, we **cannot** use `when: three` in `two`.

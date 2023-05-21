@@ -1,0 +1,13 @@
+{
+    "description": "Describing Tasks",
+    "types": "Task Types",
+    "states": "Task States",
+    "report": "Judge Report",
+    "order": "Control Execution",
+    "tags": "Tags",
+    "directory": "Root Folder",
+    "files": "Adding Files",
+    "judge": "Running Judge Programs",
+    "embed-and-upload": "Embedding and Uploading Files",
+    "script": "Report Scripts"
+}

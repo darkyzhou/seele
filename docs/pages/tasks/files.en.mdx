@@ -1,0 +1,105 @@
+import { Callout } from "nextra-theme-docs";
+
+# Adding Files
+
+Adding files is an action task that allows users to save necessary files in the [root folder](/tasks/directory) according to their parameters. Currently, this action task offers several methods to add files.
+
+## Inline Plain Text
+
+Use the `plain` property to pass in a plain text string. Seele will write the contents of the string to the specified file.
+
+The example below adds two source files `main.h` and `main.c` using inline plain text.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        plain: |
+          extern int power;
+
+      - path: "main.c"
+        plain: |
+          #include <stdio.h>
+          #include "main.h"
+
+          int power = 114514;
+
+          int main(void) {
+            printf("Power: %d\n", power);
+            return 0;
+          }
+```
+
+<Callout type="warning">
+  We do not recommend using inline plain text to pass user-submitted source code
+  and other files, as YAML does not support carrying some special characters. In
+  addition, Seele will also refuse to process non-UTF-8 encoded plain text. In
+  these cases, using inline Base64 text or HTTP URLs is a better choice.
+</Callout>
+
+## Inline Base64 Text
+
+Use the `base64` property to pass in a Base64 text string. Seele will decode the Base64 text and write the resulting data to the specified file.
+
+<Callout type="info">
+  Seele accepts only Base64 text **without** padding. Passing Base64 text with
+  padding will cause an error.
+</Callout>
+
+The example below adds two source files `main.h` and `main.c` using inline Base64 text. Seele will decode the Base64 text and store the binary data directly in the file.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        base64: "ZXh0ZXJuIGludCBwb3dlcjs="
+      - path: "main.c"
+        base64: "I2luY2x1ZGUgPHN0ZGlvLmg+CiNpbmNsdWRlICJtYWluLmgiCgppbnQgcG93ZXIgPSAxMTQ1MTQ7CgppbnQgbWFpbih2b2lkKSB7CiAgcHJpbnRmKCJQb3dlcjogJWRcbiIsIHBvd2VyKTsKICByZXR1cm4gMDsKfQ=="
+```
+
+## HTTP URL
+
+Use the `url` property to pass in an HTTP URL string. Seele will use the built-in HTTP client to send GET requests to the two URLs and write the obtained responses to the specified files.
+
+The example below adds two source files `main.h` and `main.c` using HTTP URLs.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "main.h"
+        url: "http://darkyzhou.net/main.h"
+      - path: "main.c"
+        url: "http://darkyzhou.net/main.c"
+```
+
+<Callout type="info">
+  Authentication, downloading HTTPS URLs are not supported yet.
+</Callout>
+
+By default, the Add File task will attempt to use the negotiated cache headers in the HTTP response headers to cache downloaded files in memory, speeding up subsequent judge tasks' downloads of the same files. For more information, see [Adding File Configurations](/configurations/files).
+
+## Local Files
+
+Use the `local` property to pass in an **absolute path** string pointing to a local file. Seele will copy the specified file.
+
+<Callout type="info">
+  When running Seele in a Docker or Kubernetes container, make sure to mount the
+  relevant files into the container's filesystem.
+</Callout>
+
+The example below adds a local file `/tmp/foo.txt` to the submission root folder.
+
+```yaml
+steps:
+  prepare:
+    action: "seele/add-files@1"
+    files:
+      - path: "foo.txt"
+        local: "/tmp/foo.txt"
+```

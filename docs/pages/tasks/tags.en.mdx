@@ -1,0 +1,47 @@
+# Tags
+
+To meet the needs of some scenarios, we can attach tags to subtasks in the judge tasks using `tags`. These tags will be preserved as-is in the corresponding judge reports. `tags` accepts a dictionary with string key-value pairs.
+
+In the example below, we run a task to add a file and use `tags` to attach some tags.
+
+```yaml
+steps:
+  prepare:
+    tags:
+      foo: "bar"
+      message: "hello"
+    action: "seele/add-file@1"
+    files:
+      - path: "main.py"
+        plain: |
+          print(f"{1/0}")
+```
+
+Seele will preserve the tags we provided in the corresponding judge reports (including progress reports and completed reports), as shown below:
+
+```json
+{
+  "id": "QqmPeQrUFsrLAULA",
+  "type": "COMPLETED",
+  "report_at": "2023-03-26T03:29:15.388936921Z",
+  "status": {
+    "submitted_at": "2023-03-26T03:29:15.387603442Z",
+    "id": "QqmPeQrUFsrLAULA",
+    "steps": {
+      "prepare": {
+        "tags": {
+          "foo": "bar",
+          "message": "hello"
+        },
+        "status": "SUCCESS",
+        "report": {
+          "run_at": "2023-03-26T03:29:15.388262860Z",
+          "time_elapsed_ms": 0,
+          "type": "add_file"
+        },
+        "embeds": {}
+      }
+    }
+  }
+}
+```

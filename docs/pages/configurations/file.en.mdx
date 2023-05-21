@@ -1,0 +1,94 @@
+import { Callout } from "nextra-theme-docs";
+
+# Configuration File
+
+Seele's configuration file uses the [TOML](https://toml.io/en/) format and is named `config.toml`. When the program starts, it will try to read the configuration file in the current directory. If the file does not exist, the program will exit. When using the Docker image provided by Seele, the default current directory is `/etc/seele`. Therefore, you need to mount the configuration file in this folder for the program to read the configuration file successfully.
+
+The configuration items in the configuration file are shown in the table below:
+
+| Name            |   Type   | Optional | Description                                                                                                                      |
+| :-------------- | :------: | :------: | :------------------------------------------------------------------------------------------------------------------------------- |
+| `log_level`     | `string` |   Yes    | Log level output to the console, default is `warn`.<br />Available values: `debug`, `info`, `warn`, `error`, `off`               |
+| `work_mode`     | `string` |   Yes    | Seele's work mode, see below.<br />Available values: `bare`, `bare_systemd`, `containerized`<br />Default value: `containerized` |
+| `thread_counts` | `object` |   Yes    | Thread count used by the judge system, see below                                                                                 |
+| `paths`         | `object` |   Yes    | Directories for some folders and programs, see below                                                                             |
+| `telemetry`     | `object` |   Yes    | Observability configuration, see below                                                                                           |
+| `healthz`       | `object` |   Yes    | Health probe configuration, see below                                                                                            |
+| `http`          | `object` |   Yes    | Built-in HTTP client configuration, see below                                                                                    |
+| `exchange`      | `object` |   Yes    | See [Exchange Configuration](/configuration/exchange)                                                                            |
+| `composer`      | `object` |   Yes    | See [Composer Configuration](/configuration/composer)                                                                            |
+| `worker`        | `object` |   Yes    | See [Worker Configuration](/configuration/worker)                                                                                |
+
+## `work_mode` Configuration
+
+Specifies the mode in which Seele runs, which is related to the working principle of the judge system.
+
+- When running the judge system program as a regular user, specify `bare`.
+- When using Systemd to run the judge system program, specify `bare_systemd`.
+- When deploying Seele's container image to platforms like Docker or Kubernetes, specify `containerized` (this value is the default).
+
+## `thread_counts` Configuration
+
+To ensure judge fairness, Seele strictly [binds each thread to different CPU cores](/advanced/bind-cores) when starting.
+
+By default, let `N` be the number of CPU cores in the system. Seele will use one of the cores to run the main thread, use another core to run one auxiliary thread (called Worker thread), and use the remaining `N-2` cores to run `N-2` auxiliary threads (called Runner threads). The judge system will use Runner threads to run secure sandboxes, see [Overall Architecture](/advanced/architecture).
+
+Users can change the number of Worker threads and Runner threads by modifying the `thread_counts` properties shown in the table below:
+
+| Name     |   Type   | Optional | Description              |
+| :------- | :------: | :------: | :----------------------- |
+| `worker` | `number` |   Yes    | Number of Worker threads |
+| `runner` | `number` |   Yes    | Number of Runner threads |
+
+## `paths` Configuration
+
+The properties of this configuration are shown in the table below:
+
+| Name     |   Type   | Optional | Description                                                                                               |
+| :------- | :------: | :------: | :-------------------------------------------------------------------------------------------------------- |
+| `root`   | `string` |   Yes    | Default value is `/etc/seele`. Root folder path for storing persistent files required by the judge system |
+| `tmp`    | `string` |   Yes    | Default value is `/tmp`. Root folder path for storing judge task folders                                  |
+| `runj`   | `string` |   Yes    | Default value is `/usr/local/bin/runj`. Path of the secure sandbox program                                |
+| `skopeo` | `string` |   Yes    | Default value is `/usr/bin/skopeo`. Path of the skopeo program                                            |
+| `umoci`  | `string` |   Yes    | Default value is `/usr/bin/umoci`. Path of the umoci program                                              |
+
+## `telemetry` Configuration
+
+Observability-related configuration. Seele uses the SDK provided by [OpenTelemetry](https://opentelemetry.io) to export Tracing and Metrics data. In practice, we usually collect the observability data exported by Seele through the [Collector](https://opentelemetry.io/docs/collector/) provided by OpenTelemetry, then classify and send it to different observability databases for storage, such as Jaeger, Tempo, and Prometheus, and finally query the data through front-end tools like Grafana.
+
+The properties of `telemetry` are shown in the table below. When `telemetry` is not configured, Seele will disable observability features.
+
+| Name                   |    Type    | Description                                                                                 |
+| :--------------------- | :--------: | :------------------------------------------------------------------------------------------ |
+| `collector_url`        |  `string`  | URL of the Collector. Currently, only Grpc protocol is supported                            |
+| `histogram_boundaries` | `number[]` | Boundary configuration for Histogram type metrics. See [Observability](/advanced/telemetry) |
+
+## `healthz` Configuration
+
+Seele provides an HTTP health probe for Kubernetes to detect the running status of the judge system and restart it promptly when problems occur. This probe currently only integrates the health status check of [Amqp Exchange](/configurations/exchange). If you are not using it, the health probe is meaningless.
+
+<Callout type="info">
+  Seele will start the HTTP health probe after the startup initialization is
+  completed. If you have configured [preloaded container
+  images](/configurations/worker), you need to configure the Kubernetes probe to
+  wait for enough time.
+</Callout>
+
+The properties of this configuration are shown in the table below:
+
+| Name      |   Type    | Description                       |
+| :-------- | :-------: | :-------------------------------- |
+| `enabled` | `boolean` | Enable health probe HTTP endpoint |
+| `port`    | `number`  | Port number of the HTTP endpoint  |
+
+## `http` Configuration
+
+This configuration controls various parameters of Seele's built-in HTTP client. The latter is currently used for: [adding file tasks](/tasks/files) to download files via HTTP URL, [uploading files](/tasks/embed-and-upload) via HTTP URL. Its properties are shown in the table below:
+
+| Name                        |   Type   |     Default Value      | Description                                                   |
+| :-------------------------- | :------: | :--------------------: | :------------------------------------------------------------ |
+| `user_agent`                | `string` | `seele/Version Number` | `User-Agent` value in the HTTP request header                 |
+| `connect_timeout_seconds`   | `number` |          `8`           | TCP connection request timeout for HTTP requests              |
+| `timeout_seconds`           | `number` |          `60`          | Timeout for HTTP requests                                     |
+| `pool_idle_timeout_seconds` | `number` |         `600`          | Duration to retain pooled TCP connections                     |
+| `pool_max_idle_per_host`    | `number` |          `8`           | Maximum number of TCP connections that can be pooled per host |

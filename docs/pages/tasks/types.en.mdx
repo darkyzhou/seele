@@ -1,0 +1,45 @@
+# Task Types
+
+A judge task consists of several subtasks, which are divided into three types: sequential tasks, concurrent tasks, and action tasks. Sequential tasks and concurrent tasks can nest other subtasks, expressing complex judge processes. Action tasks perform actual operations, such as adding files, running containers, etc. If we compare a judge task to a multi-branch tree, then sequential tasks and concurrent tasks are the internal nodes, and action tasks are the leaf nodes.
+
+## Sequential Tasks
+
+The purpose of a sequential task is to execute its subtasks in a certain order, defined by `steps`. The root node of each judge task is a sequential task. In the example below, the sequential task will execute the `one`, `two`, and `three` subtasks in order.
+
+```yaml
+steps:
+  one: # ...
+  two: # ...
+  three: #...
+```
+
+## Concurrent Tasks
+
+The purpose of a concurrent task is to execute its subtasks concurrently, defined by `parallel`. A concurrent task always waits for all subtasks to complete, regardless of whether any subtasks fail.
+
+In the example below, the concurrent task will execute the `one`, `two`, and `three` subtasks concurrently.
+
+```yaml
+parallel:
+  -  # ...
+  -  # ...
+  -  #...
+```
+
+The parameters of a concurrent task can also be a dictionary. In this case, the role of the key is similar to that of a sequential task, assigning a name to each subtask:
+
+```yaml
+parallel:
+  one: # ...
+  two: # ...
+  three: # ...
+```
+
+## Action Tasks
+
+Action tasks can perform operations such as adding files, running judge programs, etc., defined by `action`. In the example below, the action task will perform the operation of adding a file to the root folder of the judge task.
+
+```yaml
+action: "seele/add-file@1"
+# ...
+```

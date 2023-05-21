@@ -40,15 +40,9 @@ export default {
     component: null,
   },
   i18n: [
-    { locale: "en", text: "English (WIP)" },
+    { locale: "en", text: "English" },
     { locale: "zh", text: "中文" },
   ],
-  feedback: {
-    content: "文档有问题？欢迎反馈 →",
-  },
-  editLink: {
-    text: "编辑此页面",
-  },
   footer: {
     text: (
       <div style={{ width: "100%", textAlign: "center" }}>

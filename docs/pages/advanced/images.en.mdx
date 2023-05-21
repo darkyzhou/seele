@@ -1,0 +1,50 @@
+import { Callout } from "nextra-theme-docs";
+
+# Utility Images
+
+We provide some utility container images to make it easier for users to use Seele.
+
+## `diff-scripts` image
+
+The source files for the image are located at [images/diff-scripts](https://github.com/darkyzhou/seele/tree/main/images/diff-scripts). You can reference this image in the judge task using `image: darkyzhou/diff-scripts`.
+
+`diff-scripts` provides two script files, `diff-strict` and `diff-loose`, for comparing the differences between the output content of the judge program and the standard answer content. They are based on GNU diffutils.
+
+### `diff-strict`
+
+Checks if the contents of the `user.out` and `standard.out` files in the current directory are exactly the same.
+
+- If there are differences other than trailing whitespace characters and differing numbers of whitespace characters, the exit code is `8`.
+- If there are _only_ differences in trailing whitespace characters or differing numbers of whitespace characters, the exit code is `9`.
+- If there are no differences, the exit code is `0`.
+- If the file does not exist, the exit code is `1`.
+
+### `diff-loose`
+
+Checks if the contents of the `user.out` and `standard.out` files in the current directory are _basically_ the same.
+
+- If there are differences other than trailing whitespace characters, differing numbers of whitespace characters, and differing numbers of empty lines, the exit code is `8`.
+- If there are no such differences, the exit code is `0`.
+- If the file does not exist, the exit code is `1`.
+
+### Usage
+
+The script files always use the `user.out` file in the current directory as the output content of the judge program and the `standard.out` as the standard answer content. When using the [execution task](/tasks/judge), we can modify the mounted file names using the `files` attribute.
+
+The following example demonstrates the usage of `diff-loose`, and the usage of `diff-strict` is similar. In this example, we redirect the output stream of the judge program to the file `__user_output`, and then mount it along with the answer file `__answer` in the utility image for comparison.
+
+```yaml
+steps:
+  run:
+    # ...
+    fd:
+      stdout: "__user_output"
+
+  compare:
+    action: "seele/run-judge/run@1"
+    image: "harbor.matrix.moe/docker.io/darkyzhou/diff-scripts"
+    command: "diff-loose"
+    files:
+      - "__user_output:user.out"
+      - "__answer:standard.out"
+```
