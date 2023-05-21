@@ -5,6 +5,12 @@
   <img src="https://github.com/darkyzhou/seele/actions/workflows/build.yml/badge.svg">
   <img src="https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square">
   <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
+  <br>
+  <b><a target="_blank" href="https://github.com/darkyzhou/seele/blob/main/README.en.md">[View in English]</a></b>
+  &nbsp;
+  <b><a target="_blank" href="https://seele.darkyzhou.net/en">[English Docs]</a></b>
+  &nbsp;
+  <b><a target="_blank" href="https://seele.darkyzhou.net/">[中文文档]</a></b>
 </p>
 
 Seele is a cloud-native online judge system, mainly targeting computer-related online course systems, programming competitions, and other scenarios. It serves as a judging service to receive user-submitted code, run it in a sandbox, and return judge reports.

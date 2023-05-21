@@ -5,9 +5,13 @@
   <img src="https://github.com/darkyzhou/seele/actions/workflows/build.yml/badge.svg">
   <img src="https://img.shields.io/github/v/release/darkyzhou/seele?include_prereleases&label=version&style=flat-square">
   <img src="https://img.shields.io/github/license/darkyzhou/seele?color=FF5531&style=flat-square">
+  <br>
+  <b><a target="_blank" href="https://github.com/darkyzhou/seele/blob/main/README.en.md">[View in English]</a></b>
+  &nbsp;
+  <b><a target="_blank" href="https://seele.darkyzhou.net/en">[English Docs]</a></b>
+  &nbsp;
+  <b><a target="_blank" href="https://seele.darkyzhou.net/">[中文文档]</a></b>
 </p>
-
-**[Click here to view it in English.](README.en.md)**
 
 Seele 是一款面向云原生的在线评测（Online Judge）系统，主要面向计算机相关的在线课程系统、程序设计竞赛等场景。 它作为评测服务接收用户提交的代码，在安全沙箱中运行并返回评测报告。
 
