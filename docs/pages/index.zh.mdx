@@ -63,8 +63,7 @@ steps:
 
   run:
     action: "seele/run-judge/run@1"
-    # 在 debian bullseye 镜像中执行编译产生的程序
-    image: "debian:bullseye"
+    image: "gcc:11-bullseye"
     command: "main"
     files: ["main"]
 ```
