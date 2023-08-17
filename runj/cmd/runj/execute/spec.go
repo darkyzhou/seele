@@ -50,7 +50,7 @@ var defaultMountPoints = []specs.Mount{
 		Destination: "/tmp",
 		Type:        "tmpfs",
 		Source:      "tmpfs",
-		Options:     []string{"nosuid", "nodev"},
+		Options:     []string{"nosuid", "noexec", "nodev", "size=128m", "nr_inodes=4k"},
 	},
 }
 
