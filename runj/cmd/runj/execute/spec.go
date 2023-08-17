@@ -46,6 +46,12 @@ var defaultMountPoints = []specs.Mount{
 		Source:      "sysfs",
 		Options:     []string{"nosuid", "noexec", "nodev", "ro"},
 	},
+	{
+		Destination: "/tmp",
+		Type:        "tmpfs",
+		Source:      "tmpfs",
+		Options:     []string{"nosuid", "nodev"},
+	},
 }
 
 func makeContainerSpec(config *entities.RunjConfig, uidMappings []specs.LinuxIDMapping, gidMappings []specs.LinuxIDMapping) (*specs.Spec, error) {
