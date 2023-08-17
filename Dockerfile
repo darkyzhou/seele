@@ -1,7 +1,7 @@
 ARG GIT_SHA
 ARG GIT_NAME
 
-FROM golang:1.19 AS runj
+FROM golang:1.19-bullseye AS runj
 WORKDIR /usr/src/app/
 COPY runj/go.mod runj/go.sum ./
 RUN go mod download && go mod verify
