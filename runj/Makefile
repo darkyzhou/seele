@@ -13,8 +13,12 @@ lint:
 	@echo "Linting..."
 	@golangci-lint run
 
-test-all:
-	@echo "Testing..."
+test-integration:
+	@echo "Running integration tests..."
+	@cd tests && npm install && npm run test
+
+test-unit: build-debug
+	@echo "Running unit tests..."
 	@go test -v ./...
 
 build: clean
