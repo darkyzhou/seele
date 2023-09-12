@@ -21,6 +21,6 @@ export default {
     },
   },
   check: (report) => {
-    assert.strictEqual(report.status, "WALL_TIME_LIMIT_EXCEEDED");
+    assert.strictEqual(report.status, "MEMORY_LIMIT_EXCEEDED");
   },
 };

@@ -1,4 +1,4 @@
-import { merge } from "lodash-es";
+import { merge, random } from "lodash-es";
 import { spawn } from "node:child_process";
 import { chmod, mkdir, rm, readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -156,11 +156,7 @@ async function executeRunj(config, rootless = true) {
 }
 
 async function makeTempPath(prefix) {
-  const tempPath = resolve(
-    TEMP_PATH,
-    prefix,
-    `${Math.round(Math.random() * 100000)}`
-  );
+  const tempPath = resolve(TEMP_PATH, prefix, `${random(1145141919)}`);
   await mkdir(tempPath, { recursive: true });
   await chmod(tempPath, 0o777);
   return tempPath;
