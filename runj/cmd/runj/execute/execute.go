@@ -3,7 +3,6 @@ package execute
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -38,7 +37,12 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 		return nil, fmt.Errorf("Error making container specification: %w", err)
 	}
 
-	factory, err := initContainerFactory()
+	overlayfsConfig, err := prepareOverlayfs(config.UserNamespace, config.Overlayfs)
+	if err != nil {
+		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
+	}
+
+	factory, err := initContainerFactory(overlayfsConfig)
 	if err != nil {
 		return nil, fmt.Errorf("Error preparing container factory: %w", err)
 	}
@@ -54,15 +58,6 @@ func Execute(ctx context.Context, config *entities.RunjConfig) (*entities.Execut
 			_ = cgroups.RemovePath(parentCgroupPath)
 		}
 	}()
-
-	overlayfsConfig, err := prepareOverlayfs(config.UserNamespace, config.Overlayfs)
-	if err != nil {
-		return nil, fmt.Errorf("Error checking overlayfs config: %w", err)
-	}
-	// FIXME: Dirty hack
-	// There is almost no way to pass data to the runc child process
-	// except this one and patching runc itself.
-	os.Setenv("GOMAXPROCS", overlayfsConfig)
 
 	containerConfig, err := specconv.CreateLibcontainerConfig(&specconv.CreateOpts{
 		UseSystemdCgroup: false,
