@@ -10,7 +10,7 @@ import (
 )
 
 func SetupOverlayfs() error {
-	configJson := os.Getenv("GOMAXPROCS")
+	configJson := os.Args[2]
 	if configJson == "" {
 		return fmt.Errorf("Unexpected empty overlayfs config")
 	}

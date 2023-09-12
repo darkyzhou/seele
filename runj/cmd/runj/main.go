@@ -24,7 +24,7 @@ import (
 func init() {
 	runtime.GOMAXPROCS(1)
 
-	if len(os.Args) > 1 && os.Args[1] == "init" {
+	if len(os.Args) > 2 && os.Args[1] == "init" {
 		runtime.LockOSThread()
 
 		if err := utils.SetupOverlayfs(); err != nil {

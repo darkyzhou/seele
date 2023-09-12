@@ -18,12 +18,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func initContainerFactory() (libcontainer.Factory, error) {
+func initContainerFactory(overlayfsConfig string) (libcontainer.Factory, error) {
 	return libcontainer.New(
 		".",
 		libcontainer.NewuidmapPath("/usr/bin/newuidmap"),
 		libcontainer.NewgidmapPath("/usr/bin/newgidmap"),
-		libcontainer.InitArgs(os.Args[0], "init"),
+		libcontainer.InitArgs(os.Args[0], "init", overlayfsConfig),
 	)
 }
 
@@ -142,7 +142,7 @@ func prepareFds(config *entities.FdConfig) (*os.File, *os.File, *os.File, error)
 func prepareOutFd(stdout bool, config *entities.FdConfig) (*os.File, error) {
 	if config == nil || (stdout && config.StdOut == "") || (!stdout && config.StdErr == "") {
 		mask := unix.Umask(0)
-		file, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0664)
+		file, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0o664)
 		unix.Umask(mask)
 		if err != nil {
 			return nil, fmt.Errorf("Error opening the %s: %w", os.DevNull, err)
@@ -157,7 +157,7 @@ func prepareOutFd(stdout bool, config *entities.FdConfig) (*os.File, error) {
 		}
 
 		mask := unix.Umask(0)
-		file, err := os.OpenFile(path, modes, 0664)
+		file, err := os.OpenFile(path, modes, 0o664)
 		unix.Umask(mask)
 		if err != nil {
 			return nil, fmt.Errorf("Error opening the file: %w", err)
