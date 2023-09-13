@@ -42,8 +42,8 @@ reporter:
     const date = new Date();
     return {
       report: {
-        message: "Hello at " + date;
-        type: DATA.steps.prepare.status;
+        message: "Hello at " + date,
+        type: DATA.steps.prepare.status
       }
     }
 
