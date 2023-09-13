@@ -34,7 +34,7 @@ Seele supports running in various environments, including bare-metal deployment,
 
 <Tabs items={['Docker Deployment', 'Bare-metal Deployment', 'Kubernetes Deployment']} storageKey="selected-installation-method">
   <Tab>
-    Prepare a configuration file `config.toml` in the current directory with the following content:
+    Next, we will use the current directory as the storage directory for Seele's configuration files, image files, and other files. Prepare a configuration file named `config.toml` in the current directory, with the following content:
 
     ```toml copy filename="config.toml"
     # Configure the judge system to run an Http service on port 8080 to receive our judge tasks
@@ -65,7 +65,7 @@ Seele supports running in various environments, including bare-metal deployment,
       -v /etc/subuid:/etc/subuid \
       -v /etc/subgid:/etc/subgid \
       -v /sys/fs/cgroup:/sys/fs/cgroup \
-      -v `pwd`/config.toml:/etc/seele/config.toml \
+      -v `pwd`:/etc/seele \
       --tmpfs /tmp:exec,mode=777,size=1G \
       --cgroupns host \
       --net host \
