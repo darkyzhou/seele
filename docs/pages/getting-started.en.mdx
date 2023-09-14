@@ -44,7 +44,7 @@ Seele supports running in various environments, including bare-metal deployment,
     port = 8080
 
     # The security sandbox needs to know which user to use to create containers, plus the id of a group that the user is in.
-    # Please make sure you have [corresponding `/etc/subuid` and `/etc/subgid` configured](https://rootlesscontaine.rs/getting-started/common/subuid/) for the user.
+    # Please make sure you have corresponding `/etc/subuid` and `/etc/subgid` configured for the user.
     [worker.action.run_container]
     userns_user = "seele"
     userns_uid = 1000
