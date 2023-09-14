@@ -17,7 +17,7 @@ pub static SUBUIDS: Lazy<SubIds> = Lazy::new(|| {
 });
 
 pub static SUBGIDS: Lazy<SubIds> = Lazy::new(|| {
-    get_subgids(&conf::CONFIG.worker.action.run_container.userns_group)
+    get_subgids(&conf::CONFIG.worker.action.run_container.userns_user)
         .expect("Error getting subgids")
 });
 

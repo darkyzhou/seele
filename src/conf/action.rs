@@ -90,9 +90,6 @@ pub struct ActionRunContainerConfig {
     #[serde(default = "default_userns_gid")]
     pub userns_gid: u32,
 
-    #[serde(default = "default_userns_group")]
-    pub userns_group: String,
-
     #[serde(default)]
     pub preload_images: Vec<OciImage>,
 
@@ -111,7 +108,6 @@ impl Default for ActionRunContainerConfig {
             userns_uid: default_userns_uid(),
             userns_user: default_userns_user(),
             userns_gid: default_userns_gid(),
-            userns_group: default_userns_group(),
             preload_images: Default::default(),
             cache_size_mib: default_cache_size_mib(),
             cache_ttl_hour: default_cache_ttl_hour(),
@@ -145,12 +141,4 @@ fn default_userns_user() -> String {
 #[inline]
 fn default_userns_gid() -> u32 {
     users::get_effective_gid()
-}
-
-#[inline]
-fn default_userns_group() -> String {
-    users::get_current_groupname()
-        .expect("Failed to get current group name")
-        .into_string()
-        .expect("Failed to convert the group name")
 }
