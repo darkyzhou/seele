@@ -107,7 +107,7 @@ steps:
 
   run:
     action: "seele/run-judge/run@1"
-    image: "python:3.11-bullseye"
+    image: "python:alpine"
     command: "python main.py"
     files: ["main.py"]
     fd:
