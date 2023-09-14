@@ -1,14 +1,14 @@
-FROM golang:1.19-bullseye AS runj
+FROM golang:1.19-bookworm AS runj
 WORKDIR /usr/src/app/
 COPY runj/go.mod runj/go.sum ./
 RUN go mod download && go mod verify
 COPY runj/ ./
 RUN make build
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.70-slim-bullseye AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.70-slim-bookworm AS chef
 RUN apt update -qq && \
-    DEBIAN_FRONTEND=noninteractive apt install -qqy --no-install-recommends pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev
-WORKDIR app
+    DEBIAN_FRONTEND=noninteractive apt install -qqy --no-install-recommends pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev patch
+WORKDIR /app
 
 FROM chef AS planner
 COPY . .
@@ -20,12 +20,9 @@ RUN cargo chef cook --recipe-path recipe.json
 COPY . .
 RUN cargo build --bin seele
 
-FROM bitnami/minideb:bullseye AS runtime
+FROM bitnami/minideb:bookworm AS runtime
 WORKDIR /etc/seele
-RUN install_packages ca-certificates curl gpg gpg-agent umoci uidmap pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev && \
-    echo 'deb http://download.opensuse.org/repositories/home:/alvistack/Debian_11/ /' | tee /etc/apt/sources.list.d/home:alvistack.list && \
-    curl -fsSL https://download.opensuse.org/repositories/home:alvistack/Debian_11/Release.key | apt-key add - > /dev/null && \
-    install_packages skopeo
+RUN install_packages ca-certificates curl gpg gpg-agent umoci uidmap pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev skopeo
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-static-amd64 /tini
 RUN chmod +x /tini
