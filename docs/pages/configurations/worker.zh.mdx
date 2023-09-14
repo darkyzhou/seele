@@ -30,7 +30,6 @@ Worker 接收 Composer 发来的动作任务，并根据其中的参数执行对
 | `userns_uid`                   |  `number`  |  当前用户 ID  | 安全沙箱使用的用户 ID                                                                 |
 | `userns_user`                  |  `string`  |  当前用户名   | 安全沙箱使用的用户名                                                                  |
 | `userns_gid`                   |  `number`  | 当前用户组 ID | 安全沙箱使用的用户组 ID                                                               |
-| `userns_group`                 |  `string`  |  当前用户组   | 安全沙箱使用的用户组名                                                                |
 | `cache_size_mib`               |  `number`  |     `512`     | [编译任务的缓存](/tasks/judge#cache-%E5%B1%9E%E6%80%A7)的大小上限。此缓存存在于内存中 |
 | `cache_ttl_hour`               |  `number`  |     `72`      | 每个缓存项的 TTL 时间。单位为小时                                                     |
 | `preload_images`               | `string[]` |     `[]`      | Seele 启动后，在开始接收请求前需要下载并解压的镜像名称列表                            |

@@ -43,10 +43,10 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
     address = "0.0.0.0"
     port = 8080
 
-    # 安全沙箱需要知道应该使用系统上的哪个用户来创建容器
+    # 安全沙箱需要知道应该使用哪个用户来创建容器，你还需要指定一个这个用户所在的组的 id
+    # 请确保这个用户配置了[对应的 `/etc/subuid` 和 `/etc/subgid`](https://rootlesscontaine.rs/getting-started/common/subuid/)。
     [worker.action.run_container]
     userns_user = "seele"
-    userns_group = "seele"
     userns_uid = 1000
     userns_gid = 1000
     ```
