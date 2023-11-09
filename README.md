@@ -31,7 +31,7 @@ This project is the author's undergraduate graduation design and is in the early
 
 Seele 自设计之初就充分考虑了利用系统提供的多个 CPU 核心提高并行处理请求能力的重要性。
 
-此外，Seele 还可以在多种环境下运行。我们即可以作为系统上的普通用户直接运行 Seele，也可以通过 Docker、Kubernetes 等平台调度多个实例来处理用户请求。
+此外，Seele 还可以在多种环境下运行。我们既可以作为系统上的普通用户直接运行 Seele，也可以通过 Docker、Kubernetes 等平台调度多个实例来处理用户请求。
 在 Kubernetes 平台上运行时，用户可以根据系统负载自动进行横向扩容，充分利用多台服务器带来的计算资源。
 
 ## 扩展性
