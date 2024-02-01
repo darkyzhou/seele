@@ -60,11 +60,11 @@ pub async fn apply_embeds_config(
         }))
         .await?
         .into_iter()
-        .filter_map(|item| item)
+        .flatten()
     }))
 }
 
-static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| shared::http::build_http_client());
+static HTTP_CLIENT: Lazy<Client> = Lazy::new(shared::http::build_http_client);
 
 #[instrument(skip_all)]
 pub async fn apply_uploads_config(

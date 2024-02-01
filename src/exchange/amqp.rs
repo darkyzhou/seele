@@ -18,7 +18,7 @@ use crate::{
     conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
-static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(|| Default::default());
+static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(Default::default);
 
 pub async fn is_amqp_healthy() -> bool {
     let map = STATUS_MAP.lock().await;
@@ -104,7 +104,7 @@ async fn do_consume(
         .exchange_declare(
             &config.submission.exchange.name,
             config.submission.exchange.kind.clone(),
-            config.submission.exchange.options.clone(),
+            config.submission.exchange.options,
             Default::default(),
         )
         .await
@@ -113,7 +113,7 @@ async fn do_consume(
     channel
         .queue_declare(
             &config.submission.queue,
-            config.submission.queue_options.clone(),
+            config.submission.queue_options,
             Default::default(),
         )
         .await
@@ -134,7 +134,7 @@ async fn do_consume(
         .exchange_declare(
             &config.report.exchange.name,
             config.report.exchange.kind.clone(),
-            config.report.exchange.options.clone(),
+            config.report.exchange.options,
             Default::default(),
         )
         .await

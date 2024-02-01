@@ -134,7 +134,7 @@ async fn track_task_execution(ctx: &ExecutionContext, node: Arc<TaskNode>) -> Re
     }
 
     let results = future::join_all(
-        continue_nodes.into_iter().map(|node| track_task_execution(ctx.clone(), node.clone())),
+        continue_nodes.into_iter().map(|node| track_task_execution(ctx, node.clone())),
     )
     .await;
     let errors = join_errors!(results);
@@ -176,8 +176,7 @@ async fn track_schedule_execution(
 ) -> Result<TaskStatus> {
     let begin = Instant::now();
     let results =
-        future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx.clone(), task)))
-            .await;
+        future::join_all(tasks.iter().cloned().map(|task| track_task_execution(ctx, task))).await;
     let time_elapsed_ms = {
         let end = Instant::now();
         end.duration_since(begin).as_millis().try_into().unwrap()

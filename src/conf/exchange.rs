@@ -5,6 +5,7 @@ use url::Url;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
+#[allow(clippy::large_enum_variant)]
 pub enum ExchangeConfig {
     #[serde(rename = "http")]
     Http(HttpExchangeConfig),

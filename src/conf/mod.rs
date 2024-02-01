@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
-pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
+pub use self::{action::*, env::*, exchange::*, path::*};
 use self::{
     composer::ComposerConfig, healthz::HealthzConfig, http::HttpConfig, telemetry::TelemetryConfig,
     worker::WorkerConfig,
@@ -80,14 +80,14 @@ impl Default for LogLevel {
     }
 }
 
-impl Into<LevelFilter> for LogLevel {
-    fn into(self) -> LevelFilter {
-        match self {
-            Self::Debug => LevelFilter::DEBUG,
-            Self::Info => LevelFilter::INFO,
-            Self::Warn => LevelFilter::WARN,
-            Self::Error => LevelFilter::ERROR,
-            Self::Off => LevelFilter::OFF,
+impl From<LogLevel> for LevelFilter {
+    fn from(val: LogLevel) -> Self {
+        match val {
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Error => LevelFilter::ERROR,
+            LogLevel::Off => LevelFilter::OFF,
         }
     }
 }

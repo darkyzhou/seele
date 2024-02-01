@@ -48,8 +48,7 @@ fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<Task
                 let exists = tasks
                     .iter()
                     .take(i)
-                    .find(|(task_name, _)| *task_name == needs && *task_name != name)
-                    .is_some();
+                    .any(|(task_name, _)| task_name == needs && task_name != name);
                 if !exists {
                     bail!("Unknown task specified by the `needs` field: {needs}")
                 }

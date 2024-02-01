@@ -65,7 +65,11 @@ async fn handle_submission(
 
     let submission = serde_yaml::from_str::<Arc<SubmissionConfig>>(&config_yaml);
     let Ok(submission) = submission else {
-        let message = format!("Error parsing the submission: {:#}, partial content: {}", submission.err().unwrap(), config_yaml.as_str().truncate_ellipse(256));
+        let message = format!(
+            "Error parsing the submission: {:#}, partial content: {}",
+            submission.err().unwrap(),
+            config_yaml.as_str().truncate_ellipse(256)
+        );
         error!(message);
 
         let ext = SubmissionSignalExt::Error(SubmissionErrorSignal { error: message });
@@ -87,7 +91,7 @@ async fn handle_submission(
     metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
         &OpenTelemetryCtx::current(),
         duration,
-        &vec![KeyValue::new(SUBMISSION_STATUS, signal_type)],
+        &[KeyValue::new(SUBMISSION_STATUS, signal_type)],
     );
 }
 

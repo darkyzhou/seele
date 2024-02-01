@@ -7,9 +7,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use opentelemetry::{
     global,
-    sdk::{
-        export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
-    },
+    sdk::{export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, *},
     Context as OpenTelemetryCtx,
 };
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
@@ -21,7 +19,7 @@ use tokio::{
 };
 use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
 use tracing::{error, info, warn};
-use tracing_subscriber::{filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, Layer};
+use tracing_subscriber::{filter::LevelFilter, prelude::*, Layer};
 
 use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
 
@@ -204,7 +202,7 @@ fn main() {
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
 
-                    handle.start("healthz", |handle| healthz::healthz_main(handle));
+                    handle.start("healthz", healthz::healthz_main);
                     handle.start("exchange", |handle| {
                         exchange::exchange_main(handle, composer_queue_tx)
                     });

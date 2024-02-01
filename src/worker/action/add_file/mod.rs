@@ -40,7 +40,7 @@ pub async fn execute(
             };
 
             match &item.ext {
-                FileItemExt::PlainText { plain } => handle_plain_text(file, &plain).await,
+                FileItemExt::PlainText { plain } => handle_plain_text(file, plain).await,
                 FileItemExt::Http { url } => handle_http_url(handle, file, url).await,
                 FileItemExt::Base64 { base64 } => handle_base64(file, base64).await,
                 FileItemExt::LocalPath { local } => handle_local_path(file, local).await,

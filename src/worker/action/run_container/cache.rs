@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 
 use crate::conf;
 
+#[allow(clippy::type_complexity)]
 static CACHE: Lazy<Cache<Box<[u8]>, Arc<[u8]>>> = Lazy::new(|| {
     let config = &conf::CONFIG.worker.action.run_container;
     Cache::builder()

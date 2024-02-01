@@ -35,11 +35,11 @@ pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
     }
 
     if let Some(tag) = conf::COMMIT_TAG.as_ref() {
-        pairs.push(KeyValue::new("commit.tag", tag.clone()));
+        pairs.push(KeyValue::new("commit.tag", *tag));
     }
 
     if let Some(sha) = conf::COMMIT_SHA.as_ref() {
-        pairs.push(KeyValue::new("commit.sha", sha.clone()));
+        pairs.push(KeyValue::new("commit.sha", *sha));
     }
 
     Resource::new(pairs)

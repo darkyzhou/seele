@@ -75,7 +75,7 @@ pub fn bind_application_threads() -> Result<()> {
                 [from, to] => {
                     let from = from.parse::<u32>()?;
                     let to = to.parse::<u32>()?;
-                    cpus.extend((from..=to).into_iter());
+                    cpus.extend(from..=to);
                 }
                 [cpu] => {
                     cpus.push(cpu.parse()?);

@@ -117,8 +117,8 @@ pub struct LimitsConfig {
     pub fsize_kib: Option<u64>,
 }
 
-impl Into<runj::LimitsConfig> for LimitsConfig {
-    fn into(self) -> runj::LimitsConfig {
+impl From<LimitsConfig> for runj::LimitsConfig {
+    fn from(val: LimitsConfig) -> Self {
         const DEFAULT_TIME_MS: u64 = 10 * 1000; // 10 seconds
         const DEFAULT_MEMORY_LIMIT_BYTES: i64 = 256 * 1024 * 1024; // 256 MiB
         const DEFAULT_PIDS_LIMIT: i64 = 32;
@@ -127,20 +127,20 @@ impl Into<runj::LimitsConfig> for LimitsConfig {
         const DEFAULT_FSIZE_BYTES: u64 = 64 * 1024 * 1024; // 64 MiB
 
         runj::LimitsConfig {
-            time_ms: self.time_ms.unwrap_or(DEFAULT_TIME_MS),
+            time_ms: val.time_ms.unwrap_or(DEFAULT_TIME_MS),
             cgroup: runj::CgroupConfig {
-                memory: self
+                memory: val
                     .memory_kib
                     .map(|memory_kib| memory_kib * 1024)
                     .unwrap_or(DEFAULT_MEMORY_LIMIT_BYTES),
-                pids_limit: self.pids_count.unwrap_or(DEFAULT_PIDS_LIMIT),
+                pids_limit: val.pids_count.unwrap_or(DEFAULT_PIDS_LIMIT),
                 ..Default::default()
             },
             rlimit: runj::RlimitConfig {
                 core: RlimitItem::new_single(DEFAULT_CORE),
                 no_file: RlimitItem::new_single(DEFAULT_NO_FILE),
                 fsize: RlimitItem::new_single(
-                    self.fsize_kib.map(|fsize_kib| fsize_kib * 1024).unwrap_or(DEFAULT_FSIZE_BYTES),
+                    val.fsize_kib.map(|fsize_kib| fsize_kib * 1024).unwrap_or(DEFAULT_FSIZE_BYTES),
                 ),
             },
         }

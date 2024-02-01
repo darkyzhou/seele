@@ -33,7 +33,7 @@ pub mod run_judge;
 mod runj;
 mod utils;
 
-static RUNNER_THREAD_LOCAL: Lazy<Arc<ThreadLocal<i64>>> = Lazy::new(|| Arc::default());
+static RUNNER_THREAD_LOCAL: Lazy<Arc<ThreadLocal<i64>>> = Lazy::new(Arc::default);
 
 pub async fn execute(
     abort: Listener,
