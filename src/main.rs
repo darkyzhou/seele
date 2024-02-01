@@ -7,7 +7,9 @@ use std::{
 use anyhow::{bail, Context, Result};
 use opentelemetry::{
     global,
-    sdk::{export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, *},
+    sdk::{
+        export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
+    },
     Context as OpenTelemetryCtx,
 };
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
@@ -17,7 +19,7 @@ use tokio::{
     task::spawn_blocking,
     time::sleep,
 };
-use tokio_graceful_shutdown::{errors::SubsystemError, Toplevel};
+use tokio_graceful_shutdown::{errors::SubsystemError, SubsystemBuilder, Toplevel};
 use tracing::{error, info, warn};
 use tracing_subscriber::{filter::LevelFilter, prelude::*, Layer};
 
@@ -185,11 +187,13 @@ fn main() {
             })
             .await??;
 
-            let result = Toplevel::new()
-                .start("seele", |handle| async move {
+            let result = Toplevel::new(|s| async move {
+                s.start(SubsystemBuilder::new("seele", |handle| async move {
                     let (tx, rx) = oneshot::channel();
                     info!("Worker started bootstrap");
-                    handle.start("bootstrap", |handle| worker::worker_bootstrap(handle, tx));
+                    handle.start(SubsystemBuilder::new("bootstrap", |handle| {
+                        worker::worker_bootstrap(handle, tx)
+                    }));
 
                     if !rx.await? {
                         handle.on_shutdown_requested().await;
@@ -202,30 +206,30 @@ fn main() {
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
 
-                    handle.start("healthz", healthz::healthz_main);
-                    handle.start("exchange", |handle| {
+                    handle.start(SubsystemBuilder::new("healthz", healthz::healthz_main));
+                    handle.start(SubsystemBuilder::new("exchange", |handle| {
                         exchange::exchange_main(handle, composer_queue_tx)
-                    });
-                    handle.start("composer", |handle| {
+                    }));
+                    handle.start(SubsystemBuilder::new("composer", |handle| {
                         composer::composer_main(handle, composer_queue_rx, worker_queue_tx)
-                    });
-                    handle.start("worker", |handle| worker::worker_main(handle, worker_queue_rx));
+                    }));
+                    handle.start(SubsystemBuilder::new("worker", |handle| {
+                        worker::worker_main(handle, worker_queue_rx)
+                    }));
 
                     handle.on_shutdown_requested().await;
                     anyhow::Ok(())
-                })
-                .catch_signals()
-                .handle_shutdown_requests(Duration::from_secs(10))
-                .await;
+                }));
+            })
+            .catch_signals()
+            .handle_shutdown_requests(Duration::from_secs(10))
+            .await;
             if let Err(err) = result {
                 error!("Seele encountered fatal issue(s):");
                 for error in err.get_subsystem_errors() {
                     match error {
                         SubsystemError::Failed(name, err) => {
                             error!("Subsystem '{}' failed: {:?}", name, err);
-                        }
-                        SubsystemError::Cancelled(name) => {
-                            error!("Subsystem '{}' was cancelled", name);
                         }
                         SubsystemError::Panicked(name) => {
                             error!("Subsystem '{}' panicked", name);

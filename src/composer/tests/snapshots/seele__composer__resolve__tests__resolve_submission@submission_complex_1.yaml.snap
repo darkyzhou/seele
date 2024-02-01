@@ -8,7 +8,6 @@ Submission(
   root_directory: "test",
   config: SubmissionConfig(
     id: "complex_1",
-    tracing_attribute: None,
     steps: {
       "prepare_sources": {
         "status": "PENDING",

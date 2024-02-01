@@ -8,7 +8,6 @@ Submission(
   root_directory: "test",
   config: SubmissionConfig(
     id: "nested_sequence_3",
-    tracing_attribute: None,
     steps: {
       "one": {
         "status": "PENDING",

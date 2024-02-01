@@ -1,10 +1,9 @@
 use std::{convert::Infallible, net::SocketAddr};
 
 use anyhow::{Context, Result};
-use http::Response;
 use hyper::{
     service::{make_service_fn, service_fn},
-    Server,
+    *,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::info;

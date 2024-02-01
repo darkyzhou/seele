@@ -9,56 +9,56 @@ strip = true
 lto = true
 
 [dependencies]
-anyhow = "1.0.66"
-async-recursion = "1.0.0"
-async-trait = "0.1.59"
-base64 = "0.21.0"
-bincode = "2.0.0-rc.2"
-bytes = "1.3.0"
-chrono = { version = "0.4.23", features = ["serde"] }
-config = "0.13.3"
-dbus = "0.9.7"
-duct = "0.13.6"
-either = "1.8.0"
-ellipse = "0.2.0"
-futures-util = "0.3.25"
-http = "0.2.8"
-http-cache = { version = "0.7.2", default-features = false, features = ["manager-moka"] }
-http-cache-reqwest = "0.5.2"
-hyper = { version = "0.14.23", features = ["server", "stream"] }
-indexmap = { version = "1.9.2", features = ["serde-1"] }
-lapin = "2.1.1"
-libcgroups = "0.0.4"
-moka = { version = "0.9.6", features = ["future"] }
-nano-id = { version = "0.3.0", features = ["base62"] }
-nix = "0.26.2"
-num_cpus = "1.15.0"
-once_cell = "1.16.0"
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.11.0", features = ["metrics"] }
-quick-js = { version = "0.4.1", features = ["patched"] }
-regex = "1.7.0"
-reqwest = { version = "0.11.13", features = ["stream"] }
-reqwest-middleware = "0.2.0"
-ring-channel = "0.11.0"
-serde = { version = "1.0.149", features = ["derive", "rc"] }
-serde_json = { version = "1.0.91", features = ["preserve_order"] }
-serde_yaml = "0.9.15"
-sha2 = "0.10.6"
-shell-words = "1.1.0"
-systemd = "0.10.0"
-thread_local = "1.1.4"
+anyhow = "1.0"
+async-recursion = "1.0"
+async-trait = "0.1"
+base64 = "0.21"
+bincode = "2.0.0-rc.3"
+bytes = "1.3"
+chrono = { version = "0.4", features = ["serde"] }
+config = "0.14"
+dbus = "0.9"
+duct = "0.13"
+either = "1.8"
+ellipse = "0.2"
+futures-util = "0.3"
+http = "1.0"
+http-cache = { version = "0.18", default-features = false, features = ["manager-moka"] }
+http-cache-reqwest = "0.13"
+hyper = { version = "=0.14.24", features = ["server", "stream"] }
+indexmap = { version = "2.2", features = ["serde"] }
+lapin = "2.1"
+libcgroups = "0.3"
+moka = { version = "0.12", features = ["future", "sync"] }
+nano-id = { version = "0.3", features = ["base62"] }
+nix = { version = "0.27", features = ["mount", "hostname"] }
+num_cpus = "1.15"
+once_cell = "1.16"
+opentelemetry = { version = "=0.18.0", features = ["rt-tokio", "metrics", "trace"] }
+opentelemetry-otlp = { version = "=0.11.0", features = ["metrics"] }
+quick-js = { version = "0.4", features = ["patched"] }
+regex = "1.7"
+reqwest = { version = "0.11", features = ["stream"] }
+reqwest-middleware = "0.2"
+ring-channel = "0.12"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_yaml = "0.9"
+sha2 = "0.10"
+shell-words = "1.1"
+systemd = "0.10"
+thread_local = "1.1"
 tokio = { version = "1", features = ["full"] }
-tokio-graceful-shutdown = "0.11.1"
-tokio-util = { version = "0.7.4", features = ["io"] }
-tracing = "0.1.37"
-tracing-opentelemetry = "0.18.0"
-tracing-subscriber = "0.3.16"
-triggered = "0.1.2"
-url = { version = "2.3.1", features = ["serde"] }
-users = "0.11.0"
+tokio-graceful-shutdown = "0.14"
+tokio-util = { version = "0.7", features = ["io"] }
+tracing = "0.1"
+tracing-opentelemetry = "=0.18.0"
+tracing-subscriber = "0.3"
+triggered = "0.1"
+url = { version = "2.3", features = ["serde"] }
+users = "0.11"
 
 [dev-dependencies]
-insta = { version = "1.23.0", features = ["glob", "redactions", "ron"] }
-map-macro = "0.2.5"
-rand = { version = "0.8.5" }
+insta = { version = "1.23", features = ["glob", "redactions", "ron"] }
+map-macro = "0.3"
+rand = { version = "0.8" }

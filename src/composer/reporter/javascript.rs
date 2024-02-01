@@ -159,14 +159,20 @@ mod tests {
         }"#,
         )
         .unwrap();
-        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,\
-                      1,4,5,1,4]}}"
+        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,1,4,5,1,4]}}"
             .to_string();
 
-        let report = super::execute_javascript_reporter(data, source).await.unwrap();
-        let json = serde_json::to_string(&report).unwrap();
+        let report = super::execute_javascript_reporter(data, source).await;
+        let report = report.unwrap().report;
 
-        assert_eq!(json, r#"{"report":{"arr":[1,1,4,5,1,4],"float_num":114.514,"num":114,"obj":{"bool":true},"str":"foo"},"embeds":[],"uploads":[]}"#.to_string());
+        assert_eq!(report["str"], "foo");
+        assert_eq!(report["num"], 114);
+        assert_eq!(report["float_num"], 114.514);
+        assert_eq!(report["obj"]["bool"], true);
+
+        let arr = report["arr"].as_sequence().unwrap();
+        let arr = arr.iter().map(|v| v.as_i64().unwrap()).collect::<Vec<_>>();
+        assert_eq!(arr, vec![1, 1, 4, 5, 1, 4]);
     }
 
     #[tokio::test]

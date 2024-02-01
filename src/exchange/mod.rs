@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tokio::sync::mpsc;
-use tokio_graceful_shutdown::SubsystemHandle;
+use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle};
 use tracing::info;
 
 pub use self::amqp::is_amqp_healthy;
@@ -19,15 +19,15 @@ pub async fn exchange_main(
         match exchange {
             ExchangeConfig::Http(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("{name}-http"), move |handle| {
+                handle.start(SubsystemBuilder::new(format!("{name}-http"), move |handle| {
                     http::run(name, handle, tx, config)
-                });
+                }));
             }
             ExchangeConfig::Amqp(config) => {
                 let tx = composer_queue_tx.clone();
-                handle.start(&format!("{name}-amqp"), move |handle| {
+                handle.start(SubsystemBuilder::new(format!("{name}-amqp"), move |handle| {
                     amqp::run(name, handle, tx, config)
-                });
+                }));
             }
         }
     }

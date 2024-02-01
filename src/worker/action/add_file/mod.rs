@@ -6,6 +6,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use futures_util::{future, Stream, StreamExt};
+use http_cache::HttpCacheOptions;
 use once_cell::sync::Lazy;
 use tokio::{
     fs::File,
@@ -112,7 +113,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
                     .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
                     .build(),
             ),
-            options: None,
+            options: HttpCacheOptions::default(),
         }))
         .build()
 });

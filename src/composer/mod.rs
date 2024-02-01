@@ -59,7 +59,7 @@ pub async fn composer_main(
 async fn handle_submission(
     worker_queue_tx: WorkerQueueTx,
     config_yaml: String,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) {
     let begin = Instant::now();
 
@@ -98,7 +98,7 @@ async fn handle_submission(
 async fn do_handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) -> &'static str {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
 
@@ -201,7 +201,7 @@ async fn handle_progress_report(
     submission: Arc<Submission>,
     mut abort_rx: mpsc::Receiver<()>,
     mut progress_rx: RingReceiver<()>,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) {
     loop {
         tokio::select! {
