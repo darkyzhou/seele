@@ -34,8 +34,10 @@ pub async fn run(
     info!("Starting amqp exchange {} for {}", name, config.url.host_str().unwrap_or_default());
 
     let (trigger, shutdown) = triggered::trigger();
+    let cancellation_token = handle.create_cancellation_token();
+
     tokio::spawn(async move {
-        handle.on_shutdown_requested().await;
+        cancellation_token.cancelled().await;
         trigger.trigger();
     });
 

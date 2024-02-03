@@ -96,19 +96,14 @@ impl From<LogLevel> for LevelFilter {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SeeleWorkMode {
     Bare,
     BareSystemd,
+    #[default]
     Containerized,
     RootlessContainerized,
-}
-
-impl Default for SeeleWorkMode {
-    fn default() -> Self {
-        SeeleWorkMode::Containerized
-    }
 }
 
 #[derive(Debug, Deserialize)]

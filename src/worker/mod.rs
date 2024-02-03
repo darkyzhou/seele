@@ -38,8 +38,10 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>
     }
 
     let (trigger, abort) = triggered::trigger();
+    let cancellation_token = handle.create_cancellation_token();
+
     tokio::spawn(async move {
-        handle.on_shutdown_requested().await;
+        cancellation_token.cancelled().await;
         trigger.trigger();
     });
 
@@ -64,9 +66,10 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>
 
 pub async fn worker_main(handle: SubsystemHandle, mut queue_rx: WorkerQueueRx) -> Result<()> {
     let (trigger, abort_handle) = triggered::trigger();
+    let cancellation_token = handle.create_cancellation_token();
 
     tokio::spawn(async move {
-        handle.on_shutdown_requested().await;
+        cancellation_token.cancelled().await;
         trigger.trigger();
     });
 
