@@ -41,6 +41,7 @@ fn main() {
         .enable_all()
         .build()
         .expect("Error building tokio runtime");
+
     runtime
         .block_on(async move {
             {
@@ -187,10 +188,12 @@ fn main() {
             })
             .await??;
 
-            let result = Toplevel::new(|s| async move {
-                s.start(SubsystemBuilder::new("seele", |handle| async move {
+            let result = Toplevel::new(move |s| async move {
+                s.start(SubsystemBuilder::new("seele", move |handle| async move {
                     let (tx, rx) = oneshot::channel();
+
                     info!("Worker started bootstrap");
+
                     handle.start(SubsystemBuilder::new("bootstrap", |handle| {
                         worker::worker_bootstrap(handle, tx)
                     }));
@@ -201,18 +204,22 @@ fn main() {
                     }
 
                     info!("Initializing seele components");
+
                     let (composer_queue_tx, composer_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner);
                     let (worker_queue_tx, worker_queue_rx) =
                         mpsc::channel(conf::CONFIG.thread_counts.runner * 4);
 
                     handle.start(SubsystemBuilder::new("healthz", healthz::healthz_main));
+
                     handle.start(SubsystemBuilder::new("exchange", |handle| {
                         exchange::exchange_main(handle, composer_queue_tx)
                     }));
+
                     handle.start(SubsystemBuilder::new("composer", |handle| {
                         composer::composer_main(handle, composer_queue_rx, worker_queue_tx)
                     }));
+
                     handle.start(SubsystemBuilder::new("worker", |handle| {
                         worker::worker_main(handle, worker_queue_rx)
                     }));
@@ -224,6 +231,7 @@ fn main() {
             .catch_signals()
             .handle_shutdown_requests(Duration::from_secs(10))
             .await;
+
             if let Err(err) = result {
                 error!("Seele encountered fatal issue(s):");
                 for error in err.get_subsystem_errors() {

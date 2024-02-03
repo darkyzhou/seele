@@ -22,21 +22,25 @@ mod telemetry;
 mod worker;
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
-    config::Config::builder()
+    match config::Config::builder()
         .add_source(config::File::with_name("config"))
         .add_source(config::Environment::with_prefix("SEELE"))
         .build()
-        .expect("Failed to load the config")
-        .try_deserialize()
-        .expect("Failed to parse the config")
+    {
+        Ok(config) => config.try_deserialize().expect("Failed to parse the config"),
+        Err(err) => {
+            tracing::warn!("Failed to load the config, fallback to default: {}", err);
+            SeeleConfig::default()
+        }
+    }
 });
 
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct SeeleConfig {
     #[serde(default)]
     pub log_level: LogLevel,
 
-    #[serde(default = "default_work_mode")]
+    #[serde(default)]
     pub work_mode: SeeleWorkMode,
 
     #[serde(default)]
@@ -101,9 +105,10 @@ pub enum SeeleWorkMode {
     RootlessContainerized,
 }
 
-#[inline]
-fn default_work_mode() -> SeeleWorkMode {
-    SeeleWorkMode::Containerized
+impl Default for SeeleWorkMode {
+    fn default() -> Self {
+        SeeleWorkMode::Containerized
+    }
 }
 
 #[derive(Debug, Deserialize)]
