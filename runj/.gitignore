@@ -1,2 +1,3 @@
 bin/
 tests/image
+tests/runj-*
