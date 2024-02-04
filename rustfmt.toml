@@ -1,3 +1,5 @@
+# Format with "cargo +nightly fmt --all"
+
 version = "Two"
 unstable_features = true
 
