@@ -6,6 +6,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
 use futures_util::{future, Stream, StreamExt};
+use http_cache::HttpCacheOptions;
 use once_cell::sync::Lazy;
 use tokio::{
     fs::File,
@@ -40,7 +41,7 @@ pub async fn execute(
             };
 
             match &item.ext {
-                FileItemExt::PlainText { plain } => handle_plain_text(file, &plain).await,
+                FileItemExt::PlainText { plain } => handle_plain_text(file, plain).await,
                 FileItemExt::Http { url } => handle_http_url(handle, file, url).await,
                 FileItemExt::Base64 { base64 } => handle_base64(file, base64).await,
                 FileItemExt::LocalPath { local } => handle_local_path(file, local).await,
@@ -112,7 +113,7 @@ static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|
                     .time_to_idle(Duration::from_secs(60 * 60 * config.cache_ttl_hour))
                     .build(),
             ),
-            options: None,
+            options: HttpCacheOptions::default(),
         }))
         .build()
 });

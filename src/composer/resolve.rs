@@ -15,7 +15,7 @@ pub fn resolve_submission(
 ) -> Result<Submission> {
     let root_node = Arc::new(RootTaskNode {
         tasks: vec![
-            resolve_sequence(".", &config.tasks).context("Error resolving root sequence tasks")?,
+            resolve_sequence(".", &config.tasks).context("Error resolving root sequence tasks")?
         ],
     });
     Ok(Submission { id: config.id.clone(), root_directory, config, root_node })
@@ -48,8 +48,7 @@ fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<Task
                 let exists = tasks
                     .iter()
                     .take(i)
-                    .find(|(task_name, _)| *task_name == needs && *task_name != name)
-                    .is_some();
+                    .any(|(task_name, _)| task_name == needs && task_name != name);
                 if !exists {
                     bail!("Unknown task specified by the `needs` field: {needs}")
                 }
@@ -70,10 +69,8 @@ fn resolve_task(name: String, config: Arc<TaskConfig>) -> Result<TaskNode> {
         TaskConfigExt::Sequence(ext) => {
             let prefix = format!("{name}.");
             let ext = TaskNodeExt::Schedule({
-                vec![
-                    resolve_sequence(&prefix, &ext.tasks)
-                        .context("Error resolving sequence tasks")?,
-                ]
+                vec![resolve_sequence(&prefix, &ext.tasks)
+                    .context("Error resolving sequence tasks")?]
             });
             TaskNode { name, config, children: vec![], ext }
         }

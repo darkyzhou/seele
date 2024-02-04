@@ -59,13 +59,17 @@ pub async fn composer_main(
 async fn handle_submission(
     worker_queue_tx: WorkerQueueTx,
     config_yaml: String,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) {
     let begin = Instant::now();
 
     let submission = serde_yaml::from_str::<Arc<SubmissionConfig>>(&config_yaml);
     let Ok(submission) = submission else {
-        let message = format!("Error parsing the submission: {:#}, partial content: {}", submission.err().unwrap(), config_yaml.as_str().truncate_ellipse(256));
+        let message = format!(
+            "Error parsing the submission: {:#}, partial content: {}",
+            submission.err().unwrap(),
+            config_yaml.as_str().truncate_ellipse(256)
+        );
         error!(message);
 
         let ext = SubmissionSignalExt::Error(SubmissionErrorSignal { error: message });
@@ -87,14 +91,14 @@ async fn handle_submission(
     metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
         &OpenTelemetryCtx::current(),
         duration,
-        &vec![KeyValue::new(SUBMISSION_STATUS, signal_type)],
+        &[KeyValue::new(SUBMISSION_STATUS, signal_type)],
     );
 }
 
 async fn do_handle_submission(
     submission: Arc<SubmissionConfig>,
     worker_queue_tx: WorkerQueueTx,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) -> &'static str {
     let submission_root = conf::PATHS.submissions.join(&submission.id);
 
@@ -197,7 +201,7 @@ async fn handle_progress_report(
     submission: Arc<Submission>,
     mut abort_rx: mpsc::Receiver<()>,
     mut progress_rx: RingReceiver<()>,
-    mut status_tx: RingSender<SubmissionSignal>,
+    status_tx: RingSender<SubmissionSignal>,
 ) {
     loop {
         tokio::select! {

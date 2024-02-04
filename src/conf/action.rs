@@ -35,15 +35,15 @@ pub enum HttpCacheStrategy {
     OnlyIfCached,
 }
 
-impl Into<CacheMode> for HttpCacheStrategy {
-    fn into(self) -> CacheMode {
-        match self {
-            Self::Default => CacheMode::Default,
-            Self::NoStore => CacheMode::NoStore,
-            Self::Reload => CacheMode::Reload,
-            Self::NoCache => CacheMode::NoCache,
-            Self::ForceCache => CacheMode::ForceCache,
-            Self::OnlyIfCached => CacheMode::OnlyIfCached,
+impl From<HttpCacheStrategy> for CacheMode {
+    fn from(strategy: HttpCacheStrategy) -> Self {
+        match strategy {
+            HttpCacheStrategy::Default => CacheMode::Default,
+            HttpCacheStrategy::NoStore => CacheMode::NoStore,
+            HttpCacheStrategy::Reload => CacheMode::Reload,
+            HttpCacheStrategy::NoCache => CacheMode::NoCache,
+            HttpCacheStrategy::ForceCache => CacheMode::ForceCache,
+            HttpCacheStrategy::OnlyIfCached => CacheMode::OnlyIfCached,
         }
     }
 }

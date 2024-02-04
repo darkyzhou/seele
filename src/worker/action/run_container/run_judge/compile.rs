@@ -235,7 +235,7 @@ async fn calculate_hash(submission_root: &Path, config: &Config) -> Result<Box<[
     hasher.update(&format!("{}", config.run_container_config.command));
 
     for item in &config.cache.extra {
-        hasher.update(&item);
+        hasher.update(item);
     }
 
     let mut saves = config.saves.clone();

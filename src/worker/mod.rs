@@ -8,16 +8,11 @@ use tokio::{
     time::Instant,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing::{error, info, info_span, Instrument, Span};
+use tracing::*;
 use triggered::Listener;
 
 pub use self::action::*;
-use crate::{
-    conf,
-    entities::{
-        ActionFailedReport, ActionReport, ActionReportExt, ActionSuccessReport, ActionTaskConfig,
-    },
-};
+use crate::{conf, entities::*};
 
 pub mod action;
 
@@ -43,8 +38,10 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>
     }
 
     let (trigger, abort) = triggered::trigger();
+    let cancellation_token = handle.create_cancellation_token();
+
     tokio::spawn(async move {
-        handle.on_shutdown_requested().await;
+        cancellation_token.cancelled().await;
         trigger.trigger();
     });
 
@@ -52,7 +49,7 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>
         "Preloading container images: {}",
         preload_images.iter().map(|image| format!("{image}")).collect::<Vec<_>>().join(", ")
     );
-    let results = future::join_all(preload_images.into_iter().map(|image| {
+    let results = future::join_all(preload_images.iter().map(|image| {
         action::run_container::prepare_image(abort.clone(), image.clone())
             .map_err(move |err| format!("{image}: {err:#}"))
     }))
@@ -69,9 +66,10 @@ pub async fn worker_bootstrap(handle: SubsystemHandle, tx: oneshot::Sender<bool>
 
 pub async fn worker_main(handle: SubsystemHandle, mut queue_rx: WorkerQueueRx) -> Result<()> {
     let (trigger, abort_handle) = triggered::trigger();
+    let cancellation_token = handle.create_cancellation_token();
 
     tokio::spawn(async move {
-        handle.on_shutdown_requested().await;
+        cancellation_token.cancelled().await;
         trigger.trigger();
     });
 

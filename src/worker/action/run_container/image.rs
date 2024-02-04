@@ -64,7 +64,7 @@ async fn pull_image(image: &OciImage) -> Result<()> {
 
     // TODO: Should be placed inside submission root
     let skopeo_log_file_path =
-        conf::PATHS.temp.join(&format!("skopeo-{}.log", nano_id::base62::<12>()));
+        conf::PATHS.temp.join(format!("skopeo-{}.log", nano_id::base62::<12>()));
 
     let (handle_tx, cancel_tx) = make_timeout_killer(
         1 + conf::CONFIG.worker.action.run_container.pull_image_timeout_seconds,
@@ -159,7 +159,7 @@ async fn unpack_image(image: &OciImage) -> Result<()> {
 
     // TODO: Should be placed inside submission root
     let umoci_log_file_path =
-        conf::PATHS.temp.join(&format!("umoci-{}.log", nano_id::base62::<12>()));
+        conf::PATHS.temp.join(format!("umoci-{}.log", nano_id::base62::<12>()));
 
     let (handle_tx, cancel_tx) =
         make_timeout_killer(conf::CONFIG.worker.action.run_container.unpack_image_timeout_seconds);
@@ -243,9 +243,9 @@ pub fn make_timeout_killer(
             let wait = handle_rx
                 .then(|handle| sleep(Duration::from_secs(timeout_seconds)).map(move |_| handle));
             tokio::select! {
-                _ = cancel_rx => return,
+                _ = cancel_rx => (),
                 handle = wait => match handle {
-                    Err(_) => return,
+                    Err(_) => (),
                     Ok(handle) => {
                         error!(parent: span, "Execution timeout, killing the process");
                         for pid in handle.pids() {

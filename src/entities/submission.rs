@@ -161,6 +161,7 @@ impl Default for TaskEmbeds {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum TaskConfigExt {
     Sequence(SequenceTaskConfig),
     Parallel(ParallelTaskConfig),

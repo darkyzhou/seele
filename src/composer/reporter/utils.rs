@@ -10,16 +10,16 @@ pub enum OjStatus {
     InternalError,
 }
 
-impl Into<&'static str> for OjStatus {
-    fn into(self) -> &'static str {
-        match self {
-            Self::Accepted => "ACC",
-            Self::TimeLimitExceeded => "TLE",
-            Self::MemoryLimitExceeded => "MLE",
-            Self::WrongAnswer => "WA",
-            Self::RuntimeError => "RE",
-            Self::OutputLimitExceeded => "OLE",
-            Self::InternalError => "INTERNAL",
+impl From<OjStatus> for &'static str {
+    fn from(status: OjStatus) -> Self {
+        match status {
+            OjStatus::Accepted => "ACC",
+            OjStatus::TimeLimitExceeded => "TLE",
+            OjStatus::MemoryLimitExceeded => "MLE",
+            OjStatus::WrongAnswer => "WA",
+            OjStatus::RuntimeError => "RE",
+            OjStatus::OutputLimitExceeded => "OLE",
+            OjStatus::InternalError => "INTERNAL",
         }
     }
 }
@@ -57,5 +57,5 @@ pub fn get_oj_status(run_report: ExecutionReport, compare_report: ExecutionRepor
         return OjStatus::RuntimeError;
     }
 
-    return OjStatus::InternalError;
+    OjStatus::InternalError
 }

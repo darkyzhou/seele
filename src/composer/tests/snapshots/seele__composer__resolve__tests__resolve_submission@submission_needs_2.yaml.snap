@@ -8,7 +8,6 @@ Submission(
   root_directory: "test",
   config: SubmissionConfig(
     id: "needs_2",
-    tracing_attribute: None,
     steps: {
       "one": {
         "status": "PENDING",

@@ -55,7 +55,7 @@ fn start_transient_unit(proxy: &Proxy<&Connection>) -> Result<()> {
 }
 
 fn systemd_version(proxy: &Proxy<&Connection>) -> Result<u32> {
-    Ok(proxy
+    proxy
         .version()
         .context("Error requesting systemd dbus")?
         .chars()
@@ -63,5 +63,5 @@ fn systemd_version(proxy: &Proxy<&Connection>) -> Result<u32> {
         .take_while(|c| c.is_numeric())
         .collect::<String>()
         .parse::<u32>()
-        .context("Error parsing systemd version")?)
+        .context("Error parsing systemd version")
 }

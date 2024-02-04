@@ -16,7 +16,7 @@ pub struct SeelePaths {
 
 impl SeelePaths {
     pub async fn new_temp_directory(&self) -> Result<PathBuf> {
-        let path = self.temp.join(format!("{}", nano_id::base62::<16>()));
+        let path = self.temp.join(nano_id::base62::<16>());
         fs::create_dir(&path)
             .await
             .with_context(|| format!("Error creating temp directory {}", path.display()))?;

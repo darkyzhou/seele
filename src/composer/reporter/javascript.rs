@@ -139,7 +139,7 @@ fn convert_to_js_value(value: Value) -> Result<JsValue> {
 
 #[cfg(test)]
 mod tests {
-    use map_macro::map;
+    use map_macro::hash_map;
     use quick_js::JsValue;
 
     #[tokio::test]
@@ -159,14 +159,20 @@ mod tests {
         }"#,
         )
         .unwrap();
-        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,\
-                      1,4,5,1,4]}}"
+        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,1,4,5,1,4]}}"
             .to_string();
 
-        let report = super::execute_javascript_reporter(data, source).await.unwrap();
-        let json = serde_json::to_string(&report).unwrap();
+        let report = super::execute_javascript_reporter(data, source).await;
+        let report = report.unwrap().report;
 
-        assert_eq!(json, r#"{"report":{"arr":[1,1,4,5,1,4],"float_num":114.514,"num":114,"obj":{"bool":true},"str":"foo"},"embeds":[],"uploads":[]}"#.to_string());
+        assert_eq!(report["str"], "foo");
+        assert_eq!(report["num"], 114);
+        assert_eq!(report["float_num"], 114.514);
+        assert_eq!(report["obj"]["bool"], true);
+
+        let arr = report["arr"].as_sequence().unwrap();
+        let arr = arr.iter().map(|v| v.as_i64().unwrap()).collect::<Vec<_>>();
+        assert_eq!(arr, vec![1, 1, 4, 5, 1, 4]);
     }
 
     #[tokio::test]
@@ -192,14 +198,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             super::convert_to_js_value(data).unwrap(),
-            JsValue::Object(map! {
+            JsValue::Object(hash_map! {
                 "null".to_owned() => JsValue::Null,
                 "bool".to_owned() => JsValue::Bool(true),
                 "string".to_owned() => JsValue::String("string".to_owned()),
                 "integer".to_owned() => JsValue::Int(114514),
                 "float".to_owned() => JsValue::Float(114.514),
                 "array".to_owned() => JsValue::Array(vec![JsValue::String("seele".to_owned()), JsValue::Int(1), JsValue::Bool(true)]),
-                "object".to_owned() => JsValue::Object(map! {
+                "object".to_owned() => JsValue::Object(hash_map! {
                     "foo".to_owned() => JsValue::String("114".to_owned()),
                     "bar".to_owned() => JsValue::Int(514),
                 })

@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
-pub use self::{action::*, env::*, exchange::*, path::*, worker::*};
+pub use self::{action::*, env::*, exchange::*, path::*};
 use self::{
     composer::ComposerConfig, healthz::HealthzConfig, http::HttpConfig, telemetry::TelemetryConfig,
     worker::WorkerConfig,
@@ -22,21 +22,25 @@ mod telemetry;
 mod worker;
 
 pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
-    config::Config::builder()
+    match config::Config::builder()
         .add_source(config::File::with_name("config"))
         .add_source(config::Environment::with_prefix("SEELE"))
         .build()
-        .expect("Failed to load the config")
-        .try_deserialize()
-        .expect("Failed to parse the config")
+    {
+        Ok(config) => config.try_deserialize().expect("Failed to parse the config"),
+        Err(err) => {
+            tracing::warn!("Failed to load the config, fallback to default: {}", err);
+            SeeleConfig::default()
+        }
+    }
 });
 
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct SeeleConfig {
     #[serde(default)]
     pub log_level: LogLevel,
 
-    #[serde(default = "default_work_mode")]
+    #[serde(default)]
     pub work_mode: SeeleWorkMode,
 
     #[serde(default)]
@@ -80,30 +84,26 @@ impl Default for LogLevel {
     }
 }
 
-impl Into<LevelFilter> for LogLevel {
-    fn into(self) -> LevelFilter {
-        match self {
-            Self::Debug => LevelFilter::DEBUG,
-            Self::Info => LevelFilter::INFO,
-            Self::Warn => LevelFilter::WARN,
-            Self::Error => LevelFilter::ERROR,
-            Self::Off => LevelFilter::OFF,
+impl From<LogLevel> for LevelFilter {
+    fn from(val: LogLevel) -> Self {
+        match val {
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Error => LevelFilter::ERROR,
+            LogLevel::Off => LevelFilter::OFF,
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SeeleWorkMode {
     Bare,
     BareSystemd,
+    #[default]
     Containerized,
     RootlessContainerized,
-}
-
-#[inline]
-fn default_work_mode() -> SeeleWorkMode {
-    SeeleWorkMode::Containerized
 }
 
 #[derive(Debug, Deserialize)]

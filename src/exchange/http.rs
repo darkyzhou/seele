@@ -2,11 +2,10 @@ use std::{convert::Infallible, net::SocketAddr, num::NonZeroUsize, time::Duratio
 
 use anyhow::{bail, Result};
 use futures_util::StreamExt;
-use http::{Request, Response, StatusCode};
 use hyper::{
     body::{self, HttpBody},
     service::{make_service_fn, service_fn},
-    Body, Server,
+    *,
 };
 use ring_channel::ring_channel;
 use tokio::time::sleep;
