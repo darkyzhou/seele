@@ -159,7 +159,8 @@ mod tests {
         }"#,
         )
         .unwrap();
-        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,1,4,5,1,4]}}"
+        let source = "return {report:{str:'foo',num:114,float_num:114.514,obj:{bool:true},arr:[1,\
+                      1,4,5,1,4]}}"
             .to_string();
 
         let report = super::execute_javascript_reporter(data, source).await;

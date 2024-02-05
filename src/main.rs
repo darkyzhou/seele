@@ -229,8 +229,8 @@ fn check_env() -> Result<()> {
     if physical_cpu_count < logical_cpu_count {
         // TODO: Add link to document
         warn!(
-            "Seele does not recommend enabling the cpu's SMT technology, current \
-             logical cpu count: {}, physical cpu count: {}",
+            "Seele does not recommend enabling the cpu's SMT technology, current logical cpu \
+             count: {}, physical cpu count: {}",
             logical_cpu_count, physical_cpu_count
         )
     }
@@ -239,14 +239,14 @@ fn check_env() -> Result<()> {
         info!("Checking id maps");
         if action::run_container::SUBUIDS.count < 65536 {
             bail!(
-                "The user specified in the run_container namespace config has not \
-                 enough subuid mapping range"
+                "The user specified in the run_container namespace config has not enough subuid \
+                 mapping range"
             );
         }
         if action::run_container::SUBGIDS.count < 65536 {
             bail!(
-                "The group specified in the run_container namespace config has not \
-                 enough subgid mapping range"
+                "The group specified in the run_container namespace config has not enough subgid \
+                 mapping range"
             );
         }
     }

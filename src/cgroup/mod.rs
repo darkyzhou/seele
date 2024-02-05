@@ -16,8 +16,11 @@ use crate::{
     shared,
 };
 
-mod systemd;
+#[rustfmt::skip]
+#[allow(clippy::all)]
+#[allow(unused_imports)]
 mod systemd_api;
+mod systemd;
 mod utils;
 
 const MANDATORY_CONTROLLERS: &str = "+cpu +cpuset +memory +io +pids";
