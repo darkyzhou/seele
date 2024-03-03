@@ -37,6 +37,9 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
     接下来，我们会使用当前目录作为 Seele 的配置文件、镜像文件等文件的存储目录。在当前目录中准备一份配置文件 `config.toml`，内容如下：
 
     ```toml copy filename="config.toml"
+    # 默认的日志等级是 `warn`，我们这里设置为 `info` 来获得更多信息
+    log_level = "info"
+
     # 配置评测系统在 8080 端口上运行一个 Http 服务以接收我们发送的评测任务
     [exchange.demo]
     type = "http"

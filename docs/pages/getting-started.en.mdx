@@ -37,6 +37,9 @@ Seele supports running in various environments, including bare-metal deployment,
     Next, we will use the current directory as the storage directory for Seele's configuration files, image files, and other files. Prepare a configuration file named `config.toml` in the current directory, with the following content:
 
     ```toml copy filename="config.toml"
+    # The default log level is `warn`, we set it to `info` to obtain more information.
+    log_level = "info"
+
     # Configure the judge system to run an Http service on port 8080 to receive our judge tasks
     [exchange.demo]
     type = "http"
