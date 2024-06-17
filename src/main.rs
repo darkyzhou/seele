@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     fs::create_dir_all,
     sync::{Arc, Barrier},

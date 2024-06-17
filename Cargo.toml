@@ -12,7 +12,7 @@ lto = true
 anyhow = "1.0"
 async-recursion = "1.0"
 async-trait = "0.1"
-base64 = "0.21"
+base64 = "0.22"
 bincode = "2.0.0-rc.3"
 bytes = "1.3"
 chrono = { version = "0.4", features = ["serde"] }
@@ -23,23 +23,23 @@ either = "1.8"
 ellipse = "0.2"
 futures-util = "0.3"
 http = "1.0"
-http-cache = { version = "0.18", default-features = false, features = ["manager-moka"] }
-http-cache-reqwest = "0.13"
-hyper = { version = "=0.14.24", features = ["server", "stream"] }
+http-cache = { version = "0.19", default-features = false, features = ["manager-moka"] }
+http-cache-reqwest = "0.14"
+hyper = { version = "=0.14.29", features = ["server", "stream"] }
 indexmap = { version = "2.2", features = ["serde"] }
 lapin = "2.1"
 libcgroups = "0.3"
 moka = { version = "0.12", features = ["future", "sync"] }
-nano-id = { version = "0.3", features = ["base62"] }
-nix = { version = "0.27", features = ["mount", "hostname"] }
+nano-id = { version = "0.4", features = ["base62"] }
+nix = { version = "0.29", features = ["mount", "hostname", "signal"] }
 num_cpus = "1.15"
 once_cell = "1.16"
 opentelemetry = { version = "=0.18.0", features = ["rt-tokio", "metrics", "trace"] }
 opentelemetry-otlp = { version = "=0.11.0", features = ["metrics"] }
 quick-js = { version = "0.4", features = ["patched"] }
 regex = "1.7"
-reqwest = { version = "0.11", features = ["stream"] }
-reqwest-middleware = "0.2"
+reqwest = { version = "0.12", features = ["stream", "multipart"] }
+reqwest-middleware = "0.3"
 ring-channel = "0.12"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -49,7 +49,7 @@ shell-words = "1.1"
 systemd = "0.10"
 thread_local = "1.1"
 tokio = { version = "1", features = ["full"] }
-tokio-graceful-shutdown = "0.14"
+tokio-graceful-shutdown = "0.15"
 tokio-util = { version = "0.7", features = ["io"] }
 tracing = "0.1"
 tracing-opentelemetry = "=0.18.0"

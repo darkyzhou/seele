@@ -1,14 +1,14 @@
 ARG GIT_SHA
 ARG GIT_NAME
 
-FROM golang:1.21-bookworm AS runj
+FROM golang:1.22-bookworm AS runj
 WORKDIR /usr/src/app/
 COPY runj/go.mod runj/go.sum ./
 RUN go mod download && go mod verify
 COPY runj/ ./
 RUN make build
 
-FROM rust:1.75-slim-bookworm AS builder
+FROM rust:1.79-slim-bookworm AS builder
 RUN apt update -qq && \
     DEBIAN_FRONTEND=noninteractive apt install -qqy --no-install-recommends pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev patch
 ENV COMMIT_TAG=$GIT_NAME

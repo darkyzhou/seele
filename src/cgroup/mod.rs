@@ -19,6 +19,7 @@ use crate::{
 #[rustfmt::skip]
 #[allow(clippy::all)]
 #[allow(unused_imports)]
+#[allow(dead_code)]
 mod systemd_api;
 mod systemd;
 mod utils;
