@@ -12,7 +12,8 @@ config.toml
 /root
 
 **/node_modules
-
+**/pnpm-lock.yaml
+**/package-lock.json
 **/.next
 
 .DS_Store
