@@ -91,8 +91,10 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn get_unit_by_pid(&self, pid: u32) -> Result<dbus::Path<'static>, dbus::Error>;
     fn get_unit_by_invocation_id(&self, invocation_id: Vec<u8>) -> Result<dbus::Path<'static>, dbus::Error>;
     fn get_unit_by_control_group(&self, cgroup: &str) -> Result<dbus::Path<'static>, dbus::Error>;
+    fn get_unit_by_pidfd(&self, pidfd: arg::OwnedFd) -> Result<(dbus::Path<'static>, String, Vec<u8>), dbus::Error>;
     fn load_unit(&self, name: &str) -> Result<dbus::Path<'static>, dbus::Error>;
     fn start_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
+    fn start_unit_with_flags(&self, name: &str, mode: &str, flags: u64) -> Result<dbus::Path<'static>, dbus::Error>;
     fn start_unit_replace(&self, old_unit: &str, new_unit: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
     fn stop_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
     fn reload_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
@@ -100,41 +102,45 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn try_restart_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
     fn reload_or_restart_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
     fn reload_or_try_restart_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error>;
-    fn enqueue_unit_job(&self, name: &str, job_type: &str, job_mode: &str) -> Result<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String, Vec<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String)>), dbus::Error>;
+    fn enqueue_unit_job(&self, name: &str, job_type: &str, job_mode: &str) -> Result<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String, Vec<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String,)>), dbus::Error>;
     fn kill_unit(&self, name: &str, whom: &str, signal: i32) -> Result<(), dbus::Error>;
+    fn queue_signal_unit(&self, name: &str, whom: &str, signal: i32, value: i32) -> Result<(), dbus::Error>;
     fn clean_unit(&self, name: &str, mask: Vec<&str>) -> Result<(), dbus::Error>;
     fn freeze_unit(&self, name: &str) -> Result<(), dbus::Error>;
     fn thaw_unit(&self, name: &str) -> Result<(), dbus::Error>;
     fn reset_failed_unit(&self, name: &str) -> Result<(), dbus::Error>;
-    fn set_unit_properties(&self, name: &str, runtime: bool, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>) -> Result<(), dbus::Error>;
+    fn set_unit_properties(&self, name: &str, runtime: bool, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>) -> Result<(), dbus::Error>;
     fn bind_mount_unit(&self, name: &str, source: &str, destination: &str, read_only: bool, mkdir: bool) -> Result<(), dbus::Error>;
-    fn mount_image_unit(&self, name: &str, source: &str, destination: &str, read_only: bool, mkdir: bool, options: Vec<(&str, &str)>) -> Result<(), dbus::Error>;
+    fn mount_image_unit(&self, name: &str, source: &str, destination: &str, read_only: bool, mkdir: bool, options: Vec<(&str, &str,)>) -> Result<(), dbus::Error>;
     fn ref_unit(&self, name: &str) -> Result<(), dbus::Error>;
     fn unref_unit(&self, name: &str) -> Result<(), dbus::Error>;
-    fn start_transient_unit(&self, name: &str, mode: &str, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>, aux: Vec<(&str, Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>)>) -> Result<dbus::Path<'static>, dbus::Error>;
-    fn get_unit_processes(&self, name: &str) -> Result<Vec<(String, u32, String)>, dbus::Error>;
+    fn start_transient_unit(&self, name: &str, mode: &str, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>, aux: Vec<(&str, Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>,)>) -> Result<dbus::Path<'static>, dbus::Error>;
+    fn get_unit_processes(&self, name: &str) -> Result<Vec<(String, u32, String,)>, dbus::Error>;
     fn attach_processes_to_unit(&self, unit_name: &str, subcgroup: &str, pids: Vec<u32>) -> Result<(), dbus::Error>;
     fn abandon_scope(&self, name: &str) -> Result<(), dbus::Error>;
     fn get_job(&self, id: u32) -> Result<dbus::Path<'static>, dbus::Error>;
-    fn get_job_after(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error>;
-    fn get_job_before(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error>;
+    fn get_job_after(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error>;
+    fn get_job_before(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error>;
     fn cancel_job(&self, id: u32) -> Result<(), dbus::Error>;
     fn clear_jobs(&self) -> Result<(), dbus::Error>;
     fn reset_failed(&self) -> Result<(), dbus::Error>;
     fn set_show_status_(&self, mode: &str) -> Result<(), dbus::Error>;
-    fn list_units(&self) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error>;
-    fn list_units_filtered(&self, states: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error>;
-    fn list_units_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error>;
-    fn list_units_by_names(&self, names: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error>;
-    fn list_jobs(&self) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error>;
+    fn list_units(&self) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error>;
+    fn list_units_filtered(&self, states: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error>;
+    fn list_units_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error>;
+    fn list_units_by_names(&self, names: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error>;
+    fn list_jobs(&self) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error>;
     fn subscribe(&self) -> Result<(), dbus::Error>;
     fn unsubscribe(&self) -> Result<(), dbus::Error>;
     fn dump(&self) -> Result<String, dbus::Error>;
+    fn dump_units_matching_patterns(&self, patterns: Vec<&str>) -> Result<String, dbus::Error>;
     fn dump_by_file_descriptor(&self) -> Result<arg::OwnedFd, dbus::Error>;
+    fn dump_units_matching_patterns_by_file_descriptor(&self, patterns: Vec<&str>) -> Result<arg::OwnedFd, dbus::Error>;
     fn reload(&self) -> Result<(), dbus::Error>;
     fn reexecute(&self) -> Result<(), dbus::Error>;
     fn exit(&self) -> Result<(), dbus::Error>;
     fn reboot(&self) -> Result<(), dbus::Error>;
+    fn soft_reboot(&self, new_root: &str) -> Result<(), dbus::Error>;
     fn power_off(&self) -> Result<(), dbus::Error>;
     fn halt(&self) -> Result<(), dbus::Error>;
     fn kexec(&self) -> Result<(), dbus::Error>;
@@ -143,32 +149,35 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn unset_environment(&self, names: Vec<&str>) -> Result<(), dbus::Error>;
     fn unset_and_set_environment(&self, names: Vec<&str>, assignments: Vec<&str>) -> Result<(), dbus::Error>;
     fn enqueue_marked_jobs(&self) -> Result<Vec<dbus::Path<'static>>, dbus::Error>;
-    fn list_unit_files(&self) -> Result<Vec<(String, String)>, dbus::Error>;
-    fn list_unit_files_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String)>, dbus::Error>;
+    fn list_unit_files(&self) -> Result<Vec<(String, String,)>, dbus::Error>;
+    fn list_unit_files_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String,)>, dbus::Error>;
     fn get_unit_file_state(&self, file: &str) -> Result<String, dbus::Error>;
-    fn enable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error>;
-    fn disable_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn enable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String)>), dbus::Error>;
-    fn disable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn reenable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error>;
-    fn link_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn preset_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error>;
-    fn preset_unit_files_with_mode(&self, files: Vec<&str>, mode: &str, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error>;
-    fn mask_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn unmask_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn revert_unit_files(&self, files: Vec<&str>) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn set_default_target(&self, name: &str, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
+    fn enable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn disable_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn enable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn disable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn disable_unit_files_with_flags_and_install_info(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn reenable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn link_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn preset_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn preset_unit_files_with_mode(&self, files: Vec<&str>, mode: &str, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error>;
+    fn mask_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn unmask_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn revert_unit_files(&self, files: Vec<&str>) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn set_default_target(&self, name: &str, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
     fn get_default_target(&self) -> Result<String, dbus::Error>;
-    fn preset_all_unit_files(&self, mode: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
-    fn add_dependency_unit_files(&self, files: Vec<&str>, target: &str, type_: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error>;
+    fn preset_all_unit_files(&self, mode: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
+    fn add_dependency_unit_files(&self, files: Vec<&str>, target: &str, type_: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error>;
     fn get_unit_file_links(&self, name: &str, runtime: bool) -> Result<Vec<String>, dbus::Error>;
     fn set_exit_code_(&self, number: u8) -> Result<(), dbus::Error>;
     fn lookup_dynamic_user_by_name(&self, name: &str) -> Result<u32, dbus::Error>;
     fn lookup_dynamic_user_by_uid(&self, uid: u32) -> Result<String, dbus::Error>;
-    fn get_dynamic_users(&self) -> Result<Vec<(u32, String)>, dbus::Error>;
+    fn get_dynamic_users(&self) -> Result<Vec<(u32, String,)>, dbus::Error>;
+    fn dump_unit_file_descriptor_store(&self, name: &str) -> Result<Vec<(String, u32, u32, u32, u64, u32, u32, String, u32,)>, dbus::Error>;
     fn version(&self) -> Result<String, dbus::Error>;
     fn features(&self) -> Result<String, dbus::Error>;
     fn virtualization(&self) -> Result<String, dbus::Error>;
+    fn confidential_virtualization(&self) -> Result<String, dbus::Error>;
     fn architecture(&self) -> Result<String, dbus::Error>;
     fn tainted(&self) -> Result<String, dbus::Error>;
     fn firmware_timestamp(&self) -> Result<u64, dbus::Error>;
@@ -195,6 +204,8 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn units_load_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn units_load_finish_timestamp(&self) -> Result<u64, dbus::Error>;
     fn units_load_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
+    fn units_load_timestamp(&self) -> Result<u64, dbus::Error>;
+    fn units_load_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn init_rdsecurity_start_timestamp(&self) -> Result<u64, dbus::Error>;
     fn init_rdsecurity_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn init_rdsecurity_finish_timestamp(&self) -> Result<u64, dbus::Error>;
@@ -223,8 +234,15 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn unit_path(&self) -> Result<Vec<String>, dbus::Error>;
     fn default_standard_output(&self) -> Result<String, dbus::Error>;
     fn default_standard_error(&self) -> Result<String, dbus::Error>;
+    fn watchdog_device(&self) -> Result<String, dbus::Error>;
+    fn watchdog_last_ping_timestamp(&self) -> Result<u64, dbus::Error>;
+    fn watchdog_last_ping_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn runtime_watchdog_usec(&self) -> Result<u64, dbus::Error>;
     fn set_runtime_watchdog_usec(&self, value: u64) -> Result<(), dbus::Error>;
+    fn runtime_watchdog_pre_usec(&self) -> Result<u64, dbus::Error>;
+    fn set_runtime_watchdog_pre_usec(&self, value: u64) -> Result<(), dbus::Error>;
+    fn runtime_watchdog_pre_governor(&self) -> Result<String, dbus::Error>;
+    fn set_runtime_watchdog_pre_governor(&self, value: String) -> Result<(), dbus::Error>;
     fn reboot_watchdog_usec(&self) -> Result<u64, dbus::Error>;
     fn set_reboot_watchdog_usec(&self, value: u64) -> Result<(), dbus::Error>;
     fn kexec_watchdog_usec(&self) -> Result<u64, dbus::Error>;
@@ -238,11 +256,14 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn default_timeout_start_usec(&self) -> Result<u64, dbus::Error>;
     fn default_timeout_stop_usec(&self) -> Result<u64, dbus::Error>;
     fn default_timeout_abort_usec(&self) -> Result<u64, dbus::Error>;
+    fn default_device_timeout_usec(&self) -> Result<u64, dbus::Error>;
     fn default_restart_usec(&self) -> Result<u64, dbus::Error>;
     fn default_start_limit_interval_usec(&self) -> Result<u64, dbus::Error>;
     fn default_start_limit_burst(&self) -> Result<u32, dbus::Error>;
     fn default_cpuaccounting(&self) -> Result<bool, dbus::Error>;
     fn default_block_ioaccounting(&self) -> Result<bool, dbus::Error>;
+    fn default_ioaccounting(&self) -> Result<bool, dbus::Error>;
+    fn default_ipaccounting(&self) -> Result<bool, dbus::Error>;
     fn default_memory_accounting(&self) -> Result<bool, dbus::Error>;
     fn default_tasks_accounting(&self) -> Result<bool, dbus::Error>;
     fn default_limit_cpu(&self) -> Result<u64, dbus::Error>;
@@ -278,8 +299,11 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn default_limit_rttime(&self) -> Result<u64, dbus::Error>;
     fn default_limit_rttimesoft(&self) -> Result<u64, dbus::Error>;
     fn default_tasks_max(&self) -> Result<u64, dbus::Error>;
+    fn default_memory_pressure_threshold_usec(&self) -> Result<u64, dbus::Error>;
+    fn default_memory_pressure_watch(&self) -> Result<String, dbus::Error>;
     fn timer_slack_nsec(&self) -> Result<u64, dbus::Error>;
     fn default_oompolicy(&self) -> Result<String, dbus::Error>;
+    fn default_oomscore_adjust(&self) -> Result<i32, dbus::Error>;
     fn ctrl_alt_del_burst_action(&self) -> Result<String, dbus::Error>;
 }
 
@@ -506,6 +530,10 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
     }
 
+    fn get_unit_by_pidfd(&self, pidfd: arg::OwnedFd) -> Result<(dbus::Path<'static>, String, Vec<u8>), dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "GetUnitByPIDFD", (pidfd, ))
+    }
+
     fn load_unit(&self, name: &str) -> Result<dbus::Path<'static>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "LoadUnit", (name, ))
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
@@ -513,6 +541,11 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
 
     fn start_unit(&self, name: &str, mode: &str) -> Result<dbus::Path<'static>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "StartUnit", (name, mode, ))
+            .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
+    }
+
+    fn start_unit_with_flags(&self, name: &str, mode: &str, flags: u64) -> Result<dbus::Path<'static>, dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "StartUnitWithFlags", (name, mode, flags, ))
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
     }
 
@@ -551,12 +584,16 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
     }
 
-    fn enqueue_unit_job(&self, name: &str, job_type: &str, job_mode: &str) -> Result<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String, Vec<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String)>), dbus::Error> {
+    fn enqueue_unit_job(&self, name: &str, job_type: &str, job_mode: &str) -> Result<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String, Vec<(u32, dbus::Path<'static>, String, dbus::Path<'static>, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "EnqueueUnitJob", (name, job_type, job_mode, ))
     }
 
     fn kill_unit(&self, name: &str, whom: &str, signal: i32) -> Result<(), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "KillUnit", (name, whom, signal, ))
+    }
+
+    fn queue_signal_unit(&self, name: &str, whom: &str, signal: i32, value: i32) -> Result<(), dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "QueueSignalUnit", (name, whom, signal, value, ))
     }
 
     fn clean_unit(&self, name: &str, mask: Vec<&str>) -> Result<(), dbus::Error> {
@@ -575,7 +612,7 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
         self.method_call("org.freedesktop.systemd1.Manager", "ResetFailedUnit", (name, ))
     }
 
-    fn set_unit_properties(&self, name: &str, runtime: bool, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>) -> Result<(), dbus::Error> {
+    fn set_unit_properties(&self, name: &str, runtime: bool, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>) -> Result<(), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "SetUnitProperties", (name, runtime, properties, ))
     }
 
@@ -583,7 +620,7 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
         self.method_call("org.freedesktop.systemd1.Manager", "BindMountUnit", (name, source, destination, read_only, mkdir, ))
     }
 
-    fn mount_image_unit(&self, name: &str, source: &str, destination: &str, read_only: bool, mkdir: bool, options: Vec<(&str, &str)>) -> Result<(), dbus::Error> {
+    fn mount_image_unit(&self, name: &str, source: &str, destination: &str, read_only: bool, mkdir: bool, options: Vec<(&str, &str,)>) -> Result<(), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "MountImageUnit", (name, source, destination, read_only, mkdir, options, ))
     }
 
@@ -595,14 +632,14 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
         self.method_call("org.freedesktop.systemd1.Manager", "UnrefUnit", (name, ))
     }
 
-    fn start_transient_unit(&self, name: &str, mode: &str, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>, aux: Vec<(&str, Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>)>)>) -> Result<dbus::Path<'static>, dbus::Error> {
+    fn start_transient_unit(&self, name: &str, mode: &str, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>, aux: Vec<(&str, Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>,)>) -> Result<dbus::Path<'static>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "StartTransientUnit", (name, mode, properties, aux, ))
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
     }
 
-    fn get_unit_processes(&self, name: &str) -> Result<Vec<(String, u32, String)>, dbus::Error> {
+    fn get_unit_processes(&self, name: &str) -> Result<Vec<(String, u32, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "GetUnitProcesses", (name, ))
-            .and_then(|r: (Vec<(String, u32, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, u32, String,)>, )| Ok(r.0, ))
     }
 
     fn attach_processes_to_unit(&self, unit_name: &str, subcgroup: &str, pids: Vec<u32>) -> Result<(), dbus::Error> {
@@ -618,14 +655,14 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
     }
 
-    fn get_job_after(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error> {
+    fn get_job_after(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "GetJobAfter", (id, ))
-            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
-    fn get_job_before(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error> {
+    fn get_job_before(&self, id: u32) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "GetJobBefore", (id, ))
-            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
     fn cancel_job(&self, id: u32) -> Result<(), dbus::Error> {
@@ -644,29 +681,29 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
         self.method_call("org.freedesktop.systemd1.Manager", "SetShowStatus", (mode, ))
     }
 
-    fn list_units(&self) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error> {
+    fn list_units(&self) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnits", ())
-            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
-    fn list_units_filtered(&self, states: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error> {
+    fn list_units_filtered(&self, states: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnitsFiltered", (states, ))
-            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
-    fn list_units_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error> {
+    fn list_units_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnitsByPatterns", (states, patterns, ))
-            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
-    fn list_units_by_names(&self, names: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, dbus::Error> {
+    fn list_units_by_names(&self, names: Vec<&str>) -> Result<Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnitsByNames", (names, ))
-            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String, String, String, String, dbus::Path<'static>, u32, String, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
-    fn list_jobs(&self) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, dbus::Error> {
+    fn list_jobs(&self) -> Result<Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListJobs", ())
-            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(u32, String, String, String, dbus::Path<'static>, dbus::Path<'static>,)>, )| Ok(r.0, ))
     }
 
     fn subscribe(&self) -> Result<(), dbus::Error> {
@@ -682,8 +719,18 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (String, )| Ok(r.0, ))
     }
 
+    fn dump_units_matching_patterns(&self, patterns: Vec<&str>) -> Result<String, dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "DumpUnitsMatchingPatterns", (patterns, ))
+            .and_then(|r: (String, )| Ok(r.0, ))
+    }
+
     fn dump_by_file_descriptor(&self) -> Result<arg::OwnedFd, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "DumpByFileDescriptor", ())
+            .and_then(|r: (arg::OwnedFd, )| Ok(r.0, ))
+    }
+
+    fn dump_units_matching_patterns_by_file_descriptor(&self, patterns: Vec<&str>) -> Result<arg::OwnedFd, dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "DumpUnitsMatchingPatternsByFileDescriptor", (patterns, ))
             .and_then(|r: (arg::OwnedFd, )| Ok(r.0, ))
     }
 
@@ -701,6 +748,10 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
 
     fn reboot(&self) -> Result<(), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "Reboot", ())
+    }
+
+    fn soft_reboot(&self, new_root: &str) -> Result<(), dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "SoftReboot", (new_root, ))
     }
 
     fn power_off(&self) -> Result<(), dbus::Error> {
@@ -736,14 +787,14 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (Vec<dbus::Path<'static>>, )| Ok(r.0, ))
     }
 
-    fn list_unit_files(&self) -> Result<Vec<(String, String)>, dbus::Error> {
+    fn list_unit_files(&self) -> Result<Vec<(String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnitFiles", ())
-            .and_then(|r: (Vec<(String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String,)>, )| Ok(r.0, ))
     }
 
-    fn list_unit_files_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String)>, dbus::Error> {
+    fn list_unit_files_by_patterns(&self, states: Vec<&str>, patterns: Vec<&str>) -> Result<Vec<(String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ListUnitFilesByPatterns", (states, patterns, ))
-            .and_then(|r: (Vec<(String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String,)>, )| Ok(r.0, ))
     }
 
     fn get_unit_file_state(&self, file: &str) -> Result<String, dbus::Error> {
@@ -751,59 +802,63 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (String, )| Ok(r.0, ))
     }
 
-    fn enable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error> {
+    fn enable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "EnableUnitFiles", (files, runtime, force, ))
     }
 
-    fn disable_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn disable_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "DisableUnitFiles", (files, runtime, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn enable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String)>), dbus::Error> {
+    fn enable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "EnableUnitFilesWithFlags", (files, flags, ))
     }
 
-    fn disable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn disable_unit_files_with_flags(&self, files: Vec<&str>, flags: u64) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "DisableUnitFilesWithFlags", (files, flags, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn reenable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error> {
+    fn disable_unit_files_with_flags_and_install_info(&self, files: Vec<&str>, flags: u64) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "DisableUnitFilesWithFlagsAndInstallInfo", (files, flags, ))
+    }
+
+    fn reenable_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "ReenableUnitFiles", (files, runtime, force, ))
     }
 
-    fn link_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn link_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "LinkUnitFiles", (files, runtime, force, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn preset_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error> {
+    fn preset_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "PresetUnitFiles", (files, runtime, force, ))
     }
 
-    fn preset_unit_files_with_mode(&self, files: Vec<&str>, mode: &str, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String)>), dbus::Error> {
+    fn preset_unit_files_with_mode(&self, files: Vec<&str>, mode: &str, runtime: bool, force: bool) -> Result<(bool, Vec<(String, String, String,)>), dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "PresetUnitFilesWithMode", (files, mode, runtime, force, ))
     }
 
-    fn mask_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn mask_unit_files(&self, files: Vec<&str>, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "MaskUnitFiles", (files, runtime, force, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn unmask_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn unmask_unit_files(&self, files: Vec<&str>, runtime: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "UnmaskUnitFiles", (files, runtime, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn revert_unit_files(&self, files: Vec<&str>) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn revert_unit_files(&self, files: Vec<&str>) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "RevertUnitFiles", (files, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn set_default_target(&self, name: &str, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn set_default_target(&self, name: &str, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "SetDefaultTarget", (name, force, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
     fn get_default_target(&self) -> Result<String, dbus::Error> {
@@ -811,14 +866,14 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (String, )| Ok(r.0, ))
     }
 
-    fn preset_all_unit_files(&self, mode: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn preset_all_unit_files(&self, mode: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "PresetAllUnitFiles", (mode, runtime, force, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
-    fn add_dependency_unit_files(&self, files: Vec<&str>, target: &str, type_: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String)>, dbus::Error> {
+    fn add_dependency_unit_files(&self, files: Vec<&str>, target: &str, type_: &str, runtime: bool, force: bool) -> Result<Vec<(String, String, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "AddDependencyUnitFiles", (files, target, type_, runtime, force, ))
-            .and_then(|r: (Vec<(String, String, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(String, String, String,)>, )| Ok(r.0, ))
     }
 
     fn get_unit_file_links(&self, name: &str, runtime: bool) -> Result<Vec<String>, dbus::Error> {
@@ -840,468 +895,537 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (String, )| Ok(r.0, ))
     }
 
-    fn get_dynamic_users(&self) -> Result<Vec<(u32, String)>, dbus::Error> {
+    fn get_dynamic_users(&self) -> Result<Vec<(u32, String,)>, dbus::Error> {
         self.method_call("org.freedesktop.systemd1.Manager", "GetDynamicUsers", ())
-            .and_then(|r: (Vec<(u32, String)>, )| Ok(r.0, ))
+            .and_then(|r: (Vec<(u32, String,)>, )| Ok(r.0, ))
+    }
+
+    fn dump_unit_file_descriptor_store(&self, name: &str) -> Result<Vec<(String, u32, u32, u32, u64, u32, u32, String, u32,)>, dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "DumpUnitFileDescriptorStore", (name, ))
+            .and_then(|r: (Vec<(String, u32, u32, u32, u64, u32, u32, String, u32,)>, )| Ok(r.0, ))
     }
 
     fn version(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Version")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Version")
     }
 
     fn features(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Features")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Features")
     }
 
     fn virtualization(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Virtualization")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Virtualization")
+    }
+
+    fn confidential_virtualization(&self) -> Result<String, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ConfidentialVirtualization")
     }
 
     fn architecture(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Architecture")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Architecture")
     }
 
     fn tainted(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Tainted")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Tainted")
     }
 
     fn firmware_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "FirmwareTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "FirmwareTimestamp")
     }
 
     fn firmware_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "FirmwareTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "FirmwareTimestampMonotonic")
     }
 
     fn loader_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "LoaderTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "LoaderTimestamp")
     }
 
     fn loader_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "LoaderTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "LoaderTimestampMonotonic")
     }
 
     fn kernel_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "KernelTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "KernelTimestamp")
     }
 
     fn kernel_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "KernelTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "KernelTimestampMonotonic")
     }
 
     fn init_rdtimestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDTimestamp")
     }
 
     fn init_rdtimestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDTimestampMonotonic")
     }
 
     fn userspace_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UserspaceTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UserspaceTimestamp")
     }
 
     fn userspace_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UserspaceTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UserspaceTimestampMonotonic")
     }
 
     fn finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "FinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "FinishTimestamp")
     }
 
     fn finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "FinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "FinishTimestampMonotonic")
     }
 
     fn security_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "SecurityStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SecurityStartTimestamp")
     }
 
     fn security_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "SecurityStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SecurityStartTimestampMonotonic")
     }
 
     fn security_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "SecurityFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SecurityFinishTimestamp")
     }
 
     fn security_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "SecurityFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SecurityFinishTimestampMonotonic")
     }
 
     fn generators_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "GeneratorsStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "GeneratorsStartTimestamp")
     }
 
     fn generators_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "GeneratorsStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "GeneratorsStartTimestampMonotonic")
     }
 
     fn generators_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "GeneratorsFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "GeneratorsFinishTimestamp")
     }
 
     fn generators_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "GeneratorsFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "GeneratorsFinishTimestampMonotonic")
     }
 
     fn units_load_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UnitsLoadStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadStartTimestamp")
     }
 
     fn units_load_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UnitsLoadStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadStartTimestampMonotonic")
     }
 
     fn units_load_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UnitsLoadFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadFinishTimestamp")
     }
 
     fn units_load_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UnitsLoadFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadFinishTimestampMonotonic")
+    }
+
+    fn units_load_timestamp(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadTimestamp")
+    }
+
+    fn units_load_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitsLoadTimestampMonotonic")
     }
 
     fn init_rdsecurity_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDSecurityStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDSecurityStartTimestamp")
     }
 
     fn init_rdsecurity_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDSecurityStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDSecurityStartTimestampMonotonic")
     }
 
     fn init_rdsecurity_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDSecurityFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDSecurityFinishTimestamp")
     }
 
     fn init_rdsecurity_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDSecurityFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDSecurityFinishTimestampMonotonic")
     }
 
     fn init_rdgenerators_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsStartTimestamp")
     }
 
     fn init_rdgenerators_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsStartTimestampMonotonic")
     }
 
     fn init_rdgenerators_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsFinishTimestamp")
     }
 
     fn init_rdgenerators_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDGeneratorsFinishTimestampMonotonic")
     }
 
     fn init_rdunits_load_start_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadStartTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadStartTimestamp")
     }
 
     fn init_rdunits_load_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadStartTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadStartTimestampMonotonic")
     }
 
     fn init_rdunits_load_finish_timestamp(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadFinishTimestamp")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadFinishTimestamp")
     }
 
     fn init_rdunits_load_finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadFinishTimestampMonotonic")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "InitRDUnitsLoadFinishTimestampMonotonic")
     }
 
     fn log_level(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "LogLevel")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "LogLevel")
     }
 
     fn log_target(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "LogTarget")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "LogTarget")
     }
 
     fn nnames(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "NNames")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "NNames")
     }
 
     fn nfailed_units(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "NFailedUnits")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "NFailedUnits")
     }
 
     fn njobs(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "NJobs")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "NJobs")
     }
 
     fn ninstalled_jobs(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "NInstalledJobs")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "NInstalledJobs")
     }
 
     fn nfailed_jobs(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "NFailedJobs")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "NFailedJobs")
     }
 
     fn progress(&self) -> Result<f64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Progress")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Progress")
     }
 
     fn environment(&self) -> Result<Vec<String>, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "Environment")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Environment")
     }
 
     fn confirm_spawn(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "ConfirmSpawn")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ConfirmSpawn")
     }
 
     fn show_status(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "ShowStatus")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ShowStatus")
     }
 
     fn unit_path(&self) -> Result<Vec<String>, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "UnitPath")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "UnitPath")
     }
 
     fn default_standard_output(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultStandardOutput")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultStandardOutput")
     }
 
     fn default_standard_error(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultStandardError")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultStandardError")
+    }
+
+    fn watchdog_device(&self) -> Result<String, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "WatchdogDevice")
+    }
+
+    fn watchdog_last_ping_timestamp(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "WatchdogLastPingTimestamp")
+    }
+
+    fn watchdog_last_ping_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "WatchdogLastPingTimestampMonotonic")
     }
 
     fn runtime_watchdog_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogUSec")
+    }
+
+    fn runtime_watchdog_pre_usec(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogPreUSec")
+    }
+
+    fn runtime_watchdog_pre_governor(&self) -> Result<String, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogPreGovernor")
     }
 
     fn reboot_watchdog_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "RebootWatchdogUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "RebootWatchdogUSec")
     }
 
     fn kexec_watchdog_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "KExecWatchdogUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "KExecWatchdogUSec")
     }
 
     fn service_watchdogs(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "ServiceWatchdogs")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ServiceWatchdogs")
     }
 
     fn control_group(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "ControlGroup")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ControlGroup")
     }
 
     fn system_state(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "SystemState")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SystemState")
     }
 
     fn exit_code(&self) -> Result<u8, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "ExitCode")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ExitCode")
     }
 
     fn default_timer_accuracy_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTimerAccuracyUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTimerAccuracyUSec")
     }
 
     fn default_timeout_start_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutStartUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutStartUSec")
     }
 
     fn default_timeout_stop_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutStopUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutStopUSec")
     }
 
     fn default_timeout_abort_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutAbortUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTimeoutAbortUSec")
+    }
+
+    fn default_device_timeout_usec(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultDeviceTimeoutUSec")
     }
 
     fn default_restart_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultRestartUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultRestartUSec")
     }
 
     fn default_start_limit_interval_usec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultStartLimitIntervalUSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultStartLimitIntervalUSec")
     }
 
     fn default_start_limit_burst(&self) -> Result<u32, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultStartLimitBurst")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultStartLimitBurst")
     }
 
     fn default_cpuaccounting(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultCPUAccounting")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultCPUAccounting")
     }
 
     fn default_block_ioaccounting(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultBlockIOAccounting")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultBlockIOAccounting")
+    }
+
+    fn default_ioaccounting(&self) -> Result<bool, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultIOAccounting")
+    }
+
+    fn default_ipaccounting(&self) -> Result<bool, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultIPAccounting")
     }
 
     fn default_memory_accounting(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultMemoryAccounting")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultMemoryAccounting")
     }
 
     fn default_tasks_accounting(&self) -> Result<bool, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTasksAccounting")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTasksAccounting")
     }
 
     fn default_limit_cpu(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitCPU")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitCPU")
     }
 
     fn default_limit_cpusoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitCPUSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitCPUSoft")
     }
 
     fn default_limit_fsize(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitFSIZE")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitFSIZE")
     }
 
     fn default_limit_fsizesoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitFSIZESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitFSIZESoft")
     }
 
     fn default_limit_data(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitDATA")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitDATA")
     }
 
     fn default_limit_datasoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitDATASoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitDATASoft")
     }
 
     fn default_limit_stack(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitSTACK")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitSTACK")
     }
 
     fn default_limit_stacksoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitSTACKSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitSTACKSoft")
     }
 
     fn default_limit_core(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitCORE")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitCORE")
     }
 
     fn default_limit_coresoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitCORESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitCORESoft")
     }
 
     fn default_limit_rss(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRSS")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRSS")
     }
 
     fn default_limit_rsssoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRSSSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRSSSoft")
     }
 
     fn default_limit_nofile(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNOFILE")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNOFILE")
     }
 
     fn default_limit_nofilesoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNOFILESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNOFILESoft")
     }
 
     fn default_limit_as(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitAS")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitAS")
     }
 
     fn default_limit_assoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitASSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitASSoft")
     }
 
     fn default_limit_nproc(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNPROC")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNPROC")
     }
 
     fn default_limit_nprocsoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNPROCSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNPROCSoft")
     }
 
     fn default_limit_memlock(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitMEMLOCK")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitMEMLOCK")
     }
 
     fn default_limit_memlocksoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitMEMLOCKSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitMEMLOCKSoft")
     }
 
     fn default_limit_locks(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitLOCKS")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitLOCKS")
     }
 
     fn default_limit_lockssoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitLOCKSSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitLOCKSSoft")
     }
 
     fn default_limit_sigpending(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitSIGPENDING")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitSIGPENDING")
     }
 
     fn default_limit_sigpendingsoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitSIGPENDINGSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitSIGPENDINGSoft")
     }
 
     fn default_limit_msgqueue(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitMSGQUEUE")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitMSGQUEUE")
     }
 
     fn default_limit_msgqueuesoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitMSGQUEUESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitMSGQUEUESoft")
     }
 
     fn default_limit_nice(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNICE")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNICE")
     }
 
     fn default_limit_nicesoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitNICESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitNICESoft")
     }
 
     fn default_limit_rtprio(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTPRIO")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTPRIO")
     }
 
     fn default_limit_rtpriosoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTPRIOSoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTPRIOSoft")
     }
 
     fn default_limit_rttime(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTTIME")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTTIME")
     }
 
     fn default_limit_rttimesoft(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTTIMESoft")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultLimitRTTIMESoft")
     }
 
     fn default_tasks_max(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultTasksMax")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultTasksMax")
+    }
+
+    fn default_memory_pressure_threshold_usec(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultMemoryPressureThresholdUSec")
+    }
+
+    fn default_memory_pressure_watch(&self) -> Result<String, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultMemoryPressureWatch")
     }
 
     fn timer_slack_nsec(&self) -> Result<u64, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "TimerSlackNSec")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "TimerSlackNSec")
     }
 
     fn default_oompolicy(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "DefaultOOMPolicy")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultOOMPolicy")
+    }
+
+    fn default_oomscore_adjust(&self) -> Result<i32, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "DefaultOOMScoreAdjust")
     }
 
     fn ctrl_alt_del_burst_action(&self) -> Result<String, dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.freedesktop.systemd1.Manager", "CtrlAltDelBurstAction")
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "CtrlAltDelBurstAction")
     }
 
     fn set_log_level(&self, value: String) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "LogLevel", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "LogLevel", value)
     }
 
     fn set_log_target(&self, value: String) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "LogTarget", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "LogTarget", value)
     }
 
     fn set_runtime_watchdog_usec(&self, value: u64) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogUSec", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogUSec", value)
+    }
+
+    fn set_runtime_watchdog_pre_usec(&self, value: u64) -> Result<(), dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogPreUSec", value)
+    }
+
+    fn set_runtime_watchdog_pre_governor(&self, value: String) -> Result<(), dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "RuntimeWatchdogPreGovernor", value)
     }
 
     fn set_reboot_watchdog_usec(&self, value: u64) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "RebootWatchdogUSec", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "RebootWatchdogUSec", value)
     }
 
     fn set_kexec_watchdog_usec(&self, value: u64) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "KExecWatchdogUSec", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "KExecWatchdogUSec", value)
     }
 
     fn set_service_watchdogs(&self, value: bool) -> Result<(), dbus::Error> {
-        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(&self, "org.freedesktop.systemd1.Manager", "ServiceWatchdogs", value)
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::set(self, "org.freedesktop.systemd1.Manager", "ServiceWatchdogs", value)
     }
 }
