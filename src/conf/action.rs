@@ -127,12 +127,12 @@ fn default_unpack_image_timeout_seconds() -> u64 {
 
 #[inline]
 fn default_userns_uid() -> u32 {
-    users::get_effective_uid()
+    uzers::get_effective_uid()
 }
 
 #[inline]
 fn default_userns_user() -> String {
-    users::get_current_username()
+    uzers::get_current_username()
         .expect("Failed to get current username")
         .into_string()
         .expect("Failed to convert the username")
@@ -140,5 +140,5 @@ fn default_userns_user() -> String {
 
 #[inline]
 fn default_userns_gid() -> u32 {
-    users::get_effective_gid()
+    uzers::get_effective_gid()
 }
