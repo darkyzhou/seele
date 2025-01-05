@@ -1,7 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::LazyLock};
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use tokio::fs;
 
 use super::CONFIG;
@@ -24,7 +23,7 @@ impl SeelePaths {
     }
 }
 
-pub static PATHS: Lazy<SeelePaths> = Lazy::new(|| SeelePaths {
+pub static PATHS: LazyLock<SeelePaths> = LazyLock::new(|| SeelePaths {
     root: CONFIG.paths.root.clone(),
     images: CONFIG.paths.root.join("images"),
     temp: CONFIG.paths.root.join("temp"),

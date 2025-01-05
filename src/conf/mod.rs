@@ -1,7 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::LazyLock};
 
 use indexmap::IndexMap;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -21,7 +20,7 @@ mod path;
 mod telemetry;
 mod worker;
 
-pub static CONFIG: Lazy<SeeleConfig> = Lazy::new(|| {
+pub static CONFIG: LazyLock<SeeleConfig> = LazyLock::new(|| {
     match config::Config::builder()
         .add_source(config::File::with_name("config"))
         .add_source(config::Environment::with_prefix("SEELE"))

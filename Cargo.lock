@@ -3632,7 +3632,6 @@ dependencies = [
  "nano-id",
  "nix 0.29.0",
  "num_cpus",
- "once_cell",
  "opentelemetry",
  "opentelemetry-otlp",
  "quick-js",

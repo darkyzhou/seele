@@ -1,4 +1,7 @@
-use std::{io::Read, sync::Arc};
+use std::{
+    io::Read,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::{Context, Result, bail};
 use duct::cmd;
@@ -6,7 +9,6 @@ use nix::{
     sys::signal::{self, Signal},
     unistd::Pid,
 };
-use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
 use tokio::sync::oneshot;
 use tracing::{Span, info, info_span, warn};
@@ -33,7 +35,7 @@ pub mod run_judge;
 mod runj;
 mod utils;
 
-static RUNNER_THREAD_LOCAL: Lazy<Arc<ThreadLocal<i64>>> = Lazy::new(Arc::default);
+static RUNNER_THREAD_LOCAL: LazyLock<Arc<ThreadLocal<i64>>> = LazyLock::new(Arc::default);
 
 pub async fn execute(
     abort: Listener,

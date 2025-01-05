@@ -1,7 +1,6 @@
-use std::sync::atomic::Ordering;
+use std::sync::{LazyLock, OnceLock, atomic::Ordering};
 
 use anyhow::Result;
-use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
     KeyValue, global,
     metrics::{Histogram, Meter, ObservableGauge, Unit},
@@ -11,7 +10,7 @@ use opentelemetry::{
 use super::runner;
 use crate::conf;
 
-pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
+pub static METRICS_RESOURCE: LazyLock<Resource> = LazyLock::new(|| {
     let mut pairs = vec![
         KeyValue::new("service.name", "seele"),
         KeyValue::new(
@@ -44,12 +43,12 @@ pub static METRICS_RESOURCE: Lazy<Resource> = Lazy::new(|| {
     Resource::new(pairs)
 });
 
-pub static METRICS_CONTROLLER: OnceCell<BasicController> = OnceCell::new();
+pub static METRICS_CONTROLLER: OnceLock<BasicController> = OnceLock::new();
 
-pub static METER: Lazy<Meter> =
-    Lazy::new(|| global::meter_with_version("seele", Some("0.1"), None));
+pub static METER: LazyLock<Meter> =
+    LazyLock::new(|| global::meter_with_version("seele", Some("0.1"), None));
 
-pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
+pub static SUBMISSION_HANDLING_HISTOGRAM: LazyLock<Histogram<f64>> = LazyLock::new(|| {
     METER
         .f64_histogram("seele.submission.duration")
         .with_description("Duration of submissions handling")
@@ -57,19 +56,20 @@ pub static SUBMISSION_HANDLING_HISTOGRAM: Lazy<Histogram<f64>> = Lazy::new(|| {
         .init()
 });
 
-pub static RUNNER_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
+pub static RUNNER_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> = LazyLock::new(|| {
     METER
         .u64_observable_gauge("seele.runner.count")
         .with_description("Count of available runner threads")
         .init()
 });
 
-pub static PENDING_CONTAINER_ACTION_COUNT_GAUGE: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
-    METER
-        .u64_observable_gauge("seele.action.container.pending.count")
-        .with_description("Count of pending container actions in the worker queue")
-        .init()
-});
+pub static PENDING_CONTAINER_ACTION_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> =
+    LazyLock::new(|| {
+        METER
+            .u64_observable_gauge("seele.action.container.pending.count")
+            .with_description("Count of pending container actions in the worker queue")
+            .init()
+    });
 
 pub fn register_gauge_metrics() -> Result<()> {
     METER.register_callback(|ctx| {

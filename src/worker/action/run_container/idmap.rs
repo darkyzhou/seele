@@ -1,10 +1,10 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader},
+    sync::LazyLock,
 };
 
 use anyhow::{Context, Result, bail};
-use once_cell::sync::Lazy;
 
 use crate::conf;
 
@@ -16,11 +16,11 @@ pub struct SubIds {
     pub count: u32,
 }
 
-pub static SUBUIDS: Lazy<SubIds> =
-    Lazy::new(|| get_subids(SUBUID_PATH).expect("Error getting subuids"));
+pub static SUBUIDS: LazyLock<SubIds> =
+    LazyLock::new(|| get_subids(SUBUID_PATH).expect("Error getting subuids"));
 
-pub static SUBGIDS: Lazy<SubIds> =
-    Lazy::new(|| get_subids(SUBGID_PATH).expect("Error getting subgids"));
+pub static SUBGIDS: LazyLock<SubIds> =
+    LazyLock::new(|| get_subids(SUBGID_PATH).expect("Error getting subgids"));
 
 fn get_subids(path: &str) -> Result<SubIds> {
     let username = &conf::CONFIG.worker.action.run_container.userns_user;

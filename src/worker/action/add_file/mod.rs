@@ -1,13 +1,12 @@
 use std::{
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context, Result, bail};
 use bytes::Bytes;
 use futures_util::{Stream, StreamExt, future};
 use http_cache::HttpCacheOptions;
-use once_cell::sync::Lazy;
 use tokio::{
     fs::File,
     io::{self, AsyncWriteExt},
@@ -92,7 +91,7 @@ async fn handle_local_path(mut file: File, path: &Path) -> Result<()> {
     Ok(())
 }
 
-static HTTP_CLIENT: Lazy<reqwest_middleware::ClientWithMiddleware> = Lazy::new(|| {
+static HTTP_CLIENT: LazyLock<reqwest_middleware::ClientWithMiddleware> = LazyLock::new(|| {
     use std::time::Duration;
 
     use http_cache::MokaManager;

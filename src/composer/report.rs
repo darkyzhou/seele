@@ -1,8 +1,7 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use futures_util::future;
-use once_cell::sync::Lazy;
 use reqwest::{
     Client,
     multipart::{Form, Part},
@@ -64,7 +63,7 @@ pub async fn apply_embeds_config(
     }))
 }
 
-static HTTP_CLIENT: Lazy<Client> = Lazy::new(shared::http::build_http_client);
+static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(shared::http::build_http_client);
 
 #[instrument(skip_all)]
 pub async fn apply_uploads_config(

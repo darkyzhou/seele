@@ -3,11 +3,11 @@ use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
     process,
+    sync::LazyLock,
 };
 
 use anyhow::{Context, Result, bail};
 use libcgroups::common::{CgroupSetup, get_cgroup_setup, read_cgroup_file, write_cgroup_file_str};
-use once_cell::sync::Lazy;
 use tracing::debug;
 
 pub use self::utils::*;
@@ -26,17 +26,18 @@ mod utils;
 
 const MANDATORY_CONTROLLERS: &str = "+cpu +cpuset +memory +io +pids";
 
-pub static CGROUP_PATH: Lazy<PathBuf> = Lazy::new(|| match &conf::CONFIG.work_mode {
+pub static CGROUP_PATH: LazyLock<PathBuf> = LazyLock::new(|| match &conf::CONFIG.work_mode {
     SeeleWorkMode::Bare => {
         systemd::create_and_enter_cgroup().expect("Error entering cgroup scope cgroup")
     }
     _ => utils::check_and_get_self_cgroup().expect("Error getting process' cgroup path"),
 });
 
-pub static CGROUP_MAIN_SCOPE_PATH: Lazy<PathBuf> = Lazy::new(|| CGROUP_PATH.join("main.scope"));
+pub static CGROUP_MAIN_SCOPE_PATH: LazyLock<PathBuf> =
+    LazyLock::new(|| CGROUP_PATH.join("main.scope"));
 
-pub static CGROUP_CONTAINER_SLICE_PATH: Lazy<PathBuf> =
-    Lazy::new(|| CGROUP_PATH.join("container.slice"));
+pub static CGROUP_CONTAINER_SLICE_PATH: LazyLock<PathBuf> =
+    LazyLock::new(|| CGROUP_PATH.join("container.slice"));
 
 #[inline]
 pub fn check_cgroup_setup() -> Result<()> {

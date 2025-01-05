@@ -1,12 +1,14 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, LazyLock},
+    time::Duration,
+};
 
 use moka::sync::Cache;
-use once_cell::sync::Lazy;
 
 use crate::conf;
 
 #[allow(clippy::type_complexity)]
-static CACHE: Lazy<Cache<Box<[u8]>, Arc<[u8]>>> = Lazy::new(|| {
+static CACHE: LazyLock<Cache<Box<[u8]>, Arc<[u8]>>> = LazyLock::new(|| {
     let config = &conf::CONFIG.worker.action.run_container;
     Cache::builder()
         .name("seele-run-container")

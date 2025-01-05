@@ -1,13 +1,12 @@
-use std::{fmt::Display, path::Path};
+use std::{fmt::Display, path::Path, sync::LazyLock};
 
 use anyhow::bail;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize, de};
 
 pub mod compile;
 pub mod run;
 
-static DEFAULT_MOUNT_DIRECTORY: Lazy<&'static Path> = Lazy::new(|| Path::new("/seele"));
+static DEFAULT_MOUNT_DIRECTORY: LazyLock<&'static Path> = LazyLock::new(|| Path::new("/seele"));
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MountFile {

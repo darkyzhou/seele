@@ -1,9 +1,13 @@
-use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    num::NonZeroUsize,
+    sync::{Arc, LazyLock},
+    time::Duration,
+};
 
 use anyhow::{Context, Result, bail};
 use futures_util::StreamExt;
 use lapin::{Channel, ChannelState, Connection, message::Delivery};
-use once_cell::sync::Lazy;
 use ring_channel::ring_channel;
 use tokio::{
     sync::{Mutex, mpsc},
@@ -18,7 +22,7 @@ use crate::{
     conf::{self, AmqpExchangeConfig, AmqpExchangeReportConfig},
 };
 
-static STATUS_MAP: Lazy<Mutex<HashMap<String, bool>>> = Lazy::new(Default::default);
+static STATUS_MAP: LazyLock<Mutex<HashMap<String, bool>>> = LazyLock::new(Default::default);
 
 pub async fn is_amqp_healthy() -> bool {
     let map = STATUS_MAP.lock().await;

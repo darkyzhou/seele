@@ -1,7 +1,6 @@
-use std::{env, io::SeekFrom};
+use std::{env, io::SeekFrom, sync::LazyLock};
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use tokio::{
     fs::File,
     io::{AsyncReadExt, AsyncSeekExt, BufReader},
@@ -14,7 +13,7 @@ pub mod image;
 pub mod metrics;
 pub mod runner;
 
-pub static TINI_PRESENTS: Lazy<bool> = Lazy::new(|| env::var_os("TINI_VERSION").is_some());
+pub static TINI_PRESENTS: LazyLock<bool> = LazyLock::new(|| env::var_os("TINI_VERSION").is_some());
 
 pub static ABORTED_MESSAGE: &str = "Aborted due to shutting down";
 

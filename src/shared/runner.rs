@@ -1,6 +1,8 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{
+    LazyLock,
+    atomic::{AtomicU64, Ordering},
+};
 
-use once_cell::sync::Lazy;
 use tokio::{
     sync::Semaphore,
     task::{self, JoinError},
@@ -8,9 +10,10 @@ use tokio::{
 
 use crate::conf;
 
-pub static PENDING_TASKS: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(0));
+pub static PENDING_TASKS: LazyLock<AtomicU64> = LazyLock::new(|| AtomicU64::new(0));
 
-static RUNNERS: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(conf::CONFIG.thread_counts.runner));
+static RUNNERS: LazyLock<Semaphore> =
+    LazyLock::new(|| Semaphore::new(conf::CONFIG.thread_counts.runner));
 
 pub async fn spawn_blocking<F, R>(f: F) -> Result<R, JoinError>
 where

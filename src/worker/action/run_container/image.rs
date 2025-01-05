@@ -1,5 +1,9 @@
 use std::{
-    fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf, sync::Arc, time::Duration,
+    fs::Permissions,
+    os::unix::prelude::PermissionsExt,
+    path::PathBuf,
+    sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 use anyhow::{Context, Result, bail};
@@ -9,7 +13,6 @@ use nix::{
     sys::signal::{self, Signal},
     unistd::Pid,
 };
-use once_cell::sync::Lazy;
 use tokio::{
     fs::{self, create_dir_all, metadata, remove_dir_all},
     sync::oneshot,
@@ -23,8 +26,9 @@ use crate::{
     shared::{self, cond::CondGroup, image::OciImage, runner},
 };
 
-static PREPARATION_TASKS: Lazy<CondGroup<OciImage, Result<(), String>>> =
-    Lazy::new(|| CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed()));
+static PREPARATION_TASKS: LazyLock<CondGroup<OciImage, Result<(), String>>> = LazyLock::new(|| {
+    CondGroup::new(|payload: &OciImage| prepare_image_impl(payload.clone()).boxed())
+});
 
 pub async fn prepare_image(abort: Listener, image: OciImage) -> Result<()> {
     match PREPARATION_TASKS.run(image, abort).await {
