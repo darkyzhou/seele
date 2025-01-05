@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use ellipse::Ellipse;
 use futures_util::StreamExt;
-use opentelemetry::{Context as OpenTelemetryCtx, KeyValue};
+use opentelemetry::KeyValue;
 use ring_channel::{RingReceiver, RingSender};
 use tokio::{
     fs,
@@ -88,9 +88,9 @@ async fn handle_submission(
         let end = Instant::now();
         end.duration_since(begin).as_secs_f64()
     };
-    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(&OpenTelemetryCtx::current(), duration, &[
-        KeyValue::new(SUBMISSION_STATUS, signal_type),
-    ]);
+
+    metrics::SUBMISSION_HANDLING_HISTOGRAM
+        .record(duration, &[KeyValue::new(SUBMISSION_STATUS, signal_type)]);
 }
 
 async fn do_handle_submission(

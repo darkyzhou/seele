@@ -53,11 +53,10 @@ triggered = "0.1"
 url = { version = "2.5", features = ["serde"] }
 uzers = "0.12"
 axum = "0.8"
-
-# locked dependencies because of the api changes in the newer versions
-tracing-opentelemetry = "=0.18.0"
-opentelemetry = { version = "=0.18.0", features = ["rt-tokio", "metrics", "trace"] }
-opentelemetry-otlp = { version = "=0.11.0", features = ["metrics"] }
+tracing-opentelemetry = "0.28"
+opentelemetry = "0.27"
+opentelemetry-otlp = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 
 [dev-dependencies]
 insta = { version = "1.42", features = ["glob", "redactions", "ron"] }

@@ -7,13 +7,12 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use opentelemetry::{
-    Context as OpenTelemetryCtx, global,
-    sdk::{
-        export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
-    },
+use opentelemetry::{global, trace::TracerProvider as _};
+use opentelemetry_otlp::{ExportConfig, MetricExporter, Protocol, SpanExporter, WithExportConfig};
+use opentelemetry_sdk::{
+    metrics::{PeriodicReader, SdkMeterProvider, Temporality},
+    trace::TracerProvider,
 };
-use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
 use tokio::{
     runtime,
     sync::{mpsc, oneshot},
@@ -26,7 +25,7 @@ use tokio_graceful_shutdown::{
 use tracing::{error, info, warn};
 use tracing_subscriber::{Layer, filter::LevelFilter, prelude::*};
 
-use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
+use crate::{conf::SeeleWorkMode, worker::action};
 
 mod cgroup;
 mod composer;
@@ -77,11 +76,7 @@ fn main() {
             if conf::CONFIG.telemetry.is_some() {
                 spawn_blocking(|| {
                     global::shutdown_tracer_provider();
-                    shared::metrics::METRICS_CONTROLLER
-                        .get()
-                        .unwrap()
-                        .stop(&OpenTelemetryCtx::current())
-                        .ok();
+                    shared::metrics::METRICS_PROVIDER.get().unwrap().shutdown().ok();
                 })
                 .await
                 .ok();
@@ -175,38 +170,44 @@ async fn setup_telemetry() -> Result<()> {
 
     info!("Initializing telemetry");
 
-    let tracer = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic().with_export_config(
-            ExportConfig {
-                endpoint: telemetry.collector_url.clone(),
-                timeout: Duration::from_secs(5),
-                protocol: Protocol::Grpc,
-            },
-        ))
-        .with_trace_config(trace::config().with_resource(METRICS_RESOURCE.clone()))
-        .install_batch(opentelemetry::runtime::Tokio)
+    let span_exporter = SpanExporter::builder()
+        .with_tonic()
+        .with_export_config(ExportConfig {
+            endpoint: Some(telemetry.collector_url.clone()),
+            timeout: Duration::from_secs(5),
+            protocol: Protocol::Grpc,
+        })
+        .build()
         .context("Failed to initialize the tracer")?;
 
-    let metrics = opentelemetry_otlp::new_pipeline()
-        .metrics(
-            selectors::simple::histogram(telemetry.histogram_boundaries.clone()),
-            cumulative_temporality_selector(),
-            opentelemetry::runtime::Tokio,
-        )
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic().with_export_config(
-            ExportConfig {
-                endpoint: telemetry.collector_url.clone(),
-                timeout: Duration::from_secs(5),
-                protocol: Protocol::Grpc,
-            },
-        ))
-        .with_resource(METRICS_RESOURCE.clone())
-        .with_period(Duration::from_secs(3))
+    let tracer_provider = TracerProvider::builder()
+        .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
+        .with_resource(shared::metrics::METRICS_RESOURCE.clone())
+        .build();
+
+    let tracer = tracer_provider.tracer("seele");
+
+    let metric_exporter = MetricExporter::builder()
+        .with_temporality(Temporality::Cumulative)
+        .with_tonic()
+        .with_export_config(ExportConfig {
+            endpoint: Some(telemetry.collector_url.clone()),
+            timeout: Duration::from_secs(5),
+            protocol: Protocol::Grpc,
+        })
         .build()
         .context("Failed to initialize the metrics")?;
 
-    shared::metrics::METRICS_CONTROLLER.set(metrics).ok();
+    let metrics = SdkMeterProvider::builder()
+        .with_reader(
+            PeriodicReader::builder(metric_exporter, opentelemetry_sdk::runtime::Tokio)
+                .with_interval(Duration::from_secs(3))
+                .build(),
+        )
+        .with_resource(shared::metrics::METRICS_RESOURCE.clone())
+        .build();
+
+    shared::metrics::METRICS_PROVIDER.set(metrics).ok();
 
     tracing::subscriber::set_global_default(
         tracing_subscriber::registry()
@@ -259,7 +260,6 @@ fn check_env() -> Result<()> {
     }
 
     info!("Registering metrics");
-    shared::metrics::register_gauge_metrics().context("Error registering gauge metrics")?;
 
     Ok(())
 }
