@@ -1,11 +1,11 @@
 use std::{collections::HashMap, path::Path};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures_util::future;
 use once_cell::sync::Lazy;
 use reqwest::{
-    multipart::{Form, Part},
     Client,
+    multipart::{Form, Part},
 };
 use tokio::{
     fs::{self, File},

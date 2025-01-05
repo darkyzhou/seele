@@ -1,18 +1,18 @@
 use std::{fs::Permissions, os::unix::prelude::PermissionsExt};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tracing::{instrument, warn};
 use triggered::Listener;
 
-use super::{MountFile, DEFAULT_MOUNT_DIRECTORY};
+use super::{DEFAULT_MOUNT_DIRECTORY, MountFile};
 use crate::{
     conf,
     entities::ActionReportExt,
     worker::{
-        run_container::{self, runj},
         ActionContext,
+        run_container::{self, runj},
     },
 };
 

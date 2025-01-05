@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
-use anyhow::{bail, Context, Result};
-use libcgroups::common::{read_cgroup_file, DEFAULT_CGROUP_ROOT};
+use anyhow::{Context, Result, bail};
+use libcgroups::common::{DEFAULT_CGROUP_ROOT, read_cgroup_file};
 
 pub fn check_and_get_self_cgroup() -> Result<PathBuf> {
     let content = fs::read_to_string("/proc/thread-self/cgroup")?;

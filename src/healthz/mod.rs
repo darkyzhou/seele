@@ -1,10 +1,8 @@
-use std::{convert::Infallible, net::SocketAddr};
+use std::net::SocketAddr;
 
-use anyhow::{Context, Result};
-use hyper::{
-    service::{make_service_fn, service_fn},
-    *,
-};
+use anyhow::Result;
+use axum::{Router, http::StatusCode, response::IntoResponse, routing::any};
+use tokio::net::TcpListener;
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing::info;
 
@@ -16,24 +14,28 @@ pub async fn healthz_main(handle: SubsystemHandle) -> Result<()> {
         return Ok(());
     }
 
-    let service = make_service_fn(move |_| async move {
-        Ok::<_, Infallible>(service_fn(move |_request| async move {
-            if check_healthz().await {
-                Response::builder().status(200).body("ok".to_string())
-            } else {
-                Response::builder().status(500).body("error".to_string())
-            }
-        }))
-    });
+    let app = Router::new().route("/", any(healthz_handler));
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], conf::CONFIG.healthz.port));
+    let listener = TcpListener::bind(addr).await?;
 
     info!("Running healthz endpoint at port: {}", conf::CONFIG.healthz.port);
-    Server::bind(&SocketAddr::from(([0, 0, 0, 0], conf::CONFIG.healthz.port)))
-        .serve(service)
+
+    axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             handle.on_shutdown_requested().await;
         })
-        .await
-        .context("Error in http server")
+        .await?;
+
+    Ok(())
+}
+
+async fn healthz_handler() -> impl IntoResponse {
+    if check_healthz().await {
+        (StatusCode::OK, "ok")
+    } else {
+        (StatusCode::INTERNAL_SERVER_ERROR, "error")
+    }
 }
 
 async fn check_healthz() -> bool {

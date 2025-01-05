@@ -2,7 +2,7 @@ use std::{
     collections::HashMap, fs::Permissions, os::unix::prelude::PermissionsExt, path::Path, sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::{
@@ -14,14 +14,14 @@ use tokio::{
 use tracing::{error, info, instrument, warn};
 use triggered::Listener;
 
-use super::{MountFile, DEFAULT_MOUNT_DIRECTORY};
+use super::{DEFAULT_MOUNT_DIRECTORY, MountFile};
 use crate::{
     conf,
     entities::{ActionReportExt, ActionSuccessReportExt},
     worker::{
+        ActionContext,
         action::run_container::cache,
         run_container::{self, runj},
-        ActionContext,
     },
 };
 
@@ -275,7 +275,7 @@ mod tests {
     use super::Config;
     use crate::{
         shared::image::OciImage,
-        worker::action::run_container::{self, run_judge::compile::CacheConfig, CommandConfig},
+        worker::action::run_container::{self, CommandConfig, run_judge::compile::CacheConfig},
     };
 
     #[tokio::test]

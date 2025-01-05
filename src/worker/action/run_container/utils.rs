@@ -5,9 +5,8 @@ use nix::mount;
 use tokio::fs;
 
 use super::{
-    idmap, image,
+    Config, idmap, image,
     runj::{self, OverlayfsConfig},
-    Config,
 };
 use crate::{
     cgroup,

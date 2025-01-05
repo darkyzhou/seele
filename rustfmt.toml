@@ -1,6 +1,6 @@
 # Format with "cargo +nightly fmt --all"
 
-version = "Two"
+style_edition = "2024"
 unstable_features = true
 
 newline_style = "Unix"

@@ -1,6 +1,6 @@
 use std::{io::Read, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use duct::cmd;
 use nix::{
     sys::signal::{self, Signal},
@@ -9,7 +9,7 @@ use nix::{
 use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
 use tokio::sync::oneshot;
-use tracing::{info, info_span, warn, Span};
+use tracing::{Span, info, info_span, warn};
 use triggered::Listener;
 
 pub use self::{entities::*, idmap::*, image::prepare_image};
@@ -21,7 +21,7 @@ use super::ActionContext;
 use crate::{
     cgroup, conf,
     entities::{ActionFailureReportExt, ActionReportExt, ActionSuccessReportExt},
-    shared::{runner, ABORTED_MESSAGE},
+    shared::{ABORTED_MESSAGE, runner},
     worker::run_container::runj::{ContainerExecutionReport, RunjConfig},
 };
 

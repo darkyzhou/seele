@@ -1,15 +1,15 @@
 use std::{iter, path::PathBuf, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use async_recursion::async_recursion;
 use either::Either;
 use futures_util::future;
 use ring_channel::RingSender;
 use tokio::{
-    sync::{oneshot, Mutex},
+    sync::{Mutex, oneshot},
     time::Instant,
 };
-use tracing::{debug, instrument, Span};
+use tracing::{Span, debug, instrument};
 
 use super::predicate;
 use crate::{
@@ -295,7 +295,7 @@ mod tests {
     use crate::{
         composer::resolve::resolve_submission,
         entities::{ActionReport, ActionSuccessReport, ActionSuccessReportExt},
-        worker::{action, WorkerQueueItem},
+        worker::{WorkerQueueItem, action},
     };
 
     #[test]

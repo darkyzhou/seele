@@ -1,12 +1,12 @@
 use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures_util::StreamExt;
-use lapin::{message::Delivery, Channel, ChannelState, Connection};
+use lapin::{Channel, ChannelState, Connection, message::Delivery};
 use once_cell::sync::Lazy;
 use ring_channel::ring_channel;
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::{Mutex, mpsc},
     time::sleep,
 };
 use tokio_graceful_shutdown::SubsystemHandle;

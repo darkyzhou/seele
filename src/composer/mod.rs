@@ -1,6 +1,6 @@
 use std::{num::NonZeroUsize, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use chrono::Utc;
 use ellipse::Ellipse;
 use futures_util::StreamExt;
@@ -12,7 +12,7 @@ use tokio::{
     time::Instant,
 };
 use tokio_graceful_shutdown::{FutureExt, SubsystemHandle};
-use tracing::{debug, error, field, instrument, Span};
+use tracing::{Span, debug, error, field, instrument};
 
 pub use self::signal::*;
 use crate::{
@@ -88,11 +88,9 @@ async fn handle_submission(
         let end = Instant::now();
         end.duration_since(begin).as_secs_f64()
     };
-    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(
-        &OpenTelemetryCtx::current(),
-        duration,
-        &[KeyValue::new(SUBMISSION_STATUS, signal_type)],
-    );
+    metrics::SUBMISSION_HANDLING_HISTOGRAM.record(&OpenTelemetryCtx::current(), duration, &[
+        KeyValue::new(SUBMISSION_STATUS, signal_type),
+    ]);
 }
 
 async fn do_handle_submission(

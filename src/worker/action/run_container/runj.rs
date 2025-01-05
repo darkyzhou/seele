@@ -150,19 +150,15 @@ pub enum ContainerExecutionStatus {
 
 impl Display for ContainerExecutionStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Normal => "NORMAL",
-                Self::RuntimeError => "RUNTIME_ERROR",
-                Self::SignalTerminate => "SIGNAL_TERMINATE",
-                Self::UserTimeLimitExceeded => "USER_TIME_LIMIT_EXCEEDED",
-                Self::WallTimeLimitExceeded => "WALL_TIME_LIMIT_EXCEEDED",
-                Self::MemoryLimitExceeded => "MEMORY_LIMIT_EXCEEDED",
-                Self::OutputLimitExceeded => "OUTPUT_LIMIT_EXCEEDED",
-                Self::Unknown => "UNKNOWN",
-            }
-        )
+        write!(f, "{}", match self {
+            Self::Normal => "NORMAL",
+            Self::RuntimeError => "RUNTIME_ERROR",
+            Self::SignalTerminate => "SIGNAL_TERMINATE",
+            Self::UserTimeLimitExceeded => "USER_TIME_LIMIT_EXCEEDED",
+            Self::WallTimeLimitExceeded => "WALL_TIME_LIMIT_EXCEEDED",
+            Self::MemoryLimitExceeded => "MEMORY_LIMIT_EXCEEDED",
+            Self::OutputLimitExceeded => "OUTPUT_LIMIT_EXCEEDED",
+            Self::Unknown => "UNKNOWN",
+        })
     }
 }

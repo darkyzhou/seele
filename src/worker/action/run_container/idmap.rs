@@ -3,7 +3,7 @@ use std::{
     io::{BufRead, BufReader},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use once_cell::sync::Lazy;
 
 use crate::conf;

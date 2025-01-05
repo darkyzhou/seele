@@ -3,10 +3,9 @@ use std::sync::atomic::Ordering;
 use anyhow::Result;
 use once_cell::sync::{Lazy, OnceCell};
 use opentelemetry::{
-    global,
+    KeyValue, global,
     metrics::{Histogram, Meter, ObservableGauge, Unit},
-    sdk::{metrics::controllers::BasicController, Resource},
-    KeyValue,
+    sdk::{Resource, metrics::controllers::BasicController},
 };
 
 use super::runner;

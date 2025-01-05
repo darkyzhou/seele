@@ -3,9 +3,9 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use bytes::Bytes;
-use futures_util::{future, Stream, StreamExt};
+use futures_util::{Stream, StreamExt, future};
 use http_cache::HttpCacheOptions;
 use once_cell::sync::Lazy;
 use tokio::{

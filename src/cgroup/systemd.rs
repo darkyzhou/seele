@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process, time::Duration};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use dbus::{
     arg::{RefArg, Variant},
     blocking::{Connection, Proxy},

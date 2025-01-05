@@ -2,7 +2,7 @@ use std::{fmt::Display, path::Path};
 
 use anyhow::bail;
 use once_cell::sync::Lazy;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de};
 
 pub mod compile;
 pub mod run;

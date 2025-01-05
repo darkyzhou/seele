@@ -2,8 +2,8 @@ use std::{
     fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf, sync::Arc, time::Duration,
 };
 
-use anyhow::{bail, Context, Result};
-use duct::{cmd, Handle};
+use anyhow::{Context, Result, bail};
+use duct::{Handle, cmd};
 use futures_util::FutureExt;
 use nix::{
     sys::signal::{self, Signal},
@@ -15,7 +15,7 @@ use tokio::{
     sync::oneshot,
     time::sleep,
 };
-use tracing::{debug, error, info, instrument, warn, Span};
+use tracing::{Span, debug, error, info, instrument, warn};
 use triggered::Listener;
 
 use crate::{

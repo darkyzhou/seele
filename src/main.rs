@@ -6,13 +6,12 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use opentelemetry::{
-    global,
+    Context as OpenTelemetryCtx, global,
     sdk::{
         export::metrics::aggregation::cumulative_temporality_selector, metrics::selectors, trace,
     },
-    Context as OpenTelemetryCtx,
 };
 use opentelemetry_otlp::{ExportConfig, Protocol, WithExportConfig};
 use tokio::{
@@ -22,10 +21,10 @@ use tokio::{
     time::sleep,
 };
 use tokio_graceful_shutdown::{
-    errors::SubsystemError, SubsystemBuilder, SubsystemHandle, Toplevel,
+    SubsystemBuilder, SubsystemHandle, Toplevel, errors::SubsystemError,
 };
 use tracing::{error, info, warn};
-use tracing_subscriber::{filter::LevelFilter, prelude::*, Layer};
+use tracing_subscriber::{Layer, filter::LevelFilter, prelude::*};
 
 use crate::{conf::SeeleWorkMode, shared::metrics::METRICS_RESOURCE, worker::action};
 

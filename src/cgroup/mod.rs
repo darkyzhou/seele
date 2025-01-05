@@ -5,8 +5,8 @@ use std::{
     process,
 };
 
-use anyhow::{bail, Context, Result};
-use libcgroups::common::{get_cgroup_setup, read_cgroup_file, write_cgroup_file_str, CgroupSetup};
+use anyhow::{Context, Result, bail};
+use libcgroups::common::{CgroupSetup, get_cgroup_setup, read_cgroup_file, write_cgroup_file_str};
 use once_cell::sync::Lazy;
 use tracing::debug;
 

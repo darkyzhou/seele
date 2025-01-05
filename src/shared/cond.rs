@@ -1,8 +1,8 @@
 use std::{collections::HashMap, hash::Hash};
 
 use futures_util::{
-    future::{BoxFuture, Shared},
     FutureExt,
+    future::{BoxFuture, Shared},
 };
 use tokio::sync::Mutex;
 use triggered::Listener;
