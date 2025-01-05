@@ -100,14 +100,19 @@ pub fn bind_application_threads() -> Result<()> {
         let content = read_cgroup_file(CGROUP_MAIN_SCOPE_PATH.join("cgroup.threads"))?;
         let pids = BufReader::new(content.as_bytes())
             .lines()
-            .flatten()
-            .filter_map(|line| {
-                let line = line.trim();
-                if *shared::TINI_PRESENTS && line == "1" {
-                    return None;
+            .map_while(|line| match line {
+                Ok(line) => {
+                    let line = line.trim();
+                    if *shared::TINI_PRESENTS && line == "1" {
+                        None
+                    } else {
+                        Some(
+                            line.parse::<u32>()
+                                .with_context(|| format!("Error parsing line: {line}")),
+                        )
+                    }
                 }
-
-                Some(line.parse::<u32>().with_context(|| format!("Error parsing line: {line}")))
+                Err(_) => None,
             })
             .collect::<Result<Vec<_>>>()?;
 

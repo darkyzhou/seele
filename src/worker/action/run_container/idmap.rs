@@ -25,7 +25,7 @@ pub static SUBGIDS: LazyLock<SubIds> =
 fn get_subids(path: &str) -> Result<SubIds> {
     let username = &conf::CONFIG.worker.action.run_container.userns_user;
     let reader = BufReader::new(File::open(path)?);
-    get_subids_impl(username, reader.lines().flatten())
+    get_subids_impl(username, reader.lines().map_while(Result::ok))
         .with_context(|| format!("Error getting subids from {path}"))
 }
 

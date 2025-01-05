@@ -114,6 +114,7 @@ pub async fn execute(
                     let mut writer = BufWriter::new(
                         OpenOptions::new()
                             .create(true)
+                            .truncate(true)
                             .write(true)
                             .mode(0o755)
                             .open(&target)
@@ -232,7 +233,7 @@ async fn calculate_hash(submission_root: &Path, config: &Config) -> Result<Box<[
 
     let mut hasher = Sha256::new();
 
-    hasher.update(&format!("{}", config.run_container_config.command));
+    hasher.update(format!("{}", config.run_container_config.command));
 
     for item in &config.cache.extra {
         hasher.update(item);

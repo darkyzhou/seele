@@ -202,9 +202,7 @@ mod tests {
 
         let file = File::create(PATH).await.unwrap();
         let (_trigger, listener) = triggered::trigger();
-        super::handle_http_url(listener, file, &"https://reqbin.com/echo/get/json".to_string())
-            .await
-            .unwrap();
+        super::handle_http_url(listener, file, "https://reqbin.com/echo/get/json").await.unwrap();
 
         assert_eq!(fs::read_to_string(PATH).await.unwrap(), "{\"success\":\"true\"}\n");
 
