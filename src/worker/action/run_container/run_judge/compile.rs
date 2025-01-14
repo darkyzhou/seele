@@ -92,9 +92,8 @@ pub async fn execute(
                 info!("Compilation cache miss");
             }
             Some(data) => {
-                let data: CacheData = spawn_blocking(move || {
-                    bincode::decode_from_slice(&data, bincode::config::standard())
-                        .map(|(data, _)| data)
+                let data = spawn_blocking(move || {
+                    rkyv::from_bytes::<CacheData, rkyv::rancor::Error>(&data)
                 })
                 .await?
                 .context("Error deserializing the data")?;
@@ -206,10 +205,9 @@ pub async fn execute(
 
             if let Some(hash) = hash {
                 if !cache_data.is_empty() {
-                    let data = spawn_blocking(move || {
-                        bincode::encode_to_vec(cache_data, bincode::config::standard())
-                    })
-                    .await??;
+                    let data =
+                        spawn_blocking(move || rkyv::to_bytes::<rkyv::rancor::Error>(&cache_data))
+                            .await??;
                     cache::write(hash, Arc::from(data.into_boxed_slice())).await;
                 }
             }

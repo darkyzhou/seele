@@ -13,7 +13,7 @@ anyhow = "1.0"
 async-recursion = "1.1"
 async-trait = "0.1"
 base64 = "0.22"
-bincode = "2.0.0-rc.3"
+rkyv = "0.8"
 bytes = "1.9"
 chrono = { version = "0.4", features = ["serde"] }
 config = "0.15"
