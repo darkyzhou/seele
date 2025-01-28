@@ -170,6 +170,7 @@ async fn setup_telemetry() -> Result<()> {
                 .finish(),
         )
         .context("Failed to initialize the tracing subscriber")?;
+        return Ok(());
     }
 
     let telemetry = conf::CONFIG.telemetry.as_ref().unwrap();
