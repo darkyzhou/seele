@@ -68,7 +68,7 @@ Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kub
       -v /etc/subuid:/etc/subuid \
       -v /etc/subgid:/etc/subgid \
       -v /sys/fs/cgroup:/sys/fs/cgroup \
-      -v `pwd`:/etc/seele \
+      -v $(pwd):/etc/seele \
       --tmpfs /tmp:exec,mode=777,size=1G \
       --cgroupns host \
       --net host \

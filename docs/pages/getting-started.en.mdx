@@ -68,7 +68,7 @@ Seele supports running in various environments, including bare-metal deployment,
       -v /etc/subuid:/etc/subuid \
       -v /etc/subgid:/etc/subgid \
       -v /sys/fs/cgroup:/sys/fs/cgroup \
-      -v `pwd`:/etc/seele \
+      -v $(pwd):/etc/seele \
       --tmpfs /tmp:exec,mode=777,size=1G \
       --cgroupns host \
       --net host \
