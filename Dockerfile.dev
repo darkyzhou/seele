@@ -5,7 +5,7 @@ RUN go mod download && go mod verify
 COPY runj/ ./
 RUN make build
 
-FROM lukemathwalker/cargo-chef:latest-rust-1.83-slim-bookworm AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.84-slim-bookworm AS chef
 RUN apt update -qq && \
     DEBIAN_FRONTEND=noninteractive apt install -qqy --no-install-recommends pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev patch
 WORKDIR /app

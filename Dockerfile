@@ -8,7 +8,7 @@ RUN go mod download && go mod verify
 COPY runj/ ./
 RUN make build
 
-FROM rust:1.83-slim-bookworm AS builder
+FROM rust:1.84-slim-bookworm AS builder
 RUN apt update -qq && \
     DEBIAN_FRONTEND=noninteractive apt install -qqy --no-install-recommends pkg-config libdbus-1-dev libsystemd-dev protobuf-compiler libssl-dev patch
 ENV COMMIT_TAG=$GIT_NAME
