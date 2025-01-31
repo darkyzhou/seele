@@ -15,7 +15,7 @@ ENV COMMIT_TAG=$GIT_NAME
 ENV COMMIT_SHA=$GIT_SHA
 WORKDIR /usr/src/seele
 COPY . .
-RUN cargo install --path .
+RUN cargo install --path crates/seele
 
 FROM bitnami/minideb:bookworm AS runtime
 WORKDIR /etc/seele
