@@ -1,13 +1,13 @@
 ---
-source: src/composer/resolve.rs
+source: crates/seele-composer/src/resolve.rs
 expression: submission
-input_file: src/composer/tests/submission_nested_sequence_3.yaml
+input_file: crates/seele-composer/src/tests/submission_nested_sequence_2.yaml
 ---
 Submission(
-  id: "nested_sequence_3",
+  id: "nested_sequence_2",
   root_directory: "test",
   config: SubmissionConfig(
-    id: "nested_sequence_3",
+    id: "nested_sequence_2",
     steps: {
       "one": {
         "status": "PENDING",
@@ -38,30 +38,6 @@ Submission(
           "four-one": {
             "status": "PENDING",
             "embeds": {},
-            "steps": {
-              "four-one-one": {
-                "status": "PENDING",
-                "embeds": {},
-                "steps": {
-                  "four-one-one-one": {
-                    "status": "PENDING",
-                    "embeds": {},
-                    "steps": {
-                      "four-one-one-one-one": {
-                        "status": "PENDING",
-                        "embeds": {},
-                        "steps": {
-                          "four-one-one-one-one-one": {
-                            "status": "PENDING",
-                            "embeds": {},
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
           },
           "four-two": {
             "status": "PENDING",
@@ -74,30 +50,6 @@ Submission(
               {
                 "status": "PENDING",
                 "embeds": {},
-                "parallel": [
-                  {
-                    "status": "PENDING",
-                    "embeds": {},
-                    "parallel": [
-                      {
-                        "status": "PENDING",
-                        "embeds": {},
-                        "parallel": [
-                          {
-                            "status": "PENDING",
-                            "embeds": {},
-                            "parallel": [
-                              {
-                                "status": "PENDING",
-                                "embeds": {},
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
               },
               {
                 "status": "PENDING",
@@ -167,34 +119,10 @@ Submission(
                               TaskNode(
                                 name: ".four.four-two.1",
                                 children: [],
-                                ext: [
-                                  TaskNode(
-                                    name: ".four.four-two.1.0",
-                                    children: [],
-                                    ext: [
-                                      TaskNode(
-                                        name: ".four.four-two.1.0.0",
-                                        children: [],
-                                        ext: [
-                                          TaskNode(
-                                            name: ".four.four-two.1.0.0.0",
-                                            children: [],
-                                            ext: [
-                                              TaskNode(
-                                                name: ".four.four-two.1.0.0.0.0",
-                                                children: [],
-                                                ext: Config(
-                                                  action: "seele/noop@1",
-                                                  test: 422,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 422,
+                                ),
                               ),
                               TaskNode(
                                 name: ".four.four-two.2",
@@ -207,34 +135,10 @@ Submission(
                             ],
                           ),
                         ],
-                        ext: [
-                          TaskNode(
-                            name: ".four.four-one.four-one-one",
-                            children: [],
-                            ext: [
-                              TaskNode(
-                                name: ".four.four-one.four-one-one.four-one-one-one",
-                                children: [],
-                                ext: [
-                                  TaskNode(
-                                    name: ".four.four-one.four-one-one.four-one-one-one.four-one-one-one-one",
-                                    children: [],
-                                    ext: [
-                                      TaskNode(
-                                        name: ".four.four-one.four-one-one.four-one-one-one.four-one-one-one-one.four-one-one-one-one-one",
-                                        children: [],
-                                        ext: Config(
-                                          action: "seele/noop@1",
-                                          test: 4111111,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
+                        ext: Config(
+                          action: "seele/noop@1",
+                          test: 41,
+                        ),
                       ),
                     ],
                   ),

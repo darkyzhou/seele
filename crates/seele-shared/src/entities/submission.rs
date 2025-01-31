@@ -39,8 +39,7 @@ impl<'a> ParallelTasks {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubmissionConfig {
-    #[cfg_attr(test, serde(skip_serializing))]
-    #[serde(skip_deserializing, default = "make_submitted_at")]
+    #[serde(skip_serializing, skip_deserializing, default = "make_submitted_at")]
     pub submitted_at: UtcTimestamp,
 
     #[serde(default = "random_submission_id")]
@@ -283,7 +282,7 @@ pub struct RootTaskNode {
 #[derive(Debug, Clone, Serialize)]
 pub struct TaskNode {
     pub name: String,
-    #[cfg_attr(test, serde(skip_serializing))]
+    #[serde(skip_serializing)]
     pub config: Arc<TaskConfig>,
     pub children: Vec<Arc<TaskNode>>,
     pub ext: TaskNodeExt,

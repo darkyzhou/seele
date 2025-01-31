@@ -1,13 +1,13 @@
 ---
-source: src/composer/resolve.rs
+source: crates/seele-composer/src/resolve.rs
 expression: submission
-input_file: src/composer/tests/submission_simple.yaml
+input_file: crates/seele-composer/src/tests/submission_needs_1.yaml
 ---
 Submission(
-  id: "simple",
+  id: "needs_1",
   root_directory: "test",
   config: SubmissionConfig(
-    id: "simple",
+    id: "needs_1",
     steps: {
       "one": {
         "status": "PENDING",
@@ -30,19 +30,18 @@ Submission(
         children: [
           TaskNode(
             name: ".two",
-            children: [
-              TaskNode(
-                name: ".three",
-                children: [],
-                ext: Config(
-                  action: "seele/noop@1",
-                  test: 3,
-                ),
-              ),
-            ],
+            children: [],
             ext: Config(
               action: "seele/noop@1",
               test: 2,
+            ),
+          ),
+          TaskNode(
+            name: ".three",
+            children: [],
+            ext: Config(
+              action: "seele/noop@1",
+              test: 3,
             ),
           ),
         ],

@@ -200,9 +200,13 @@ mod tests {
 
         let file = File::create(PATH).await.unwrap();
         let (_trigger, listener) = triggered::trigger();
-        super::handle_http_url(listener, file, "https://reqbin.com/echo/get/json").await.unwrap();
+        super::handle_http_url(listener, file, "https://httpbin.io/user-agent").await.unwrap();
 
-        assert_eq!(fs::read_to_string(PATH).await.unwrap(), "{\"success\":\"true\"}\n");
+        let ua = &super::conf::CONFIG.http.user_agent;
+        assert_eq!(
+            fs::read_to_string(PATH).await.unwrap(),
+            format!("{{\n  \"user-agent\": \"{}\"\n}}\n", ua)
+        );
 
         fs::remove_file(PATH).await.unwrap();
     }

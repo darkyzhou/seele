@@ -1,7 +1,7 @@
 ---
-source: src/composer/resolve.rs
+source: crates/seele-composer/src/resolve.rs
 expression: submission
-input_file: src/composer/tests/submission_complex_1.yaml
+input_file: crates/seele-composer/src/tests/submission_complex_1.yaml
 ---
 Submission(
   id: "complex_1",

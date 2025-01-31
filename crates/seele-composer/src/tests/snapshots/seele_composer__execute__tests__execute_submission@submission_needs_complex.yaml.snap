@@ -1,7 +1,7 @@
 ---
-source: src/composer/execute.rs
+source: crates/seele-composer/src/execute.rs
 expression: results
-input_file: src/composer/tests/submission_complex_1.yaml
+input_file: crates/seele-composer/src/tests/submission_needs_complex.yaml
 ---
 [
   Config(
@@ -10,22 +10,26 @@ input_file: src/composer/tests/submission_complex_1.yaml
   ),
   Config(
     action: "seele/noop@1",
-    test: 201,
+    test: 2111,
   ),
   Config(
     action: "seele/noop@1",
-    test: 202,
+    test: 3,
   ),
   Config(
     action: "seele/noop@1",
-    test: 301,
+    test: 2112,
   ),
   Config(
     action: "seele/noop@1",
-    test: 302,
+    test: 2113,
   ),
   Config(
     action: "seele/noop@1",
-    test: 303,
+    test: 2115,
+  ),
+  Config(
+    action: "seele/noop@1",
+    test: 2114,
   ),
 ]
