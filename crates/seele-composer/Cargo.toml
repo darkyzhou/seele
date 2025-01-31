@@ -1,0 +1,65 @@
+[package]
+edition.workspace = true
+name = "seele_composer"
+version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-recursion = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+base64 = { workspace = true }
+bytes = { workspace = true }
+chrono = { workspace = true }
+config = { workspace = true }
+dbus = { workspace = true }
+duct = { workspace = true }
+either = { workspace = true }
+ellipse = { workspace = true }
+futures-util = { workspace = true }
+http = { workspace = true }
+http-cache = { workspace = true }
+http-cache-reqwest = { workspace = true }
+indexmap = { workspace = true }
+lapin = { workspace = true }
+libcgroups = { workspace = true }
+moka = { workspace = true }
+nano-id = { workspace = true }
+nix = { workspace = true }
+num_cpus = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+quick-js = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true }
+ring-channel = { workspace = true }
+rkyv = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
+shell-words = { workspace = true }
+systemd = { workspace = true }
+thread_local = { workspace = true }
+tokio = { workspace = true }
+tokio-graceful-shutdown = { workspace = true }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+triggered = { workspace = true }
+url = { workspace = true }
+uzers = { workspace = true }
+
+# local dependencies
+
+seele_config = { workspace = true }
+seele_shared = { workspace = true }
+seele_worker = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+map-macro = { workspace = true }
+rand = { workspace = true }
