@@ -86,7 +86,7 @@ fn execute_runj(
             Some(cpu) => *cpu,
             None => {
                 let cpu = cgroup::get_self_cpuset_cpu().context("Error getting self cpuset cpu")?;
-                _ = local.get_or(|| cpu);
+                local.get_or(|| cpu);
                 cpu
             }
         };
@@ -115,7 +115,7 @@ fn execute_runj(
                 _ = cancel_rx => {},
                 _ = abort => {
                     for pid in &pids {
-                        _ = signal::kill(Pid::from_raw(*pid as i32), Signal::SIGTERM);
+                        signal::kill(Pid::from_raw(*pid as i32), Signal::SIGTERM).ok();
                     }
                     info!(parent: span, "Sent SIGTERM to pids: {pids:?}");
                 }

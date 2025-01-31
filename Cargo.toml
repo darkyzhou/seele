@@ -6,7 +6,7 @@ edition = "2021"
 [profile.release]
 opt-level = 3
 strip = true
-lto = true
+lto = "thin"
 
 [dependencies]
 anyhow = "1.0"
@@ -61,4 +61,4 @@ opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 [dev-dependencies]
 insta = { version = "1.42", features = ["glob", "redactions", "ron"] }
 map-macro = "0.3"
-rand = { version = "0.8" }
+rand = { version = "0.9" }

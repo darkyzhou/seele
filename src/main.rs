@@ -22,7 +22,7 @@ use tokio::{
 use tokio_graceful_shutdown::{
     SubsystemBuilder, SubsystemHandle, Toplevel, errors::SubsystemError,
 };
-use tracing::{error, info, warn};
+use tracing::*;
 use tracing_subscriber::{Layer, filter::LevelFilter, prelude::*};
 
 use crate::{conf::SeeleWorkMode, worker::action};
@@ -225,9 +225,12 @@ async fn setup_telemetry() -> Result<()> {
 }
 
 fn check_env() -> Result<()> {
-    info!("Checking cpu counts");
+    debug!("Checking cpu counts");
     let logical_cpu_count = num_cpus::get();
     let physical_cpu_count = num_cpus::get_physical();
+
+    info!("CPU counts: {}/{} (logical/physical)", logical_cpu_count, physical_cpu_count);
+
     if physical_cpu_count < logical_cpu_count {
         // TODO: Add link to document
         warn!(
@@ -238,7 +241,7 @@ fn check_env() -> Result<()> {
     }
 
     if !matches!(&conf::CONFIG.work_mode, SeeleWorkMode::RootlessContainerized) {
-        info!("Checking id maps");
+        debug!("Checking id maps");
         if action::run_container::SUBUIDS.count < 65536 {
             bail!(
                 "The user specified in the run_container namespace config has not enough subuid \
@@ -251,6 +254,14 @@ fn check_env() -> Result<()> {
                  mapping range"
             );
         }
+
+        info!(
+            "User namespace subuid mapping range: {}-{}, subgid mapping range: {}-{}",
+            action::run_container::SUBUIDS.begin,
+            action::run_container::SUBUIDS.begin + action::run_container::SUBUIDS.count,
+            action::run_container::SUBGIDS.begin,
+            action::run_container::SUBGIDS.begin + action::run_container::SUBGIDS.count
+        );
     }
 
     info!("Creating necessary directories in {}", conf::PATHS.root.display());

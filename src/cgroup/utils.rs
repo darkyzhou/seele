@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use libcgroups::common::{DEFAULT_CGROUP_ROOT, read_cgroup_file};
 
 pub fn check_and_get_self_cgroup() -> Result<PathBuf> {
@@ -31,5 +31,9 @@ pub fn check_and_get_self_cgroup() -> Result<PathBuf> {
 pub fn get_self_cpuset_cpu() -> Result<i64> {
     let path = check_and_get_self_cgroup()?;
     let content = read_cgroup_file(path.join("cpuset.cpus"))?;
-    content.trim().parse().with_context(|| format!("Unexpected cpuset.cpus content: {}", content))
+    tracing::debug!("cpuset.cpus path: {:?}", path.join("cpuset.cpus"));
+    match content.trim().parse() {
+        Ok(cpu) => Ok(cpu),
+        Err(_err) => bail!("Error parsing cpuset.cpus content: {:?}", content),
+    }
 }

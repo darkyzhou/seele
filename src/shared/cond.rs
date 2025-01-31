@@ -87,7 +87,7 @@ mod tests {
         let group: CondGroup<i32, (i32, i32)> = CondGroup::new(|num: &i32| {
             let num = *num;
             tokio::time::sleep(Duration::from_millis(100))
-                .map(move |_| (num, rand::thread_rng().gen_range(0..1000)))
+                .map(move |_| (num, rand::rng().random_range(0..1000)))
                 .boxed()
         });
 
@@ -103,7 +103,7 @@ mod tests {
         let group: CondGroup<i32, (i32, i32)> = CondGroup::new(|num: &i32| {
             let num = *num;
             tokio::time::sleep(Duration::from_millis(100))
-                .map(move |_| (num, rand::thread_rng().gen_range(0..1000)))
+                .map(move |_| (num, rand::rng().random_range(0..1000)))
                 .boxed()
         });
 
