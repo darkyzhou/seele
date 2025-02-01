@@ -59,17 +59,17 @@ impl Default for ActionAddFileConfig {
 }
 
 #[inline]
-fn default_cache_strategy() -> HttpCacheStrategy {
+const fn default_cache_strategy() -> HttpCacheStrategy {
     HttpCacheStrategy::Default
 }
 
 #[inline]
-fn default_cache_size_mib() -> u64 {
+const fn default_cache_size_mib() -> u64 {
     512
 }
 
 #[inline]
-fn default_cache_ttl_hour() -> u64 {
+const fn default_cache_ttl_hour() -> u64 {
     24 * 3
 }
 
@@ -116,12 +116,12 @@ impl Default for ActionRunContainerConfig {
 }
 
 #[inline]
-fn default_pull_image_timeout_seconds() -> u64 {
+const fn default_pull_image_timeout_seconds() -> u64 {
     600
 }
 
 #[inline]
-fn default_unpack_image_timeout_seconds() -> u64 {
+const fn default_unpack_image_timeout_seconds() -> u64 {
     600
 }
 

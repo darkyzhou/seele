@@ -63,11 +63,11 @@ pub struct LapinExchangeConfig {
 }
 
 #[inline]
-fn default_http_address() -> IpAddr {
+const fn default_http_address() -> IpAddr {
     IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))
 }
 
 #[inline]
-fn default_max_body_size() -> u64 {
+const fn default_max_body_size() -> u64 {
     8 * 1024 * 1024
 }

@@ -39,21 +39,21 @@ fn default_user_agent() -> String {
 }
 
 #[inline]
-fn default_connect_timeout_seconds() -> u64 {
+const fn default_connect_timeout_seconds() -> u64 {
     8
 }
 
 #[inline]
-fn default_timeout_seconds() -> u64 {
+const fn default_timeout_seconds() -> u64 {
     60
 }
 
 #[inline]
-fn default_pool_idle_timeout_seconds() -> u64 {
+const fn default_pool_idle_timeout_seconds() -> u64 {
     600
 }
 
 #[inline]
-fn default_pool_max_idle_per_host() -> usize {
+const fn default_pool_max_idle_per_host() -> usize {
     8
 }

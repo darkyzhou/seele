@@ -16,11 +16,11 @@ impl Default for HealthzConfig {
 }
 
 #[inline]
-fn default_enabled() -> bool {
+const fn default_enabled() -> bool {
     true
 }
 
 #[inline]
-fn default_port() -> u16 {
+const fn default_port() -> u16 {
     50000
 }

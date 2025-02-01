@@ -122,7 +122,7 @@ impl Default for ThreadCounts {
 }
 
 #[inline]
-fn default_worker_thread_count() -> usize {
+const fn default_worker_thread_count() -> usize {
     1
 }
 
