@@ -326,9 +326,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.85"
+version = "0.1.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f934833b4b7233644e5848f235df3f57ed8c80f1528a26c3dfa13d2147fa056"
+checksum = "644dd749086bf3771a2fbc5f256fdb982d53f011c7d5d560304eafeecebce79d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -660,9 +660,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.10"
+version = "1.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13208fcbb66eaeffe09b99fffbe1af420f00a7b35aa99ad683dfc1aa76145229"
+checksum = "e4730490333d58093109dc02c23174c3f4d490998c3fed3cc8e82d57afedb9cf"
 dependencies = [
  "shlex",
 ]
@@ -2190,12 +2190,12 @@ dependencies = [
 
 [[package]]
 name = "miette"
-version = "7.4.0"
+version = "7.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "317f146e2eb7021892722af37cf1b971f0a70c8406f487e24952667616192c64"
+checksum = "1a955165f87b37fd1862df2a59547ac542c77ef6d17c666f619d1ad22dd89484"
 dependencies = [
  "cfg-if",
- "miette-derive 7.4.0",
+ "miette-derive 7.5.0",
  "thiserror 1.0.69",
  "unicode-width",
 ]
@@ -2213,9 +2213,9 @@ dependencies = [
 
 [[package]]
 name = "miette-derive"
-version = "7.4.0"
+version = "7.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23c9b935fbe1d6cbd1dac857b54a688145e2d93f48db36010514d0f612d0ad67"
+checksum = "bf45bf44ab49be92fd1227a3be6fc6f617f1a337c06af54981048574d8783147"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4186,7 +4186,7 @@ dependencies = [
  "async-trait",
  "atomic",
  "bytemuck",
- "miette 7.4.0",
+ "miette 7.5.0",
  "pin-project-lite",
  "thiserror 2.0.11",
  "tokio",
