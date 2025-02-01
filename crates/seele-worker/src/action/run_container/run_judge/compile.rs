@@ -38,7 +38,7 @@ pub async fn execute(
     };
 
     if let Some(hash) = &hash {
-        match cache::get(hash.as_ref()).await {
+        match cache::get(hash.as_ref()) {
             None => {
                 info!("Compilation cache miss");
             }
@@ -159,7 +159,7 @@ pub async fn execute(
                     let data =
                         spawn_blocking(move || rkyv::to_bytes::<rkyv::rancor::Error>(&cache_data))
                             .await??;
-                    cache::write(hash, Arc::from(data.into_boxed_slice())).await;
+                    cache::write(hash, Arc::from(data.into_boxed_slice()));
                 }
             }
         }

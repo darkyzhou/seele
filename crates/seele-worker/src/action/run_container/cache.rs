@@ -18,14 +18,14 @@ static CACHE: LazyLock<Cache<Box<[u8]>, Arc<[u8]>>> = LazyLock::new(|| {
         .build()
 });
 
-pub async fn init() {
+pub fn init() {
     LazyLock::force(&CACHE);
 }
 
-pub async fn get(key: &[u8]) -> Option<Arc<[u8]>> {
+pub fn get(key: &[u8]) -> Option<Arc<[u8]>> {
     CACHE.get(key)
 }
 
-pub async fn write(key: Box<[u8]>, value: Arc<[u8]>) {
+pub fn write(key: Box<[u8]>, value: Arc<[u8]>) {
     CACHE.insert(key, value)
 }
