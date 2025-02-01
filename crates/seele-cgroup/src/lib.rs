@@ -96,21 +96,16 @@ pub fn bind_application_threads() -> Result<()> {
 
     let pids = {
         let content = read_cgroup_file(CGROUP_MAIN_SCOPE_PATH.join("cgroup.threads"))?;
-        let pids = BufReader::new(content.as_bytes())
+        let pids: Vec<u32> = BufReader::new(content.as_bytes())
             .lines()
-            .map_while(|line| match line {
-                Ok(line) => {
-                    let line = line.trim();
-                    if *shared::TINI_PRESENTS && line == "1" {
-                        None
-                    } else {
-                        Some(
-                            line.parse::<u32>()
-                                .with_context(|| format!("Error parsing line: {line}")),
-                        )
-                    }
+            .map_while(Result::ok)
+            .filter_map(|line| {
+                let line = line.trim();
+                if *shared::TINI_PRESENTS && line == "1" {
+                    None
+                } else {
+                    Some(line.parse::<u32>().with_context(|| format!("Error parsing line: {line}")))
                 }
-                Err(_) => None,
             })
             .collect::<Result<Vec<_>>>()?;
 
