@@ -1,0 +1,142 @@
+---
+source: crates/seele-composer/src/resolve.rs
+expression: submission
+input_file: crates/seele-composer/src/tests/submission_needs_complex.yaml
+---
+Submission(
+  id: "needs_complex",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "needs_complex",
+    steps: {
+      "one": {
+        "status": "PENDING",
+        "embeds": {},
+      },
+      "two": {
+        "status": "PENDING",
+        "embeds": {},
+        "steps": {
+          "two-one": {
+            "status": "PENDING",
+            "embeds": {},
+            "parallel": [
+              {
+                "status": "PENDING",
+                "embeds": {},
+                "steps": {
+                  "two-one-one": {
+                    "status": "PENDING",
+                    "embeds": {},
+                  },
+                  "two-one-two": {
+                    "status": "PENDING",
+                    "embeds": {},
+                  },
+                  "two-one-three": {
+                    "status": "PENDING",
+                    "embeds": {},
+                  },
+                  "two-one-four": {
+                    "status": "PENDING",
+                    "embeds": {},
+                  },
+                  "two-one-five": {
+                    "status": "PENDING",
+                    "embeds": {},
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      "three": {
+        "status": "PENDING",
+        "embeds": {},
+      },
+    },
+  ),
+  root_node: RootTaskNode(
+    tasks: [
+      TaskNode(
+        name: ".one",
+        children: [
+          TaskNode(
+            name: ".two",
+            children: [],
+            ext: [
+              TaskNode(
+                name: ".two.two-one",
+                children: [],
+                ext: [
+                  TaskNode(
+                    name: ".two.two-one.0",
+                    children: [],
+                    ext: [
+                      TaskNode(
+                        name: ".two.two-one.0.two-one-one",
+                        children: [
+                          TaskNode(
+                            name: ".two.two-one.0.two-one-two",
+                            children: [
+                              TaskNode(
+                                name: ".two.two-one.0.two-one-five",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 2115,
+                                ),
+                              ),
+                            ],
+                            ext: Config(
+                              action: "seele/noop@1",
+                              test: 2112,
+                            ),
+                          ),
+                          TaskNode(
+                            name: ".two.two-one.0.two-one-three",
+                            children: [
+                              TaskNode(
+                                name: ".two.two-one.0.two-one-four",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 2114,
+                                ),
+                              ),
+                            ],
+                            ext: Config(
+                              action: "seele/noop@1",
+                              test: 2113,
+                            ),
+                          ),
+                        ],
+                        ext: Config(
+                          action: "seele/noop@1",
+                          test: 2111,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          TaskNode(
+            name: ".three",
+            children: [],
+            ext: Config(
+              action: "seele/noop@1",
+              test: 3,
+            ),
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

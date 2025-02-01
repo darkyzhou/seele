@@ -1,0 +1,81 @@
+---
+source: crates/seele-composer/src/resolve.rs
+expression: submission
+input_file: crates/seele-composer/src/tests/submission_nested_sequence_1.yaml
+---
+Submission(
+  id: "nested_sequence_1",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "nested_sequence_1",
+    steps: {
+      "one": {
+        "status": "PENDING",
+        "embeds": {},
+      },
+      "two": {
+        "status": "PENDING",
+        "embeds": {},
+        "steps": {
+          "two-one": {
+            "status": "PENDING",
+            "embeds": {},
+          },
+          "two-two": {
+            "status": "PENDING",
+            "embeds": {},
+          },
+        },
+      },
+      "three": {
+        "status": "PENDING",
+        "embeds": {},
+      },
+    },
+  ),
+  root_node: RootTaskNode(
+    tasks: [
+      TaskNode(
+        name: ".one",
+        children: [
+          TaskNode(
+            name: ".two",
+            children: [
+              TaskNode(
+                name: ".three",
+                children: [],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 3,
+                ),
+              ),
+            ],
+            ext: [
+              TaskNode(
+                name: ".two.two-one",
+                children: [
+                  TaskNode(
+                    name: ".two.two-two",
+                    children: [],
+                    ext: Config(
+                      action: "seele/noop@1",
+                      test: 22,
+                    ),
+                  ),
+                ],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 21,
+                ),
+              ),
+            ],
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

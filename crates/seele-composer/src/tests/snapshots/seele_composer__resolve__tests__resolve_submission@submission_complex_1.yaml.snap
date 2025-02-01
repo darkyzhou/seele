@@ -1,0 +1,130 @@
+---
+source: crates/seele-composer/src/resolve.rs
+expression: submission
+input_file: crates/seele-composer/src/tests/submission_complex_1.yaml
+---
+Submission(
+  id: "complex_1",
+  root_directory: "test",
+  config: SubmissionConfig(
+    id: "complex_1",
+    steps: {
+      "prepare_sources": {
+        "status": "PENDING",
+        "embeds": {},
+      },
+      "compile": {
+        "status": "PENDING",
+        "embeds": {},
+        "parallel": [
+          {
+            "status": "PENDING",
+            "embeds": {},
+          },
+          {
+            "status": "PENDING",
+            "embeds": {},
+          },
+        ],
+      },
+      "standard": {
+        "status": "PENDING",
+        "embeds": {},
+        "parallel": [
+          {
+            "status": "PENDING",
+            "embeds": {},
+            "steps": {
+              "prepare": {
+                "status": "PENDING",
+                "embeds": {},
+              },
+              "run": {
+                "status": "PENDING",
+                "embeds": {},
+              },
+              "compare": {
+                "status": "PENDING",
+                "embeds": {},
+              },
+            },
+          },
+        ],
+      },
+    },
+  ),
+  root_node: RootTaskNode(
+    tasks: [
+      TaskNode(
+        name: ".prepare_sources",
+        children: [
+          TaskNode(
+            name: ".compile",
+            children: [
+              TaskNode(
+                name: ".standard",
+                children: [],
+                ext: [
+                  TaskNode(
+                    name: ".standard.0",
+                    children: [],
+                    ext: [
+                      TaskNode(
+                        name: ".standard.0.prepare",
+                        children: [
+                          TaskNode(
+                            name: ".standard.0.run",
+                            children: [
+                              TaskNode(
+                                name: ".standard.0.compare",
+                                children: [],
+                                ext: Config(
+                                  action: "seele/noop@1",
+                                  test: 303,
+                                ),
+                              ),
+                            ],
+                            ext: Config(
+                              action: "seele/noop@1",
+                              test: 302,
+                            ),
+                          ),
+                        ],
+                        ext: Config(
+                          action: "seele/noop@1",
+                          test: 301,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+            ext: [
+              TaskNode(
+                name: ".compile.0",
+                children: [],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 201,
+                ),
+              ),
+              TaskNode(
+                name: ".compile.1",
+                children: [],
+                ext: Config(
+                  action: "seele/noop@1",
+                  test: 202,
+                ),
+              ),
+            ],
+          ),
+        ],
+        ext: Config(
+          action: "seele/noop@1",
+          test: 1,
+        ),
+      ),
+    ],
+  ),
+)

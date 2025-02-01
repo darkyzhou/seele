@@ -1,0 +1,33 @@
+[package]
+edition.workspace = true
+name = "seele_composer"
+version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-recursion = { workspace = true }
+chrono = { workspace = true }
+either = { workspace = true }
+ellipse = { workspace = true }
+futures-util = { workspace = true }
+opentelemetry = { workspace = true }
+quick-js = { workspace = true }
+reqwest = { workspace = true }
+ring-channel = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+tokio-graceful-shutdown = { workspace = true }
+tracing = { workspace = true }
+
+# local dependencies
+
+seele_config = { workspace = true }
+seele_shared = { workspace = true }
+seele_worker = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
+map-macro = { workspace = true }
+rand = { workspace = true }

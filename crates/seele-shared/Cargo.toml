@@ -1,0 +1,27 @@
+[package]
+edition.workspace = true
+name = "seele_shared"
+version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+either = { workspace = true }
+ellipse = { workspace = true }
+futures-util = { workspace = true }
+indexmap = { workspace = true }
+nano-id = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+shell-words = { workspace = true }
+tokio = { workspace = true }
+triggered = { workspace = true }
+url = { workspace = true }
+
+# local dependencies
+
+seele_config = { workspace = true }
