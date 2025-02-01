@@ -36,9 +36,9 @@ fn main() {
 
     runtime
         .block_on(async move {
-            cgroup::setup_cgroup().await?;
-
             telemetry::setup_telemetry().await?;
+
+            cgroup::setup_cgroup().await?;
 
             spawn_blocking(check_env).await??;
 
