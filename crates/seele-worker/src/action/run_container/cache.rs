@@ -19,7 +19,7 @@ static CACHE: LazyLock<Cache<Box<[u8]>, Arc<[u8]>>> = LazyLock::new(|| {
 });
 
 pub async fn init() {
-    _ = *CACHE;
+    LazyLock::force(&CACHE);
 }
 
 pub async fn get(key: &[u8]) -> Option<Arc<[u8]>> {
