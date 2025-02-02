@@ -28,6 +28,24 @@ The installation steps below assume the use of the `seele` user and group, with 
 
 </Callout>
 
+<Callout type="warning">
+
+If you're using Ubuntu 23.10 or later, you may need to add the following to `/etc/sysctl.conf`:
+
+```sh
+kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+Or run:
+
+```sh
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+Reference article: [Restricted unprivileged user namespaces are coming to Ubuntu 23.10](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces)
+
+</Callout>
+
 ## Installation Steps
 
 Seele supports running in various environments, including bare-metal deployment, Docker deployment, and Kubernetes deployment, with Docker deployment being the simplest method.

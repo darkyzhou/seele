@@ -28,6 +28,24 @@ adduser --no-create-home --disabled-login --disabled-password --gecos "" seele
 
 </Callout>
 
+<Callout type="warning">
+
+若您使用 Ubuntu 23.10 或更高版本，您可能需要在 `/etc/sysctl.conf` 中添加以下内容：
+
+```sh
+kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+或执行：
+
+```sh
+sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+
+参考文章：[Restricted unprivileged user namespaces are coming to Ubuntu 23.10](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces)
+
+</Callout>
+
 ## 安装步骤
 
 Seele 支持在多种环境下运行，包括裸机部署、Docker 部署和 Kubernetes 部署，最简单的方式是 Docker 部署。
