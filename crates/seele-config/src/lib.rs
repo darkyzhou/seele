@@ -71,6 +71,7 @@ pub struct SeeleConfig {
 #[derive(Debug, Copy, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LogLevel {
+    Trace,
     Debug,
     Info,
     Warn,
@@ -87,6 +88,7 @@ impl Default for LogLevel {
 impl From<LogLevel> for LevelFilter {
     fn from(val: LogLevel) -> Self {
         match val {
+            LogLevel::Trace => LevelFilter::TRACE,
             LogLevel::Debug => LevelFilter::DEBUG,
             LogLevel::Info => LevelFilter::INFO,
             LogLevel::Warn => LevelFilter::WARN,

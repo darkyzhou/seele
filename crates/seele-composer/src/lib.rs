@@ -93,8 +93,10 @@ async fn handle_submission(
         end.duration_since(begin).as_secs_f64()
     };
 
-    metrics::SUBMISSION_HANDLING_HISTOGRAM
-        .record(duration, &[KeyValue::new(SUBMISSION_STATUS, signal_type)]);
+    metrics::record_submission_handling_duration(duration, &[KeyValue::new(
+        SUBMISSION_STATUS,
+        signal_type,
+    )]);
 }
 
 async fn do_handle_submission(

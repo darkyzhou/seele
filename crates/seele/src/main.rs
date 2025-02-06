@@ -66,7 +66,7 @@ fn main() {
             if conf::CONFIG.telemetry.is_some() {
                 spawn_blocking(|| {
                     global::shutdown_tracer_provider();
-                    shared::metrics::METRICS_PROVIDER.get().unwrap().shutdown().ok();
+                    shared::metrics::shutdown_meter_provider();
                 })
                 .await
                 .ok();
@@ -118,8 +118,6 @@ fn check_env() -> Result<()> {
     debug!("Checking cpu counts");
     let logical_cpu_count = num_cpus::get();
     let physical_cpu_count = num_cpus::get_physical();
-
-    info!("CPU counts: {}/{} (logical/physical)", logical_cpu_count, physical_cpu_count);
 
     if physical_cpu_count < logical_cpu_count {
         // TODO: Add link to document

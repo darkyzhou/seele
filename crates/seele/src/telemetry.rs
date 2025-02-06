@@ -40,7 +40,7 @@ pub async fn setup_telemetry() -> Result<()> {
 
     let tracer_provider = TracerProvider::builder()
         .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_resource(shared::metrics::METRICS_RESOURCE.clone())
+        .with_resource(shared::metrics::metrics_resource())
         .build();
 
     let tracer = tracer_provider.tracer("seele");
@@ -56,19 +56,16 @@ pub async fn setup_telemetry() -> Result<()> {
         .build()
         .context("Failed to initialize the metrics")?;
 
-    let metrics = SdkMeterProvider::builder()
+    let meter_provider = SdkMeterProvider::builder()
         .with_reader(
             PeriodicReader::builder(metric_exporter, opentelemetry_sdk::runtime::Tokio)
                 .with_interval(Duration::from_secs(3))
                 .build(),
         )
-        .with_resource(shared::metrics::METRICS_RESOURCE.clone())
+        .with_resource(shared::metrics::metrics_resource())
         .build();
 
-    shared::metrics::METRICS_PROVIDER.set(metrics).ok();
-
-    info!("Registering metrics");
-    shared::metrics::register_callback_metrics();
+    shared::metrics::init_with_meter_provider(meter_provider);
 
     tracing::subscriber::set_global_default(
         tracing_subscriber::registry()

@@ -10,7 +10,6 @@ use anyhow::{Context, Result, bail};
 use libcgroups::common::{CgroupSetup, get_cgroup_setup, read_cgroup_file, write_cgroup_file_str};
 use seele_config as conf;
 use seele_shared as shared;
-use tracing::debug;
 
 pub use self::utils::*;
 
@@ -132,8 +131,6 @@ pub fn bind_application_threads() -> Result<()> {
         write_cgroup_file_str(cgroup_path.join("cgroup.type"), "threaded")?;
         write_cgroup_file_str(cgroup_path.join("cgroup.threads"), &format!("{}", pid))?;
         write_cgroup_file_str(cgroup_path.join("cpuset.cpus"), &format!("{}", cpu))?;
-
-        debug!("Bound thread {} to core {}", pid, cpu);
     }
 
     Ok(())
