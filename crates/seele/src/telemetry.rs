@@ -67,6 +67,9 @@ pub async fn setup_telemetry() -> Result<()> {
 
     shared::metrics::METRICS_PROVIDER.set(metrics).ok();
 
+    info!("Registering metrics");
+    shared::metrics::register_callback_metrics();
+
     tracing::subscriber::set_global_default(
         tracing_subscriber::registry()
             .with(

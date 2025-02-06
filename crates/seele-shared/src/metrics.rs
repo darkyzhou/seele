@@ -63,7 +63,15 @@ pub static SUBMISSION_HANDLING_HISTOGRAM: LazyLock<Histogram<f64>> = LazyLock::n
         .build()
 });
 
-pub static RUNNER_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> = LazyLock::new(|| {
+/// Register metrics in LazyLocks
+///
+/// These metrics are registered with callbacks to update their values
+pub fn register_callback_metrics() {
+    LazyLock::force(&RUNNER_COUNT_GAUGE);
+    LazyLock::force(&PENDING_CONTAINER_ACTION_COUNT_GAUGE);
+}
+
+static RUNNER_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> = LazyLock::new(|| {
     METER
         .u64_observable_gauge("seele.runner.count")
         .with_description("Count of available runner threads")
@@ -73,11 +81,10 @@ pub static RUNNER_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> = LazyLock::new(||
         .build()
 });
 
-pub static PENDING_CONTAINER_ACTION_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> =
-    LazyLock::new(|| {
-        METER
-            .u64_observable_gauge("seele.action.container.pending.count")
-            .with_description("Count of pending container actions in the worker queue")
-            .with_callback(|ctx| ctx.observe(runner::PENDING_TASKS.load(Ordering::SeqCst), &[]))
-            .build()
-    });
+static PENDING_CONTAINER_ACTION_COUNT_GAUGE: LazyLock<ObservableGauge<u64>> = LazyLock::new(|| {
+    METER
+        .u64_observable_gauge("seele.action.container.pending.count")
+        .with_description("Count of pending container actions in the worker queue")
+        .with_callback(|ctx| ctx.observe(runner::PENDING_TASKS.load(Ordering::SeqCst), &[]))
+        .build()
+});
