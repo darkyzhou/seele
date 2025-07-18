@@ -1,20 +1,20 @@
 [package]
 edition.workspace = true
-name = "seele_config"
+name              = "seele_config"
 version.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-config = { workspace = true }
-http-cache = { workspace = true }
-indexmap = { workspace = true }
-lapin = { workspace = true }
-nano-id = { workspace = true }
-nix = { workspace = true }
-num_cpus = { workspace = true }
-serde = { workspace = true }
-tokio = { workspace = true }
-tracing = { workspace = true }
+anyhow             = { workspace = true }
+config             = { workspace = true }
+http-cache         = { workspace = true }
+indexmap           = { workspace = true }
+lapin              = { workspace = true }
+nano-id            = { workspace = true }
+nix                = { workspace = true }
+num_cpus           = { workspace = true }
+serde              = { workspace = true }
+tokio              = { workspace = true }
+tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-url = { workspace = true }
-uzers = { workspace = true }
+url                = { workspace = true }
+uzers              = { workspace = true }

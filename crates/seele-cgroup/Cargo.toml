@@ -1,13 +1,13 @@
 [package]
 edition.workspace = true
-name = "seele_cgroup"
+name              = "seele_cgroup"
 version.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-dbus = { workspace = true }
+anyhow     = { workspace = true }
+dbus       = { workspace = true }
 libcgroups = { workspace = true }
-tracing = { workspace = true }
+tracing    = { workspace = true }
 
 # local dependencies
 

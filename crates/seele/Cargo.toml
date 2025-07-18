@@ -1,26 +1,26 @@
 [package]
 edition.workspace = true
-name = "seele"
+name              = "seele"
 version.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-axum = { workspace = true }
-num_cpus = { workspace = true }
-opentelemetry = { workspace = true }
-opentelemetry-otlp = { workspace = true }
-opentelemetry_sdk = { workspace = true }
-tokio = { workspace = true }
+anyhow                  = { workspace = true }
+axum                    = { workspace = true }
+num_cpus                = { workspace = true }
+opentelemetry           = { workspace = true }
+opentelemetry-otlp      = { workspace = true }
+opentelemetry_sdk       = { workspace = true }
+tokio                   = { workspace = true }
 tokio-graceful-shutdown = { workspace = true }
-tracing = { workspace = true }
-tracing-opentelemetry = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing                 = { workspace = true }
+tracing-opentelemetry   = { workspace = true }
+tracing-subscriber      = { workspace = true }
 
 # local dependencies
 
-seele_cgroup = { workspace = true }
+seele_cgroup   = { workspace = true }
 seele_composer = { workspace = true }
-seele_config = { workspace = true }
+seele_config   = { workspace = true }
 seele_exchange = { workspace = true }
-seele_shared = { workspace = true }
-seele_worker = { workspace = true }
+seele_shared   = { workspace = true }
+seele_worker   = { workspace = true }
