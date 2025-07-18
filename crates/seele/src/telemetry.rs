@@ -1,16 +1,24 @@
-use std::time::Duration;
+use std::{sync::OnceLock, time::Duration};
 
 use anyhow::{Context, Result};
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::TracerProvider;
 use opentelemetry_otlp::{ExportConfig, MetricExporter, Protocol, SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
-    metrics::{PeriodicReader, SdkMeterProvider, Temporality},
-    trace::TracerProvider,
+    metrics::{SdkMeterProvider, Temporality},
+    trace::SdkTracerProvider,
 };
 use tracing::*;
 use tracing_subscriber::{Layer, filter::LevelFilter, prelude::*};
 
 use crate::{conf, shared};
+
+static TRACER_PROVIDER: OnceLock<SdkTracerProvider> = OnceLock::new();
+
+pub fn shutdown_tracer_provider() {
+    if let Some(provider) = TRACER_PROVIDER.get() {
+        let _ = provider.shutdown();
+    }
+}
 
 pub async fn setup_telemetry() -> Result<()> {
     if conf::CONFIG.telemetry.is_none() {
@@ -32,16 +40,22 @@ pub async fn setup_telemetry() -> Result<()> {
         .with_tonic()
         .with_export_config(ExportConfig {
             endpoint: Some(telemetry.collector_url.clone()),
-            timeout: Duration::from_secs(5),
+            timeout: Some(Duration::from_secs(5)),
             protocol: Protocol::Grpc,
         })
         .build()
         .context("Failed to initialize the tracer")?;
 
-    let tracer_provider = TracerProvider::builder()
-        .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
-        .with_resource(shared::metrics::metrics_resource())
-        .build();
+    let tracer_provider = TRACER_PROVIDER.get_or_init(|| {
+        let provider = SdkTracerProvider::builder()
+            .with_batch_exporter(span_exporter)
+            .with_resource(shared::metrics::metrics_resource())
+            .build();
+
+        opentelemetry::global::set_tracer_provider(provider.clone());
+
+        provider
+    });
 
     let tracer = tracer_provider.tracer("seele");
 
@@ -50,18 +64,14 @@ pub async fn setup_telemetry() -> Result<()> {
         .with_tonic()
         .with_export_config(ExportConfig {
             endpoint: Some(telemetry.collector_url.clone()),
-            timeout: Duration::from_secs(5),
+            timeout: Some(Duration::from_secs(5)),
             protocol: Protocol::Grpc,
         })
         .build()
         .context("Failed to initialize the metrics")?;
 
     let meter_provider = SdkMeterProvider::builder()
-        .with_reader(
-            PeriodicReader::builder(metric_exporter, opentelemetry_sdk::runtime::Tokio)
-                .with_interval(Duration::from_secs(3))
-                .build(),
-        )
+        .with_periodic_exporter(metric_exporter)
         .with_resource(shared::metrics::metrics_resource())
         .build();
 

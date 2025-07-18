@@ -31,13 +31,13 @@ fn resolve_sequence(name_prefix: &str, tasks: &SequenceTasks) -> Result<Arc<Task
 
     let root_node = {
         let (name, root_task) = tasks.first().unwrap();
-        resolve_task(format!("{name_prefix}{}", name), root_task.clone())?
+        resolve_task(format!("{name_prefix}{name}"), root_task.clone())?
     };
     nodes.insert(root_node.name.clone(), root_node.clone());
 
     let mut previous_node = root_node.clone();
     for (i, (name, task)) in tasks.iter().enumerate().skip(1) {
-        let node = resolve_task(format!("{name_prefix}{}", name), task.clone())?;
+        let node = resolve_task(format!("{name_prefix}{name}"), task.clone())?;
 
         match &task.needs {
             None => {

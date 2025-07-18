@@ -60,7 +60,7 @@ fn serialize(debug: bool, signal: &SubmissionSignal) -> String {
             error!("Error serializing the value: {:#}", err);
             "".to_string()
         }
-        Ok(json) => format!("{}\n", json),
+        Ok(json) => format!("{json}\n"),
     }
 }
 
