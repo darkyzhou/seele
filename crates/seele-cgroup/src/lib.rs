@@ -52,7 +52,7 @@ pub fn initialize_cgroup_subtrees() -> Result<()> {
     fs::create_dir(&container_slice_path)?;
 
     let process_id = process::id();
-    write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.procs"), &format!("{}", process_id))?;
+    write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.procs"), &format!("{process_id}"))?;
     if *shared::TINI_PRESENTS {
         write_cgroup_file_str(CGROUP_MAIN_SCOPE_PATH.join("cgroup.procs"), "1")?;
     }
@@ -125,12 +125,12 @@ pub fn bind_application_threads() -> Result<()> {
     }
 
     for (cpu, pid) in available_cpus.into_iter().zip(pids) {
-        let cgroup_path = CGROUP_MAIN_SCOPE_PATH.join(format!("thread-{}", pid));
+        let cgroup_path = CGROUP_MAIN_SCOPE_PATH.join(format!("thread-{pid}"));
         fs::create_dir(&cgroup_path)?;
 
         write_cgroup_file_str(cgroup_path.join("cgroup.type"), "threaded")?;
-        write_cgroup_file_str(cgroup_path.join("cgroup.threads"), &format!("{}", pid))?;
-        write_cgroup_file_str(cgroup_path.join("cpuset.cpus"), &format!("{}", cpu))?;
+        write_cgroup_file_str(cgroup_path.join("cgroup.threads"), &format!("{pid}"))?;
+        write_cgroup_file_str(cgroup_path.join("cpuset.cpus"), &format!("{cpu}"))?;
     }
 
     Ok(())

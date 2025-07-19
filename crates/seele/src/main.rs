@@ -3,7 +3,6 @@
 use std::{fs::create_dir_all, time::Duration};
 
 use anyhow::{Context, Result, bail};
-use opentelemetry::global;
 use seele_composer as composer;
 use seele_config as conf;
 use seele_exchange as exchange;
@@ -65,7 +64,7 @@ fn main() {
 
             if conf::CONFIG.telemetry.is_some() {
                 spawn_blocking(|| {
-                    global::shutdown_tracer_provider();
+                    crate::telemetry::shutdown_tracer_provider();
                     shared::metrics::shutdown_meter_provider();
                 })
                 .await

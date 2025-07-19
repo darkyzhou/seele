@@ -1,23 +1,23 @@
 [package]
 edition.workspace = true
-name = "seele_exchange"
+name              = "seele_exchange"
 version.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-axum = { workspace = true }
-futures-util = { workspace = true }
-lapin = { workspace = true }
-nano-id = { workspace = true }
-ring-channel = { workspace = true }
-serde_json = { workspace = true }
-tokio = { workspace = true }
+anyhow                  = { workspace = true }
+axum                    = { workspace = true }
+futures-util            = { workspace = true }
+lapin                   = { workspace = true }
+nano-id                 = { workspace = true }
+ring-channel            = { workspace = true }
+serde_json              = { workspace = true }
+tokio                   = { workspace = true }
 tokio-graceful-shutdown = { workspace = true }
-tracing = { workspace = true }
-triggered = { workspace = true }
+tracing                 = { workspace = true }
+triggered               = { workspace = true }
 
 # local dependencies
 
 seele_composer = { workspace = true }
-seele_config = { workspace = true }
-seele_shared = { workspace = true }
+seele_config   = { workspace = true }
+seele_shared   = { workspace = true }

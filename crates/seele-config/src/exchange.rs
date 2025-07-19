@@ -39,7 +39,18 @@ pub struct AmqpExchangeSubmissionConfig {
     pub queue: String,
 
     #[serde(default)]
+    #[serde(with = "QueueDeclareOptionsProxy")]
     pub queue_options: lapin::options::QueueDeclareOptions,
+}
+
+#[derive(Deserialize)]
+#[serde(remote = "lapin::options::QueueDeclareOptions")]
+pub struct QueueDeclareOptionsProxy {
+    pub passive: bool,
+    pub durable: bool,
+    pub exclusive: bool,
+    pub auto_delete: bool,
+    pub nowait: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -56,10 +67,32 @@ pub struct LapinExchangeConfig {
     pub name: String,
 
     #[serde(default)]
+    #[serde(with = "ExchangeKindProxy")]
     pub kind: lapin::ExchangeKind,
 
     #[serde(default)]
+    #[serde(with = "ExchangeDeclareOptionsProxy")]
     pub options: lapin::options::ExchangeDeclareOptions,
+}
+
+#[derive(Deserialize)]
+#[serde(remote = "lapin::ExchangeKind")]
+pub enum ExchangeKindProxy {
+    Custom(String),
+    Direct,
+    Fanout,
+    Headers,
+    Topic,
+}
+
+#[derive(Deserialize)]
+#[serde(remote = "lapin::options::ExchangeDeclareOptions")]
+pub struct ExchangeDeclareOptionsProxy {
+    pub passive: bool,
+    pub durable: bool,
+    pub auto_delete: bool,
+    pub internal: bool,
+    pub nowait: bool,
 }
 
 #[inline]

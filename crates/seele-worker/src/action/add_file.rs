@@ -205,7 +205,7 @@ mod tests {
         let ua = &super::conf::CONFIG.http.user_agent;
         assert_eq!(
             fs::read_to_string(PATH).await.unwrap(),
-            format!("{{\n  \"user-agent\": \"{}\"\n}}\n", ua)
+            format!("{{\n  \"user-agent\": \"{ua}\"\n}}\n")
         );
 
         fs::remove_file(PATH).await.unwrap();

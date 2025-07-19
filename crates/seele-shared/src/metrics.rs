@@ -42,7 +42,7 @@ static METRICS_RESOURCE: LazyLock<Resource> = LazyLock::new(|| {
         pairs.push(KeyValue::new("commit.sha", *sha));
     }
 
-    Resource::new(pairs)
+    Resource::builder().with_attributes(pairs).build()
 });
 
 /// Get the global metrics resource
