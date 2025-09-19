@@ -61,9 +61,15 @@ pub async fn run(
                 };
 
                 let (tx, mut rx) = mpsc::channel(1);
-                connection.on_error({
-                    let tx = tx.clone();
-                    move |err| { _ = tx.blocking_send(err); }
+                let mut events_listener = connection.events_listener();
+
+                tokio::spawn(async move {
+                    while let Some(event) = events_listener.next().await {
+                        if let lapin::Event::Error(err) = event {
+                            let _ = tx.send(err).await;
+                            break;
+                        }
+                    }
                 });
 
                 tokio::select! {

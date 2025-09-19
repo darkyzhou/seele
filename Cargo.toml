@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-version = "0.7.0"
+version = "0.7.1"
 
 [profile.release]
 lto       = "thin"
@@ -27,9 +27,9 @@ ellipse                 = "0.2"
 futures-util            = "0.3"
 http                    = "1.2"
 http-cache-reqwest      = "0.16"
-indexmap                = { version = "2.7", features = ["serde"] }
-insta                   = { version = "1.42", features = ["glob", "redactions", "ron"] }
-lapin                   = "3.0"
+indexmap                = { version = "2.11", features = ["serde"] }
+insta                   = { version = "1.43", features = ["glob", "redactions", "ron"] }
+lapin                   = "3.6"
 libcgroups              = "0.5"
 map-macro               = "0.3"
 moka                    = { version = "0.12", features = ["future", "sync"] }

@@ -174,6 +174,8 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn lookup_dynamic_user_by_uid(&self, uid: u32) -> Result<String, dbus::Error>;
     fn get_dynamic_users(&self) -> Result<Vec<(u32, String,)>, dbus::Error>;
     fn dump_unit_file_descriptor_store(&self, name: &str) -> Result<Vec<(String, u32, u32, u32, u64, u32, u32, String, u32,)>, dbus::Error>;
+    #[deprecated(note = "true")]
+    fn start_auxiliary_scope(&self, name: &str, pidfds: Vec<arg::OwnedFd>, flags: u64, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>) -> Result<dbus::Path<'static>, dbus::Error>;
     fn version(&self) -> Result<String, dbus::Error>;
     fn features(&self) -> Result<String, dbus::Error>;
     fn virtualization(&self) -> Result<String, dbus::Error>;
@@ -192,6 +194,8 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn userspace_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn finish_timestamp(&self) -> Result<u64, dbus::Error>;
     fn finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
+    fn shutdown_start_timestamp(&self) -> Result<u64, dbus::Error>;
+    fn shutdown_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn security_start_timestamp(&self) -> Result<u64, dbus::Error>;
     fn security_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error>;
     fn security_finish_timestamp(&self) -> Result<u64, dbus::Error>;
@@ -305,6 +309,7 @@ pub trait OrgFreedesktopSystemd1Manager {
     fn default_oompolicy(&self) -> Result<String, dbus::Error>;
     fn default_oomscore_adjust(&self) -> Result<i32, dbus::Error>;
     fn ctrl_alt_del_burst_action(&self) -> Result<String, dbus::Error>;
+    fn soft_reboots_count(&self) -> Result<u32, dbus::Error>;
 }
 
 #[derive(Debug)]
@@ -905,6 +910,11 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
             .and_then(|r: (Vec<(String, u32, u32, u32, u64, u32, u32, String, u32,)>, )| Ok(r.0, ))
     }
 
+    fn start_auxiliary_scope(&self, name: &str, pidfds: Vec<arg::OwnedFd>, flags: u64, properties: Vec<(&str, arg::Variant<Box<dyn arg::RefArg>>,)>) -> Result<dbus::Path<'static>, dbus::Error> {
+        self.method_call("org.freedesktop.systemd1.Manager", "StartAuxiliaryScope", (name, pidfds, flags, properties, ))
+            .and_then(|r: (dbus::Path<'static>, )| Ok(r.0, ))
+    }
+
     fn version(&self) -> Result<String, dbus::Error> {
         <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "Version")
     }
@@ -975,6 +985,14 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
 
     fn finish_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
         <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "FinishTimestampMonotonic")
+    }
+
+    fn shutdown_start_timestamp(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ShutdownStartTimestamp")
+    }
+
+    fn shutdown_start_timestamp_monotonic(&self) -> Result<u64, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "ShutdownStartTimestampMonotonic")
     }
 
     fn security_start_timestamp(&self) -> Result<u64, dbus::Error> {
@@ -1395,6 +1413,10 @@ impl<'a, T: blocking::BlockingSender, C: ::std::ops::Deref<Target=T>> OrgFreedes
 
     fn ctrl_alt_del_burst_action(&self) -> Result<String, dbus::Error> {
         <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "CtrlAltDelBurstAction")
+    }
+
+    fn soft_reboots_count(&self) -> Result<u32, dbus::Error> {
+        <Self as blocking::stdintf::org_freedesktop_dbus::Properties>::get(self, "org.freedesktop.systemd1.Manager", "SoftRebootsCount")
     }
 
     fn set_log_level(&self, value: String) -> Result<(), dbus::Error> {

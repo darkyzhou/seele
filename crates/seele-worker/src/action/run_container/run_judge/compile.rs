@@ -154,13 +154,13 @@ pub async fn execute(
                 cache_data.insert(name, data.into_boxed_slice());
             }
 
-            if let Some(hash) = hash {
-                if !cache_data.is_empty() {
-                    let data =
-                        spawn_blocking(move || rkyv::to_bytes::<rkyv::rancor::Error>(&cache_data))
-                            .await??;
-                    cache::write(hash, Arc::from(data.into_boxed_slice()));
-                }
+            if let Some(hash) = hash
+                && !cache_data.is_empty()
+            {
+                let data =
+                    spawn_blocking(move || rkyv::to_bytes::<rkyv::rancor::Error>(&cache_data))
+                        .await??;
+                cache::write(hash, Arc::from(data.into_boxed_slice()));
             }
         }
 

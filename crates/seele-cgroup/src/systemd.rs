@@ -29,7 +29,7 @@ pub fn create_and_enter_cgroup() -> Result<PathBuf> {
         .collect())
 }
 
-fn create_proxy(connection: &Connection) -> Proxy<&Connection> {
+fn create_proxy(connection: &Connection) -> Proxy<'_, &Connection> {
     connection.with_proxy(
         "org.freedesktop.systemd1",
         "/org/freedesktop/systemd1",

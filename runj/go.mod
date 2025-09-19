@@ -3,7 +3,7 @@ module github.com/darkyzhou/seele/runj
 go 1.24.4
 
 require (
-	github.com/coreos/go-systemd/v22 v22.5.0
+	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/cyphar/filepath-securejoin v0.4.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/godbus/dbus/v5 v5.1.0
@@ -16,7 +16,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/samber/lo v1.51.0
 	github.com/sirupsen/logrus v1.9.3
-	golang.org/x/sys v0.34.0
+	golang.org/x/sys v0.36.0
 )
 
 require (
