@@ -1,0 +1,23 @@
+[package]
+edition.workspace = true
+name              = "runj"
+version.workspace = true
+
+[dependencies]
+anyhow     = { workspace = true }
+libcgroups = { workspace = true }
+nix        = { workspace = true }
+serde      = { workspace = true, features = [ "derive" ] }
+serde_json = { workspace = true }
+tempfile   = "3"
+nanoid    = "0.4"
+# oci runtime spec helpers
+oci-spec = { version = "0.8", features = [ "runtime" ] }
+
+# local deps
+seele_shared = { workspace = true }
+
+# youki libcontainer (use library, not CLI)
+libcontainer = { version = "0.5", default-features = false, features = [
+    "v2"
+] }

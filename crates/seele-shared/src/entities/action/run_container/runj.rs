@@ -9,6 +9,7 @@ pub struct RunjConfig {
 
     pub overlayfs: OverlayfsConfig,
 
+    #[serde(default = "default_cgroup_path")]
     pub cgroup_path: PathBuf,
 
     pub cwd: PathBuf,
@@ -25,6 +26,10 @@ pub struct RunjConfig {
     pub mounts: Vec<MountConfig>,
 
     pub limits: LimitsConfig,
+}
+
+fn default_cgroup_path() -> PathBuf {
+    PathBuf::from("/sys/fs/cgroup")
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
