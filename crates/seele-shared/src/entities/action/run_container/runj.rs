@@ -124,6 +124,12 @@ impl RlimitItem {
     pub fn new_single(value: u64) -> Self {
         Self { hard: value, soft: value }
     }
+
+    #[inline]
+    pub fn hard(&self) -> u64 { self.hard }
+
+    #[inline]
+    pub fn soft(&self) -> u64 { self.soft }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

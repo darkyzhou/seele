@@ -34,7 +34,7 @@ libcgroups              = "0.5"
 map-macro               = "0.3"
 moka                    = { version = "0.12", features = ["future", "sync"] }
 nano-id                 = { version = "0.4", features = ["base62"] }
-nix                     = { version = "0.30.1", features = ["hostname", "mount", "signal"] }
+nix                     = { version = "0.30.1", features = ["hostname", "mount", "signal", "fs", "process"] }
 num_cpus                = "1"
 opentelemetry           = "0.30"
 opentelemetry-otlp      = { version = "0.30", features = ["grpc-tonic"] }
